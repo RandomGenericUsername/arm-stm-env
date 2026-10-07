@@ -20,8 +20,10 @@ Format: any non-trivial claim gets an `Evidence:` line and a `Verify:` line (how
 - Prefer executed output over recalled text. Read files, run commands (`rg`, `git log`, `docker`, `cargo`, `openspec validate`), paste results.
 - When findings contradict an earlier claim, state the discrepancy and trust the evidence.
 
-## 3. OpenSpec + BMAD routing
+## 3. OpenSpec + BMAD routing (via tickets)
 
+- All work starts as a ticket in `tickets/` (`_template/`, vocab + rollup in `INDEX.md`, flow in `LIFECYCLE.md`). Triage with `/triage` (lanes in `tickets/_fixtures/router-lanes.md`).
 - Broad scope (product, requirements, architecture, cross-device design) → BMAD. Only installed skills: `bmad`, `bmad-build` — say so when a step needs a missing skill instead of improvising.
 - Bounded slices (one proposal + spec + design + tasks) → OpenSpec (`/opsx-propose`, `/opsx-apply`, `/opsx-archive`). Artifact rules in `openspec/config.yaml` restate this evidence rule per artifact.
+- Never work on main: `scripts/worktree-guard.sh create <id> <slug>` scaffolds `ticket/<id>-<slug>` + worktree, aborts when dirty. Record worktree/branch in the ticket.
 - Keep changes small, verifiable, committable. Never mix planning edits with implementation in one turn.

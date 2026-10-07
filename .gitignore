@@ -20,3 +20,6 @@ build/
 
 # openspec local
 openspec/worksets/
+
+# worktrees (ticket harness)
+.worktrees/

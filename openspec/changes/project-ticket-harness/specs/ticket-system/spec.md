@@ -10,7 +10,7 @@ The ticket system is the project's own work index: it classifies every work item
 
 Every item SHALL declare exactly one `kind:` from the fixed set `epic | requirement | bug | ops-task | spike | task`. No other kinds are valid. `ops-task` MAY be read as `chore` (Shortcut mapping); the file MUST still declare `ops-task`.
 
-Evidence: user decisions in triage discussion plus industry inventory (Jira initiatives→epics→stories; beads epic→task→sub-task hierarchy with `bug` type; spec-kit separate bug lane — see discussion record). Verify: `rg -l "^kind: (epic|requirement|bug|ops-task|spike|task)$" tickets/ | wc -l` equals number of item files.
+Evidence: user decisions in triage discussion plus industry inventory (Jira initiatives→epics→stories; beads epic→task→sub-task hierarchy with `bug` type; spec-kit separate bug lane — see discussion record). Verify (run from `tickets/`): `rg -l "^kind: (epic|requirement|bug|ops-task|spike|task)$" . --glob '!_template/**' --glob '!_fixtures/**' | wc -l` equals number of item files.
 
 #### Scenario: Unknown kind rejected
 
@@ -74,7 +74,7 @@ Evidence: user decision "lets add task then" with parent-required semantics. Ver
 
 Every INDEX.md entry SHALL contain, in order: a relative link to the item file, the item title, the current `status`, and the execution links (OpenSpec change names and/or BMAD artifact paths, or `none`). Epic entries SHALL additionally show children rollup as `done/total children done`, the one-line `done-when`, and one nested line per child with its own link, title, and status. Bug entries SHALL additionally show severity; spike entries SHALL additionally show timebox state (`boxed <limit>` | `reported`).
 
-Evidence: user requirement that the index be detailed data (link, title, status, completed subtasks), not prose. Verify: render check — `rg -c "^\s*- \[" tickets/INDEX.md` entry count matches item-file count plus epic-children lines, and every epic line matches `\| \`[a-z-]+\` \| [0-9]+/[0-9]+ children done`.
+Evidence: user requirement that the index be detailed data (link, title, status, completed subtasks), not prose. Verify (run from `tickets/`, templates/fixtures excluded): render check — entry count matches item-file count plus epic-children lines, and every epic line carries `done/total children done`.
 
 #### Scenario: Epic rollup line
 
