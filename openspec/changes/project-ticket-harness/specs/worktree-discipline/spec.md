@@ -28,6 +28,11 @@ Evidence: user requirement "if main is dirty abort until I address it". Verify: 
 - **WHEN** main is clean
 - **THEN** the guard creates `.worktrees/<item-id>/` on branch `ticket/<id>-<slug>` and records both in the item file
 
+#### Scenario: Guard runs before writing
+
+- **WHEN** an item's ticket file is written before the guard runs
+- **THEN** the guard aborts on the uncommitted file; correct order is guard-create first, then write inside the new worktree
+
 ### Requirement: Trivial ops still obey git discipline
 
 Ops tasks that skip OpenSpec/BMAD ceremony SHALL still pass the main-clean check and work in a worktree on a ticket branch.
