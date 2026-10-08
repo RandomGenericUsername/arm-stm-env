@@ -10,6 +10,7 @@
 
 ## Requirements
 
+- [req-002-distill-spec](./req-002-distill-spec/ticket.md) — Distill spec from finalized brief | `done` | exec: bmad spec
 - [req-001-product-brief](./req-001-product-brief/ticket.md) — Product brief for universal MCU dev framework | `done` | exec: bmad brief
 
 ## Bugs

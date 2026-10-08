@@ -2,7 +2,7 @@
 id: req-002
 title: "Distill spec from finalized brief"
 kind: requirement
-status: in-progress
+status: done
 size: S
 lane: bmad-advisory
 links:
@@ -21,8 +21,8 @@ A machine-readable spec kernel (+ companions) distilled from the finalized brief
 
 ## Acceptance
 
-- [ ] spec-universal-mcu-env.md exists with 5-field kernel, self-validate verdicts logged. `Verify: ls _bmad-output/initiative-universal-mcu-env/spec-universal-mcu-env/`
-- [ ] User reviews capabilities/assumptions/open questions. `Verify: user sign-off in conversation`
+- [x] spec-universal-mcu-env.md exists with 5-field kernel, self-validate verdicts logged. `Verify: ls _bmad-output/initiative-universal-mcu-env/spec-universal-mcu-env/`
+- [x] User reviews capabilities/assumptions/open questions. `Verify: user sign-off in conversation`
 
 ## Evidence
 
