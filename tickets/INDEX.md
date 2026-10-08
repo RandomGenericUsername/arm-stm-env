@@ -10,7 +10,7 @@
 
 ## Requirements
 
-(none)
+- [req-001-product-brief](./req-001-product-brief/ticket.md) — Product brief for universal MCU dev framework | `done` | exec: bmad brief
 
 ## Bugs
 
