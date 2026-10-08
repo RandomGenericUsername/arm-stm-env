@@ -15,7 +15,7 @@ Format: any non-trivial claim gets an `Evidence:` line and a `Verify:` line (how
 ## 2. How we work here
 
 - Greenfield, requirements-first. Old repos (`../ArmDevelopmentEnvironment`, `../rust-embedded-environment`) are lessons only — cite them as evidence, never copy blindly.
-- Target: universal device framework (STM32 first as reference pack), device-agnostic core + device packs + user config overlay (memory/linker/SVD/probe).
+- Target: universal device framework (STM32 first as reference pack), device-agnostic core + device packs + user-supplied configs (one source per invocation, whole-source replacement).
 - Dual-mode CLI is the spine: (a) containerized interactive dev env, (b) host-transparent `compile/build/flash` with zero host deps.
 - Prefer executed output over recalled text. Read files, run commands (`rg`, `git log`, `docker`, `cargo`, `openspec validate`), paste results.
 - When findings contradict an earlier claim, state the discrepancy and trust the evidence.
