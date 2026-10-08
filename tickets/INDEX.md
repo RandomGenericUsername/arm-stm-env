@@ -15,9 +15,9 @@
   - [req-005-cli-verbs](./req-005-cli-verbs/ticket.md) — Thin CLI verbs + shim | `triaged`
   - [req-006-probe-adapters](./req-006-probe-adapters/ticket.md) — Probe adapters OpenOCD (+ probe-rs second) | `triaged`
   - [req-007-container-images](./req-007-container-images/ticket.md) — Container images per toolchain + caches | `triaged`
-  - [spike-001-openocd-targets](./spike-001-openocd-targets/ticket.md) — Per-pack OpenOCD target verification | `boxed` | boxed 3h
+  - [spike-001-openocd-targets](./spike-001-openocd-targets/ticket.md) — Per-pack OpenOCD target verification | `reporting` | boxed 3h — findings filed, 2 verdicts corrected by orchestrator; consumes into req-004
   - [spike-002-cpp-deps](./spike-002-cpp-deps/ticket.md) — C/C++ dependency mechanism | `boxed` | boxed 4h
-  - [spike-003-toolchain-recon](./spike-003-toolchain-recon/ticket.md) — 2026 toolchain recon | `boxed` | boxed 3h
+  - [spike-003-toolchain-recon](./spike-003-toolchain-recon/ticket.md) — 2026 toolchain recon | `reporting` | boxed 3h — findings filed, 2 verdicts corrected by orchestrator; consumes into req-004
 
 ## Requirements
 
