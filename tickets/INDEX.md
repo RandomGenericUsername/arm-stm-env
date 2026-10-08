@@ -17,7 +17,7 @@
   - [req-007-container-images](./req-007-container-images/ticket.md) — Container images per toolchain + caches | `triaged`
   - [spike-001-openocd-targets](./spike-001-openocd-targets/ticket.md) — Per-pack OpenOCD target verification | `reporting` | boxed 3h — findings filed, 2 verdicts corrected by orchestrator; consumes into req-004
   - [spike-002-cpp-deps](./spike-002-cpp-deps/ticket.md) — C/C++ dependency mechanism | `reporting` | boxed 4h — findings filed, pick vendoring; consumes into req-007/post-V1
-  - [spike-003-toolchain-recon](./spike-003-toolchain-recon/ticket.md) — 2026 toolchain recon | `boxed` | boxed 3h
+  - [spike-003-toolchain-recon](./spike-003-toolchain-recon/ticket.md) — 2026 toolchain recon | `reporting` | boxed 3h — findings filed, vanilla-GCC verdict; CubeCLT gated on license proof
 
 ## Requirements
 
