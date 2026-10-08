@@ -6,6 +6,15 @@ status: decomposed
 children:
   - req-001
   - req-002
+  - req-003
+  - req-004
+  - req-005
+  - req-006
+  - req-007
+  - spike-001
+  - spike-002
+  - spike-003
+  - task-001
 done-when: "V1 matrix (3 packs x 3 langs, OpenOCD) completes create-build-flash-run from clean machines per pack proof rituals"
 links:
   openspec: []

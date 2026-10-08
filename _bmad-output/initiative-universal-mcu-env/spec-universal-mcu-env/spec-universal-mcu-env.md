@@ -1,6 +1,8 @@
 ---
 id: SPEC-universal-mcu-env
 companions:
+  - ../architecture-universal-mcu-env/architecture-universal-mcu-env.md
+  - ../architecture-universal-mcu-env/work-split-view.md
   - device-matrix.md
 sources:
   - ../../brief-universal-mcu-env/brief-universal-mcu-env.md
