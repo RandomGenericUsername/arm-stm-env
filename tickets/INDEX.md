@@ -6,14 +6,22 @@
 
 ## Active epics
 
-- [epic-001-universal-framework](./epic-001-universal-framework/epic.md) — Universal MCU dev framework | `decomposed` | 2/2 children done | done-when: V1 matrix completes create-build-flash-run from clean machines | exec: bmad brief+spec
+- [epic-001-universal-framework](./epic-001-universal-framework/epic.md) — Universal MCU dev framework | `decomposed` | 3/11 children done | done-when: V1 matrix completes create-build-flash-run from clean machines | exec: bmad brief+spec+spine
   - [req-001-product-brief](./req-001-product-brief/ticket.md) — Product brief for universal MCU dev framework | `done`
   - [req-002-distill-spec](./req-002-distill-spec/ticket.md) — Distill spec from finalized brief | `done`
+  - [task-001-adopt-split-decompose](./task-001-adopt-split-decompose/ticket.md) — Adopt spine, validate, decompose epic | `done`
+  - [req-003-engine-core](./req-003-engine-core/ticket.md) — Engine core + model validation | `triaged`
+  - [req-004-pack-schema](./req-004-pack-schema/ticket.md) — Pack frame schema + 3 STM32 packs | `triaged`
+  - [req-005-cli-verbs](./req-005-cli-verbs/ticket.md) — Thin CLI verbs + shim | `triaged`
+  - [req-006-probe-adapters](./req-006-probe-adapters/ticket.md) — Probe adapters OpenOCD (+ probe-rs second) | `triaged`
+  - [req-007-container-images](./req-007-container-images/ticket.md) — Container images per toolchain + caches | `triaged`
+  - [spike-001-openocd-targets](./spike-001-openocd-targets/ticket.md) — Per-pack OpenOCD target verification | `boxed` | boxed 3h
+  - [spike-002-cpp-deps](./spike-002-cpp-deps/ticket.md) — C/C++ dependency mechanism | `boxed` | boxed 4h
+  - [spike-003-toolchain-recon](./spike-003-toolchain-recon/ticket.md) — 2026 toolchain recon | `boxed` | boxed 3h
 
 ## Requirements
 
-- [req-002-distill-spec](./req-002-distill-spec/ticket.md) — Distill spec from finalized brief | `done` | exec: bmad spec
-- [req-001-product-brief](./req-001-product-brief/ticket.md) — Product brief for universal MCU dev framework | `done` | exec: bmad brief
+(covered under epic-001 above; standalone entries appear here only for items without a parent epic)
 
 ## Bugs
 
