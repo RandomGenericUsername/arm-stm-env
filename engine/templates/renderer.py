@@ -496,6 +496,16 @@ def _first_region(device: Device, want: str, fallback: str) -> str:
     return fallback
 
 
+def _core_region(device: Device, core_name: str, want: str, fallback: str) -> str:
+    """Per-core region: prefer a ``want`` region naming the core (M4 ->
+    flash_m4 on dual-bank packs), else the first ``want`` region (shared
+    single-region packs). Mirrors ``engine.verify.e2e.pick_region``."""
+    for m in device.memory:
+        if want in m.name.lower() and core_name.lower() in m.name.lower():
+            return m.name.upper()
+    return _first_region(device, want, fallback)
+
+
 def _memoryx_regions(device: Device) -> str:
     names = {m.name.upper() for m in device.memory}
     lines = [_ld_regions(device)]
@@ -554,8 +564,8 @@ def render(pack_model: Device, lang: str, out_dir: str | Path) -> list[Path]:
             sections.append(_MAKEFILE_CORE.substitute(ctx))
             rows.append(f"- `{core.name}`: `{ctx['startup_s']}`")
             write(f"src/main-{core.name}.{ext}", _MAIN_C.substitute(ctx))
-            flash_region = _first_region(pack_model, "flash", pack_model.memory[0].name.upper())
-            ram_region = _first_region(pack_model, "ram", pack_model.memory[0].name.upper())
+            flash_region = _core_region(pack_model, core.name, "flash", pack_model.memory[0].name.upper())
+            ram_region = _core_region(pack_model, core.name, "ram", pack_model.memory[0].name.upper())
             write(
                 f"linker/{ctx['linker_script']}",
                 _LINKER.substitute(

@@ -35,6 +35,16 @@ def test_renderer_per_core_contexts_cover_every_core(pack_id: str) -> None:
         assert ctx["linker_script"] == device.facets.linker_for(core.name, device.id)
 
 
+def test_renderer_dual_bank_cores_link_own_flash(tmp_path) -> None:
+    """H755 M7 -> FLASH_M7, M4 -> FLASH_M4 (per-core region, not first-bank)."""
+    device = load_file(PACKS_DIR / "stm32h755.yaml")
+    render(device, "c", tmp_path)
+    m7 = (tmp_path / f"linker/{device.facets.linker_for('M7', device.id)}").read_text()
+    m4 = (tmp_path / f"linker/{device.facets.linker_for('M4', device.id)}").read_text()
+    assert ">FLASH_M7" in m7 and ">FLASH_M4" not in m7
+    assert ">FLASH_M4" in m4 and ">FLASH_M7" not in m4
+
+
 def test_renderer_supported_langs() -> None:
     assert SUPPORTED_LANGS == ("c", "cpp", "rust")
 
