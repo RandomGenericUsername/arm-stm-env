@@ -2,7 +2,7 @@
 id: req-005
 title: "Thin CLI verbs + shim"
 kind: requirement
-status: triaged
+status: done
 size: M
 lane: bmad-advisory
 links:
