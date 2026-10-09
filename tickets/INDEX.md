@@ -30,7 +30,7 @@
 
 ## Ops tasks
 
-(none)
+- [ops-007-make-commands](./ops-007-make-commands/ticket.md) — Make commands for fresh-clone rebuild | `done` | exec: direct
 
 ## Spikes
 

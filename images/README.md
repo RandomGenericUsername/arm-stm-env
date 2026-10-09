@@ -19,11 +19,12 @@ digest, toolchain version + source URL + checksum, OpenOCD fork SHA.
 ## Build
 
 ```sh
-docker build -f images/cpp.Dockerfile  -t arm-stm-env/lang-cpp:15.3.rel2 .
-docker build -f images/rust.Dockerfile -t arm-stm-env/lang-rust:1.99.0 .
-docker inspect arm-stm-env/lang-cpp:15.3.rel2  --format='{{.RepoDigests}}'
-docker inspect arm-stm-env/lang-rust:1.99.0    --format='{{.RepoDigests}}'
+docker build --platform linux/amd64 -f images/cpp.Dockerfile  -t ghcr.io/arm-stm-env/lang-cpp:15.3.rel2 images/
+docker build --platform linux/amd64 -f images/rust.Dockerfile -t ghcr.io/arm-stm-env/lang-rust:1.99.0 images/
+docker inspect ghcr.io/arm-stm-env/lang-cpp:15.3.rel2  --format='{{.RepoDigests}}'
+docker inspect ghcr.io/arm-stm-env/lang-rust:1.99.0    --format='{{.RepoDigests}}'
 ```
+(Prefer `make images` / `make digests` — same commands, parameterized.)
 
 Record the resulting digests here after each build (base-image updates change
 them; re-record, do not silently float).
