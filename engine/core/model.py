@@ -18,6 +18,7 @@ __all__ = [
     "Core",
     "CoreView",
     "Device",
+    "DeviceFacets",
     "DeviceView",
     "Endpoint",
     "MemoryRegion",
@@ -94,12 +95,16 @@ class OpenocdConfig:
 
     ``target`` is the board-or-target config file (registry accepts
     ``board`` or ``target``; the loader normalises to ``target``).
-    ``dual_core`` selects the dual-session flag rendering.
+    ``board`` keeps the raw ``board`` key (None when the pack declares a
+    ``target`` key instead) so renderers can pick the ``board/`` vs
+    ``target/`` config path (req-008). ``dual_core`` selects the
+    dual-session flag rendering.
     """
 
     interface: str
     target: str
     dual_core: bool = False
+    board: str | None = None
 
     def __post_init__(self) -> None:
         if not self.interface:
@@ -108,6 +113,8 @@ class OpenocdConfig:
             raise ValueError("OpenocdConfig.target must be non-empty")
         if not isinstance(self.dual_core, bool):
             raise ValueError("OpenocdConfig.dual_core must be a bool")
+        if self.board is not None and not self.board:
+            raise ValueError("OpenocdConfig.board must be a non-empty string or None")
 
 
 @dataclass(frozen=True)
@@ -132,6 +139,30 @@ class ProofResult:
 
 
 @dataclass(frozen=True)
+class DeviceFacets:
+    """Validated family-block facts attached to a Device (req-008, group 2).
+
+    Populated by the loader from ``blocks`` (fpu/linker/config_headers) after
+    registry validation, so the renderer consumes the model only and never
+    re-reads pack YAML. All fields have pack-agnostic defaults; a missing
+    block leaves its default in place.
+    """
+
+    fpu_mode: str = "soft"
+    fpu_variant: str = "none"
+    linker: Tuple[Tuple[str, str], ...] = ()
+    config_library: str = "stm32hal"
+    config_header: str = "stm32_config.h"
+    config_defaults_source: str = "pack/defaults.h"
+
+    def linker_for(self, core_name: str, device_id: str) -> str:
+        for name, script in self.linker:
+            if name == core_name:
+                return script
+        return f"{device_id}_{core_name}_FLASH.ld"
+
+
+@dataclass(frozen=True)
 class Device:
     """Certified device: immutable facts + provenance (pack id + version + source hash)."""
 
@@ -144,6 +175,7 @@ class Device:
     proof_rung: str
     openocd: OpenocdConfig | None = None
     provenance: Tuple[Tuple[str, str], ...] = ()
+    facets: DeviceFacets | None = None
 
     def __init__(
         self,
@@ -156,6 +188,7 @@ class Device:
         proof_rung: str,
         openocd: OpenocdConfig | None = None,
         provenance: dict[str, str] | Sequence[tuple[str, str] | list[str]] = (),
+        facets: DeviceFacets | None = None,
     ) -> None:
         if not id:
             raise ValueError("Device.id must be non-empty")
@@ -179,6 +212,8 @@ class Device:
             raise ValueError("Device.proof_rung must be non-empty")
         if openocd is not None and not isinstance(openocd, OpenocdConfig):
             raise TypeError("Device.openocd must be an OpenocdConfig or None")
+        if facets is not None and not isinstance(facets, DeviceFacets):
+            raise TypeError("Device.facets must be a DeviceFacets or None")
         prov = tuple(sorted(provenance.items())) if isinstance(provenance, dict) else tuple(sorted((str(k), str(v)) for k, v in provenance))
         # Provenance always traces to inputs: pack id + version are mandatory facts.
         base = {"pack_id": id, "pack_version": version}
@@ -191,6 +226,7 @@ class Device:
         object.__setattr__(self, "probe_ref", probe_ref)
         object.__setattr__(self, "proof_rung", proof_rung)
         object.__setattr__(self, "openocd", openocd)
+        object.__setattr__(self, "facets", facets if facets is not None else DeviceFacets())
         object.__setattr__(self, "provenance", tuple(sorted(base.items())))
 
 

@@ -13,7 +13,7 @@ from pathlib import Path
 
 import yaml
 
-from engine.core.model import Core, Device, Endpoint, MemoryRegion, OpenocdConfig
+from engine.core.model import Core, Device, DeviceFacets, Endpoint, MemoryRegion, OpenocdConfig
 from engine.core.registry import UnknownBlockError, validate_block
 
 __all__ = ["FRAME_KEYS", "FrameError", "load_file", "load_text", "validate_frame"]
@@ -68,7 +68,22 @@ def validate_frame(doc: dict) -> Device:
             interface=raw_block["interface"],
             target=target,
             dual_core=bool(raw_block.get("dual_core", False)),
+            board=raw_block.get("board"),
         )
+    # Attach validated family blocks as model facets (req-008 group 2):
+    # registry validators already certified shapes above, so direct reads
+    # here are safe. A missing block leaves the DeviceFacets default.
+    fpu_block = blocks.get("fpu", {})
+    linker_block = blocks.get("linker", {})
+    cfg_block = blocks.get("config_headers", {})
+    facets = DeviceFacets(
+        fpu_mode=fpu_block.get("mode", "soft"),
+        fpu_variant=fpu_block.get("variant", "none"),
+        linker=tuple(sorted(linker_block.items())),
+        config_library=cfg_block.get("library", "stm32hal"),
+        config_header=cfg_block.get("header", "stm32_config.h"),
+        config_defaults_source=cfg_block.get("defaults_source", "pack/defaults.h"),
+    )
     return Device(
         id=doc["id"],
         version=str(doc["version"]),
@@ -79,6 +94,7 @@ def validate_frame(doc: dict) -> Device:
         proof_rung=doc["proof_rung"],
         openocd=openocd,
         provenance={"pack_id": doc["id"], "pack_version": str(doc["version"])},
+        facets=facets,
     )
 
 

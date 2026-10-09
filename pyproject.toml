@@ -23,4 +23,4 @@ build-backend = "hatchling.build"
 packages = ["engine"]
 
 [tool.pytest.ini_options]
-testpaths = ["engine/core/tests", "engine/cli/tests", "engine/adapters/tests"]
+testpaths = ["engine/core/tests", "engine/cli/tests", "engine/adapters/tests", "engine/templates/tests"]
