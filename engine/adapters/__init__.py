@@ -83,9 +83,11 @@ class DefaultImageLookup(ImageLookup):
     """Core-owned default table (stdlib mapping, no device knowledge)."""
 
     TABLE: dict[str, str] = {
-        "c": "ghcr.io/arm-stm-env/lang-c:latest",
-        "cpp": "ghcr.io/arm-stm-env/lang-cpp:latest",
-        "rust": "ghcr.io/arm-stm-env/lang-rust:latest",
+        # Pinned refs (req-007). c shares the cpp image: one ARM GCC
+        # toolchain compiles both; a separate lang-c image would duplicate it.
+        "c": "ghcr.io/arm-stm-env/lang-cpp:15.3.rel2",
+        "cpp": "ghcr.io/arm-stm-env/lang-cpp:15.3.rel2",
+        "rust": "ghcr.io/arm-stm-env/lang-rust:1.99.0",
     }
 
     def image_for(self, lang: str) -> str:
