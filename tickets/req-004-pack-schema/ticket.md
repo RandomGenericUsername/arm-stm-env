@@ -23,6 +23,7 @@ Frame validator, STM32 family blocks, F411RE/H755/WL55JC packs with re-verified 
 
 - [ ] All 3 packs validate against the frame + family schema. `Verify: <defined at build>`
 - [ ] OpenOCD targets re-verified (depends on spike-001). `Verify: <defined at build>`
+- [ ] Generated project carries a working config-header path for at least one library (pack ships defaults, template generates per-project `config/` dir, user overrides via project file; `-I` order + `-D` selectors per spike-004). `Verify: <defined at build>`
 
 ## Evidence
 
