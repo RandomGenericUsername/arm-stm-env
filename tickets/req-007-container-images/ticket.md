@@ -2,7 +2,7 @@
 id: req-007
 title: "Container images per toolchain + caches"
 kind: requirement
-status: triaged
+status: done
 size: M
 lane: bmad-advisory
 links:

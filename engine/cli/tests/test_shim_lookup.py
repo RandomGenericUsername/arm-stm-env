@@ -21,9 +21,9 @@ class _RecordingLookup(ImageLookup):
 
 def test_shim_lookup_maps_languages_via_core_interface():
     lookup = DefaultImageLookup()
-    assert lookup.image_for("c") == "ghcr.io/arm-stm-env/lang-c:latest"
-    assert lookup.image_for("cpp") == "ghcr.io/arm-stm-env/lang-cpp:latest"
-    assert lookup.image_for("rust") == "ghcr.io/arm-stm-env/lang-rust:latest"
+    assert lookup.image_for("c") == "ghcr.io/arm-stm-env/lang-cpp:15.3.rel2"
+    assert lookup.image_for("cpp") == "ghcr.io/arm-stm-env/lang-cpp:15.3.rel2"
+    assert lookup.image_for("rust") == "ghcr.io/arm-stm-env/lang-rust:1.99.0"
     with pytest.raises(ValueError):
         lookup.image_for("nope")
 
