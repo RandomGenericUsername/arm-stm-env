@@ -2,7 +2,7 @@
 id: req-006
 title: "Probe adapters OpenOCD (+ probe-rs second)"
 kind: requirement
-status: triaged
+status: done
 size: M
 lane: bmad-advisory
 links:

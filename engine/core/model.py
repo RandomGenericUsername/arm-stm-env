@@ -22,6 +22,7 @@ __all__ = [
     "Endpoint",
     "MemoryRegion",
     "MemoryRegionView",
+    "OpenocdConfig",
     "ProofResult",
 ]
 
@@ -88,6 +89,28 @@ class Endpoint:
 
 
 @dataclass(frozen=True)
+class OpenocdConfig:
+    """Certified OpenOCD facts from the pack's ``openocd`` block (req-006).
+
+    ``target`` is the board-or-target config file (registry accepts
+    ``board`` or ``target``; the loader normalises to ``target``).
+    ``dual_core`` selects the dual-session flag rendering.
+    """
+
+    interface: str
+    target: str
+    dual_core: bool = False
+
+    def __post_init__(self) -> None:
+        if not self.interface:
+            raise ValueError("OpenocdConfig.interface must be non-empty")
+        if not self.target:
+            raise ValueError("OpenocdConfig.target must be non-empty")
+        if not isinstance(self.dual_core, bool):
+            raise ValueError("OpenocdConfig.dual_core must be a bool")
+
+
+@dataclass(frozen=True)
 class ProofResult:
     """Proof verdict for one rung: rung name + comparable evidence payload."""
 
@@ -119,6 +142,7 @@ class Device:
     memory: Tuple[MemoryRegion, ...]
     probe_ref: Endpoint
     proof_rung: str
+    openocd: OpenocdConfig | None = None
     provenance: Tuple[Tuple[str, str], ...] = ()
 
     def __init__(
@@ -130,6 +154,7 @@ class Device:
         memory: Sequence[MemoryRegion],
         probe_ref: Endpoint,
         proof_rung: str,
+        openocd: OpenocdConfig | None = None,
         provenance: dict[str, str] | Sequence[tuple[str, str] | list[str]] = (),
     ) -> None:
         if not id:
@@ -152,6 +177,8 @@ class Device:
             raise TypeError("Device.probe_ref must be an Endpoint")
         if not proof_rung:
             raise ValueError("Device.proof_rung must be non-empty")
+        if openocd is not None and not isinstance(openocd, OpenocdConfig):
+            raise TypeError("Device.openocd must be an OpenocdConfig or None")
         prov = tuple(sorted(provenance.items())) if isinstance(provenance, dict) else tuple(sorted((str(k), str(v)) for k, v in provenance))
         # Provenance always traces to inputs: pack id + version are mandatory facts.
         base = {"pack_id": id, "pack_version": version}
@@ -163,6 +190,7 @@ class Device:
         object.__setattr__(self, "memory", mem_t)
         object.__setattr__(self, "probe_ref", probe_ref)
         object.__setattr__(self, "proof_rung", proof_rung)
+        object.__setattr__(self, "openocd", openocd)
         object.__setattr__(self, "provenance", tuple(sorted(base.items())))
 
 
@@ -202,6 +230,9 @@ class DeviceView:
     probe_transport: str
     probe_address: str
     proof_rung: str
+    openocd_interface: str | None = None
+    openocd_target: str | None = None
+    openocd_dual_core: bool = False
 
     @classmethod
     def of(cls, device: Device) -> DeviceView:
@@ -214,6 +245,9 @@ class DeviceView:
             probe_transport=device.probe_ref.transport,
             probe_address=device.probe_ref.address,
             proof_rung=device.proof_rung,
+            openocd_interface=device.openocd.interface if device.openocd else None,
+            openocd_target=device.openocd.target if device.openocd else None,
+            openocd_dual_core=device.openocd.dual_core if device.openocd else False,
         )
 
     def __iter__(self) -> Iterator[str]:
