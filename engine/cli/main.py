@@ -1,8 +1,10 @@
 """``stm`` entry point (req-005, groups 1-2): five thin verbs over argparse.
 
-Every verb resolves language -> image through the lookup port and execs the
-verb in that image. ``--dry-run`` prints the exact container argv without
-requiring a container runtime. Verbs carry no device knowledge.
+``create`` renders a project tree locally from a pack (loader + renderer);
+the other verbs resolve language -> image through the lookup port and exec
+the verb in that image. ``--dry-run`` prints the exact container argv without
+requiring a container runtime (for ``create``: the render plan, no writes).
+Verbs carry no device knowledge.
 One-source rule: ``--mcu-config`` XOR individual flags (``--mcu``,
 ``--device``/``--vid``/``--pid``/``--serial``); mixing exits 2.
 """
@@ -14,15 +16,22 @@ import platform
 import shutil
 import subprocess
 import sys
+from pathlib import Path
 
 from engine.adapters import DefaultImageLookup
 from engine.cli.shim import MODES, ShimRequest, build_container_argv, format_argv
+from engine.core.loader import FrameError, load_file
+from engine.core.model import Device
+from engine.templates.renderer import SUPPORTED_LANGS, render
 
 __all__ = ["VERBS", "build_parser", "main", "probe_os"]
 
 VERBS = ("create", "dev", "build", "flash", "debug")
 
 INDIVIDUAL_FLAGS = ("mcu", "device", "vid", "pid", "serial")
+
+# Packs shipped with the repo: <repo-root>/packs/<pack-id>.yaml.
+PACKS_DIR = Path(__file__).resolve().parents[2] / "packs"
 
 
 def probe_os() -> str:
@@ -70,6 +79,7 @@ def build_parser() -> argparse.ArgumentParser:
     subs = parser.add_subparsers(dest="verb", required=True, metavar="verb")
     create = subs.add_parser("create", help="scaffold a project tree skeleton")
     create.add_argument("--name", required=True, help="project name")
+    create.add_argument("--out-dir", default=".", help="parent dir; project renders to <out-dir>/<name>")
     _add_common(create)
     for verb, help_text in (
         ("dev", "containerized interactive dev env"),
@@ -84,15 +94,77 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
+def _available_pack_ids() -> list[str]:
+    if not PACKS_DIR.is_dir():
+        return []
+    return sorted(p.stem for p in PACKS_DIR.glob("*.yaml"))
+
+
+def _resolve_pack(ref: str) -> Device:
+    """Load a pack by file path or by shipped pack id."""
+    candidate = Path(ref)
+    if candidate.is_file():
+        return load_file(candidate)
+    by_id = PACKS_DIR / (ref[:-5] if ref.endswith(".yaml") else ref)
+    by_id = by_id.with_suffix(".yaml")
+    if by_id.is_file():
+        return load_file(by_id)
+    known = _available_pack_ids()
+    hint = f" (known packs: {', '.join(known)})" if known else ""
+    raise FileNotFoundError(f"unknown pack {ref!r}; not a file and no shipped pack by that id{hint}")
+
+
+def _run_create(args: argparse.Namespace) -> int:
+    if args.mcu_config is None:
+        individual = [f"--{name}" for name in INDIVIDUAL_FLAGS if getattr(args, name, None)]
+        if individual:
+            print(
+                "stm: error: the individual-flags path "
+                f"({', '.join(individual)}) is not wired yet (follow-up); "
+                "pass a single source via --mcu-config <pack-id-or-file>",
+                file=sys.stderr,
+            )
+        else:
+            print("stm: error: create requires --mcu-config <pack-id-or-file>", file=sys.stderr)
+        return 2
+    if args.lang not in SUPPORTED_LANGS:
+        print(f"stm: error: unsupported lang {args.lang!r}; expected one of {SUPPORTED_LANGS}", file=sys.stderr)
+        return 2
+    try:
+        device = _resolve_pack(args.mcu_config)
+    except FileNotFoundError as exc:
+        print(f"stm: error: {exc}", file=sys.stderr)
+        return 2
+    except (FrameError, ValueError, OSError) as exc:
+        print(f"stm: error: invalid pack {args.mcu_config!r}: {exc}", file=sys.stderr)
+        return 1
+    out = Path(args.out_dir) / args.name
+    if args.dry_run:
+        print(f"would render {device.id} ({args.lang}) to {out}/")
+        print("next: stm build --project-dir " + str(out))
+        return 0
+    try:
+        written = render(device, args.lang, out)
+    except ValueError as exc:
+        print(f"stm: error: {exc}", file=sys.stderr)
+        return 2
+    print(f"created {len(written)} files in {out}/")
+    for path in written:
+        print(f"  {path}")
+    print("next steps:")
+    print(f"  cd {out} && stm build --project-dir .")
+    return 0
+
+
 def _run_verb(args: argparse.Namespace) -> int:
     violation = _one_source_violation(args)
     if violation is not None:
         build_parser().print_usage(sys.stderr)
         print(f"stm: error: {violation}", file=sys.stderr)
         return 2
-    extra: list[str] = []
     if args.verb == "create":
-        extra = ["--name", args.name]
+        return _run_create(args)
+    extra: list[str] = []
     request = ShimRequest(
         verb=args.verb,
         lang=args.lang,
