@@ -65,11 +65,64 @@ def clear() -> None:
 def _validate_openocd(payload: Any) -> None:
     if not isinstance(payload, dict) or not payload:
         raise ValueError("openocd block must be a non-empty mapping")
-    if "interface" not in payload:
-        raise ValueError("openocd block must declare 'interface'")
+    iface = payload.get("interface")
+    if not isinstance(iface, str) or not iface:
+        raise ValueError("openocd block must declare non-empty 'interface'")
     boardish = ("board", "target")
     if not any(k in payload for k in boardish):
         raise ValueError("openocd block must declare one of 'board'/'target'")
+    for key in boardish:
+        if key in payload and (not isinstance(payload[key], str) or not payload[key]):
+            raise ValueError(f"openocd block {key!r} must be a non-empty string")
+    if "dual_core" in payload and not isinstance(payload["dual_core"], bool):
+        raise ValueError("openocd block 'dual_core' flag must be a bool")
 
 
 register("openocd", _validate_openocd, families=("stm32f4", "stm32h7", "stm32wl"))
+
+_STM32_FAMILIES = ("stm32f4", "stm32h7", "stm32wl")
+
+_FPU_MODES = ("soft", "softfp", "hard")
+
+
+def _validate_fpu(payload: Any) -> None:
+    if not isinstance(payload, dict) or not payload:
+        raise ValueError("fpu block must be a non-empty mapping")
+    mode = payload.get("mode")
+    if not isinstance(mode, str) or not mode:
+        raise ValueError("fpu block must declare non-empty 'mode'")
+    if mode not in _FPU_MODES:
+        raise ValueError(f"fpu block 'mode' must be one of {_FPU_MODES}, got {mode!r}")
+    variant = payload.get("variant")
+    if not isinstance(variant, str) or not variant:
+        raise ValueError("fpu block must declare non-empty 'variant'")
+
+
+register("fpu", _validate_fpu, families=_STM32_FAMILIES)
+
+
+def _validate_linker(payload: Any) -> None:
+    if not isinstance(payload, dict) or not payload:
+        raise ValueError("linker block must be a non-empty mapping of core name -> script")
+    for core, script in payload.items():
+        if not isinstance(core, str) or not core:
+            raise ValueError(f"linker block core name must be a non-empty string, got {core!r}")
+        if not isinstance(script, str) or not script:
+            raise ValueError(f"linker block script for core {core!r} must be a non-empty string")
+
+
+register("linker", _validate_linker, families=_STM32_FAMILIES)
+
+_CONFIG_HEADER_KEYS = ("library", "header", "defaults_source")
+
+
+def _validate_config_headers(payload: Any) -> None:
+    if not isinstance(payload, dict) or not payload:
+        raise ValueError("config_headers block must be a non-empty mapping")
+    for key in _CONFIG_HEADER_KEYS:
+        value = payload.get(key)
+        if not isinstance(value, str) or not value:
+            raise ValueError(f"config_headers block must declare non-empty {key!r}")
+
+
+register("config_headers", _validate_config_headers, families=_STM32_FAMILIES)

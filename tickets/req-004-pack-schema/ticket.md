@@ -2,7 +2,7 @@
 id: req-004
 title: "Pack frame schema + 3 STM32 packs"
 kind: requirement
-status: triaged
+status: done
 size: M
 lane: bmad-advisory
 links:

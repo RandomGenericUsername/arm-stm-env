@@ -1,0 +1,47 @@
+# STM32H755 device pack (req-004 group 2.1).
+# Values: spike-001-corrected (NOT sibling-copied). Dual core M7 + M4.
+id: stm32h755
+version: "1.0.0"
+cores:
+  - name: M7
+    arch: thumbv7em-none-eabihf
+  - name: M4
+    arch: thumbv7em-none-eabihf
+memory:
+  - name: flash_m7
+    origin_hex: "0x08000000"
+    size: 1048576 # 1024K
+  - name: flash_m4
+    origin_hex: "0x08100000"
+    size: 1048576 # 1024K
+  - name: ram
+    origin_hex: "0x10000000"
+    size: 294912 # 288K
+probe:
+  transport: stlink-dap
+  address: openocd:stlink-dap
+# Readback-first ladder: readback rung executed per core (M7 then M4).
+proof_rung: readback-m7-m4
+blocks:
+  openocd:
+    interface: stlink-dap.cfg
+    board: st_nucleo_h745zi.cfg
+    dual_core: true
+  # Sibling evidence ArmDevelopmentEnvironment@19a3889:
+  # setup/create_project/stm_mcu_families.sh:19 FPU_V_PER_PROCESSOR["m7"]=fpv5-sp-d16 (hard).
+  # Pack-level block carries the primary (M7) facet; M4 uses fpv4-sp-d16/hard.
+  fpu:
+    mode: hard
+    variant: fpv5-sp-d16
+  # Sibling evidence: setup/create_project/dual/Startup/stm32h755xx_flash_cm7.ld,
+  # stm32h755xx_flash_cm4.ld.
+  linker:
+    M7: stm32h755xx_flash_cm7.ld
+    M4: stm32h755xx_flash_cm4.ld
+  # Placeholder-until-template-story: plausible HAL header default; real
+  # defaults source + override precedence wired at template level (spike-004:
+  # project-file-wins, pack default fills the rest).
+  config_headers:
+    library: stm32hal
+    header: stm32_config.h
+    defaults_source: pack/defaults.h
