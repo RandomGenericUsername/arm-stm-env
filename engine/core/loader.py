@@ -13,7 +13,7 @@ from pathlib import Path
 
 import yaml
 
-from engine.core.model import Core, Device, Endpoint, MemoryRegion
+from engine.core.model import Core, Device, Endpoint, MemoryRegion, OpenocdConfig
 from engine.core.registry import UnknownBlockError, validate_block
 
 __all__ = ["FRAME_KEYS", "FrameError", "load_file", "load_text", "validate_frame"]
@@ -60,6 +60,15 @@ def validate_frame(doc: dict) -> Device:
             raise
         except ValueError as exc:
             raise FrameError(f"family block {name!r} invalid: {exc}") from exc
+    openocd: OpenocdConfig | None = None
+    if "openocd" in blocks:
+        raw_block = blocks["openocd"]
+        target = raw_block.get("target", raw_block.get("board"))
+        openocd = OpenocdConfig(
+            interface=raw_block["interface"],
+            target=target,
+            dual_core=bool(raw_block.get("dual_core", False)),
+        )
     return Device(
         id=doc["id"],
         version=str(doc["version"]),
@@ -68,6 +77,7 @@ def validate_frame(doc: dict) -> Device:
         memory=memory,
         probe_ref=probe,
         proof_rung=doc["proof_rung"],
+        openocd=openocd,
         provenance={"pack_id": doc["id"], "pack_version": str(doc["version"])},
     )
 
