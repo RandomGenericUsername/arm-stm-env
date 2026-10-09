@@ -27,11 +27,20 @@ def test_verbs_dry_run_prints_container_argv_without_runtime(capsys, monkeypatch
     assert "docker" in out and "run" in out and verb in out
 
 
-def test_verbs_create_dry_run_carries_name(capsys, monkeypatch):
+def test_verbs_create_dry_run_renders_locally_without_runtime(capsys, monkeypatch, tmp_path):
+    from pathlib import Path
+
+    from engine.cli.main import PACKS_DIR
+
+    pack = sorted(Path(PACKS_DIR).glob("*.yaml"))[0]
     monkeypatch.setattr("shutil.which", lambda _: None)
-    assert main(["create", "--name", "demo", "--dry-run"]) == 0
+    assert (
+        main(["create", "--name", "demo", "--mcu-config", str(pack), "--out-dir", str(tmp_path), "--dry-run"])
+        == 0
+    )
     out = capsys.readouterr().out
-    assert "docker" in out and "demo" in out
+    assert "demo" in out and pack.stem in out
+    assert not (tmp_path / "demo").exists()
 
 
 def test_verbs_local_mode_dry_run_has_no_runtime_wrap(capsys):

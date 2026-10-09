@@ -6,12 +6,13 @@
 
 ## Active epics
 
-- [epic-001-universal-framework](./epic-001-universal-framework/epic.md) — Universal MCU dev framework | `decomposed` | 9/12 children done | done-when: V1 matrix completes create-build-flash-run from clean machines | exec: bmad brief+spec+spine
+- [epic-001-universal-framework](./epic-001-universal-framework/epic.md) — Universal MCU dev framework | `decomposed` | 10/14 children done | done-when: V1 matrix completes create-build-flash-run from clean machines | exec: bmad brief+spec+spine
   - [req-001-product-brief](./req-001-product-brief/ticket.md) — Product brief for universal MCU dev framework | `done`
   - [req-002-distill-spec](./req-002-distill-spec/ticket.md) — Distill spec from finalized brief | `done`
+  - [req-008-template-generation](./req-008-template-generation/ticket.md) — Project template generation from packs | `done` | 153/153 tests, 9 cells green
   - [task-001-adopt-split-decompose](./task-001-adopt-split-decompose/ticket.md) — Adopt spine, validate, decompose epic | `done`
   - [req-003-engine-core](./req-003-engine-core/ticket.md) — Engine core + model validation | `done` | 26/26 tests, fixtures spike-001-corrected
-  - [req-004-pack-schema](./req-004-pack-schema/ticket.md) — Pack frame schema + 3 STM32 packs | `triaged`
+  - [req-004-pack-schema](./req-004-pack-schema/ticket.md) — Pack frame schema + 3 STM32 packs | `done` | 54/54 tests, drift-grep clean
   - [req-005-cli-verbs](./req-005-cli-verbs/ticket.md) — Thin CLI verbs + shim | `done` | 91/91 tests, gate clean |
   - [req-006-probe-adapters](./req-006-probe-adapters/ticket.md) — Probe adapters OpenOCD (+ probe-rs second) | `done` | 134/134 tests, no live claims |
   - [req-007-container-images](./req-007-container-images/ticket.md) — Container images per toolchain + caches | `done` | both images built+smoked, pins audited |
@@ -38,7 +39,7 @@
 
 ## Tasks
 
-(none)
+- [task-002-wire-create-renderer](./task-002-wire-create-renderer/ticket.md) — Wire create renderer | `done` | exec: direct | parent epic-001 | 159/159 tests, create renders F411RE c project, flags-only exits 2
 
 ## Done (links only, newest last)
 
