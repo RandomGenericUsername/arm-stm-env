@@ -1,0 +1,39 @@
+# STM32F411RE device pack (req-004 group 2.1).
+# Values: spike-001-corrected (NOT sibling-copied). Single Cortex-M4.
+id: stm32f411re
+version: "1.0.0"
+cores:
+  - name: M4
+    arch: thumbv7em-none-eabihf
+memory:
+  - name: flash
+    origin_hex: "0x8000000"
+    size: 524288 # 512K
+  - name: ram
+    origin_hex: "0x20000000"
+    size: 131072 # 128K
+probe:
+  transport: stlink
+  address: openocd:stlink
+# Readback-first ladder: single readback rung proves flash readback.
+proof_rung: readback
+blocks:
+  openocd:
+    interface: stlink.cfg
+    board: st_nucleo_f4.cfg
+  # Sibling evidence ArmDevelopmentEnvironment@19a3889:
+  # setup/create_project/stm_mcu_families.sh:18 FPU_V_PER_PROCESSOR["m4"]=fpv4-sp-d16 (hard).
+  fpu:
+    mode: hard
+    variant: fpv4-sp-d16
+  # Sibling evidence: setup/create_project/get_stm32f411xe_resources.sh:3
+  # LINKER_SCRIPT_URL=.../STM32F411RETx_FLASH.ld (ST CubeF4 template).
+  linker:
+    M4: STM32F411RETx_FLASH.ld
+  # Placeholder-until-template-story: plausible HAL header default; real
+  # defaults source + override precedence wired at template level (spike-004:
+  # project-file-wins, pack default fills the rest).
+  config_headers:
+    library: stm32hal
+    header: stm32_config.h
+    defaults_source: pack/defaults.h

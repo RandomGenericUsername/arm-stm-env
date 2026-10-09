@@ -1,0 +1,46 @@
+# STM32WL55JC device pack (req-004 group 2.1).
+# Values: spike-001-corrected (NOT sibling-copied). Dual core M4 + M0+.
+# Conservative map: both cores share the soft-float target.
+id: stm32wl55jc
+version: "1.0.0"
+cores:
+  - name: M4
+    arch: thumbv7em-none-eabi
+  - name: M0+
+    arch: thumbv7em-none-eabi
+memory:
+  - name: flash
+    origin_hex: "0x08000000"
+    size: 1048576 # 1024K
+  - name: ram
+    origin_hex: "0x20000000"
+    size: 131072 # 128K
+probe:
+  transport: stlink
+  address: openocd:stlink
+# Readback-first ladder: readback rung; DUAL_CORE OpenOCD session limits may
+# force LED fallback for live verification (noted, not silently assumed).
+proof_rung: readback
+blocks:
+  openocd:
+    interface: stlink.cfg
+    target: stm32wlx.cfg
+    dual_core: true
+  # Sibling evidence ArmDevelopmentEnvironment@19a3889:
+  # setup/create_project/stm_mcu_families.sh:17,22 FPU_*_PER_PROCESSOR["m0plus"]="none".
+  # Neither core takes hard-float here (soft-float conservative map).
+  fpu:
+    mode: soft
+    variant: none
+  # Sibling evidence: setup/create_project/get_stm32wl55xx_resources.sh:10-11
+  # CM4_LINKER=${MCU_FAMILY^^}_FLASH_CM4.ld, CM0_LINKER=${MCU_FAMILY^^}_FLASH_CM0PLUS.ld.
+  linker:
+    M4: STM32WL55XX_FLASH_CM4.ld
+    M0+: STM32WL55XX_FLASH_CM0PLUS.ld
+  # Placeholder-until-template-story: plausible HAL header default; real
+  # defaults source + override precedence wired at template level (spike-004:
+  # project-file-wins, pack default fills the rest).
+  config_headers:
+    library: stm32hal
+    header: stm32_config.h
+    defaults_source: pack/defaults.h
