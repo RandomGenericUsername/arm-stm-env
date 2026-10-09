@@ -1,0 +1,26 @@
+id: stm32h755
+version: "1.0.0"
+cores:
+  - name: M7
+    arch: thumbv7em-none-eabihf
+  - name: M4
+    arch: thumbv7em-none-eabihf
+memory:
+  - name: flash_m7
+    origin_hex: "0x08000000"
+    size: 1048576
+  - name: flash_m4
+    origin_hex: "0x08100000"
+    size: 1048576
+  - name: ram
+    origin_hex: "0x10000000"
+    size: 294912
+probe:
+  transport: stlink-dap
+  address: openocd:stlink-dap
+proof_rung: rung-1
+blocks:
+  openocd:
+    interface: stlink-dap.cfg
+    board: st_nucleo_h745zi.cfg
+    dual_core: true

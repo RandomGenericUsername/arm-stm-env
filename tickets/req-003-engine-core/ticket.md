@@ -2,7 +2,7 @@
 id: req-003
 title: "Engine core + model validation"
 kind: requirement
-status: triaged
+status: done
 size: M
 lane: bmad-advisory
 links:
@@ -21,8 +21,8 @@ children: []
 
 ## Acceptance
 
-- [ ] Canonical model validates the 3 STM32 packs with zero drift. `Verify: <defined at build>`
-- [ ] No adapter parses device semantics (adversary re-run clean). `Verify: <defined at build>`
+- [x] Canonical model validates the 3 STM32 packs with zero drift. `Verify: <defined at build>`
+- [x] No adapter parses device semantics (adversary re-run clean). `Verify: <defined at build>`
 
 ## Evidence
 
