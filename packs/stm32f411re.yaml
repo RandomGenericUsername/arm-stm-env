@@ -16,6 +16,7 @@ probe:
   transport: stlink
   address: openocd:stlink
 # Readback-first ladder: single readback rung proves flash readback.
+probe_backend: openocd
 proof_rung: readback
 blocks:
   openocd:

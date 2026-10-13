@@ -20,6 +20,7 @@ probe:
   address: openocd:stlink
 # Readback-first ladder: readback rung; DUAL_CORE OpenOCD session limits may
 # force LED fallback for live verification (noted, not silently assumed).
+probe_backend: openocd
 proof_rung: readback
 blocks:
   openocd:

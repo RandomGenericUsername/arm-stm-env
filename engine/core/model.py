@@ -189,6 +189,7 @@ class Device:
         openocd: OpenocdConfig | None = None,
         provenance: dict[str, str] | Sequence[tuple[str, str] | list[str]] = (),
         facets: DeviceFacets | None = None,
+        probe_backend: str | None = None,
     ) -> None:
         if not id:
             raise ValueError("Device.id must be non-empty")
@@ -214,6 +215,8 @@ class Device:
             raise TypeError("Device.openocd must be an OpenocdConfig or None")
         if facets is not None and not isinstance(facets, DeviceFacets):
             raise TypeError("Device.facets must be a DeviceFacets or None")
+        if probe_backend is not None and (not probe_backend or not isinstance(probe_backend, str)):
+            raise ValueError("Device.probe_backend must be a non-empty backend name or None")
         prov = tuple(sorted(provenance.items())) if isinstance(provenance, dict) else tuple(sorted((str(k), str(v)) for k, v in provenance))
         # Provenance always traces to inputs: pack id + version are mandatory facts.
         base = {"pack_id": id, "pack_version": version}
@@ -226,6 +229,7 @@ class Device:
         object.__setattr__(self, "probe_ref", probe_ref)
         object.__setattr__(self, "proof_rung", proof_rung)
         object.__setattr__(self, "openocd", openocd)
+        object.__setattr__(self, "probe_backend", probe_backend)
         object.__setattr__(self, "facets", facets if facets is not None else DeviceFacets())
         object.__setattr__(self, "provenance", tuple(sorted(base.items())))
 

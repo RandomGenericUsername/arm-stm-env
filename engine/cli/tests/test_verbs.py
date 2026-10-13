@@ -116,3 +116,70 @@ def test_verbs_missing_runtime_fails_fast_with_hint(capsys, monkeypatch):
     monkeypatch.setattr("shutil.which", lambda _: None)
     assert main(["build"]) == 1
     assert "not found" in capsys.readouterr().err
+
+
+def test_verbs_probe_unknown_backend_is_usage_error(capsys, tmp_path):
+    from pathlib import Path
+
+    from engine.cli.main import PACKS_DIR
+
+    pack = sorted(Path(PACKS_DIR).glob("*.yaml"))[0]
+    code = main(["flash", "--mcu-config", str(pack), "--probe", "nope",
+                 "--device", "/dev/x", "--files", "a.elf",
+                 "--mode", "local", "--project-dir", str(tmp_path)])
+    assert code == 2
+    assert "unknown probe backend" in capsys.readouterr().err
+
+
+def test_verbs_probe_defaults_to_pack_backend(monkeypatch, tmp_path, capsys):
+    from pathlib import Path
+
+    from engine.adapters import PieceResult
+    import sys
+    from engine.cli.main import PACKS_DIR, load_file, main
+
+    pack = sorted(Path(PACKS_DIR).glob("*.yaml"))[0]
+    expected = load_file(pack).probe_backend
+    assert expected, "shipped pack must declare a probe default for this test"
+    seen: list = []
+
+    class _Fake:
+        def flash(self, device, endpoint, pieces):
+            return [PieceResult(name=p, ok=True) for p in pieces]
+
+        def debug(self, device, endpoint):
+            raise AssertionError("not under test")
+
+        @property
+        def last_transcript(self):
+            return None
+
+    def _factory(name=None):
+        seen.append(name)
+        return _Fake()
+
+    monkeypatch.setattr(sys.modules["engine.cli.main"], "get_adapter", _factory)
+    code = main(["flash", "--mcu-config", str(pack), "--device", "/dev/x",
+                 "--files", "a.elf", "--mode", "local",
+                 "--project-dir", str(tmp_path)])
+    assert code == 0
+    assert seen == [expected]
+    assert "2" not in capsys.readouterr().err
+
+
+def test_verbs_missing_image_names_make_images(capsys, monkeypatch):
+    import subprocess
+
+    class _Proc:
+        def __init__(self, rc):
+            self.returncode = rc
+
+    def _fake_run(cmd, **kw):
+        if cmd[:3] == ["docker", "image", "inspect"]:
+            return _Proc(1)
+        raise AssertionError(f"should stop before exec: {cmd}")
+
+    monkeypatch.setattr(subprocess, "run", _fake_run)
+    code = main(["build", "--project-dir", "."])
+    assert code == 1
+    assert "make images" in capsys.readouterr().err
