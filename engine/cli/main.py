@@ -42,7 +42,10 @@ __all__ = ["VERBS", "build_parser", "main", "probe_os"]
 
 VERBS = ("create", "dev", "build", "flash", "debug")
 
-INDIVIDUAL_FLAGS = ("mcu", "device", "vid", "pid", "serial")
+# Individual HARDWARE-description flags, XOR with --mcu-config (task-003 was
+# green; bug-001 fixed this tuple): probe selectors (device/vid/pid/serial)
+# are RUN config and MUST compose with --mcu-config (flash needs both).
+INDIVIDUAL_FLAGS = ("mcu",)
 
 # Packs shipped with the repo: single-sourced from the shim (container paths
 # mirror this layout, so pack ids resolve identically inside and outside).
