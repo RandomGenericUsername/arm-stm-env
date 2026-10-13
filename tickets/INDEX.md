@@ -10,6 +10,7 @@
   - [req-001-product-brief](./req-001-product-brief/ticket.md) — Product brief for universal MCU dev framework | `done`
   - [req-002-distill-spec](./req-002-distill-spec/ticket.md) — Distill spec from finalized brief | `done`
   - [req-008-template-generation](./req-008-template-generation/ticket.md) — Project template generation from packs | `done` | 153/153 tests, 9 cells green
+  - [req-009-e2e-build-proof](./req-009-e2e-build-proof/ticket.md) — End-to-end build proof in images | `done` | 9/9 cells, dual-bank fix re-proven
   - [task-001-adopt-split-decompose](./task-001-adopt-split-decompose/ticket.md) — Adopt spine, validate, decompose epic | `done`
   - [req-003-engine-core](./req-003-engine-core/ticket.md) — Engine core + model validation | `done` | 26/26 tests, fixtures spike-001-corrected
   - [req-004-pack-schema](./req-004-pack-schema/ticket.md) — Pack frame schema + 3 STM32 packs | `done` | 54/54 tests, drift-grep clean
