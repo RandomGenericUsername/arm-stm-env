@@ -30,6 +30,7 @@ from engine.cli.shim import (
     ShimRequest,
     build_container_argv,
     format_argv,
+    packs_dir,
     probe_endpoint,
 )
 from engine.cli.verdict import render_flash_verdict
@@ -43,8 +44,9 @@ VERBS = ("create", "dev", "build", "flash", "debug")
 
 INDIVIDUAL_FLAGS = ("mcu", "device", "vid", "pid", "serial")
 
-# Packs shipped with the repo: <repo-root>/packs/<pack-id>.yaml.
-PACKS_DIR = Path(__file__).resolve().parents[2] / "packs"
+# Packs shipped with the repo: single-sourced from the shim (container paths
+# mirror this layout, so pack ids resolve identically inside and outside).
+PACKS_DIR = packs_dir()
 
 
 def probe_os() -> str:

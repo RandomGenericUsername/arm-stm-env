@@ -18,6 +18,7 @@ children:
   - req-008
   - task-002
   - task-003
+  - task-004
   - req-009
   - task-001
 done-when: "V1 matrix (3 packs x 3 langs, OpenOCD) completes create-build-flash-run from clean machines per pack proof rituals"
