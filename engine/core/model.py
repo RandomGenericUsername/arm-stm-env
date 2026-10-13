@@ -160,10 +160,14 @@ class DeviceFacets:
     probe_settings: Tuple[Tuple[str, Tuple[Tuple[str, str], ...]], ...] = ()
 
     def linker_for(self, core_name: str, device_id: str) -> str:
+        # No invented fallback (startup lesson): an undeclared core is a loud
+        # error, never a plausible-but-absent filename.
         for name, script in self.linker:
             if name == core_name:
                 return script
-        return f"{device_id}_{core_name}_FLASH.ld"
+        raise ValueError(
+            f"pack {device_id!r} declares no linker script for core {core_name!r}"
+        )
 
     def startup_for(self, core_name: str, device_id: str) -> str:
         # No invented fallback (bug-002 class): an undeclared core is a loud

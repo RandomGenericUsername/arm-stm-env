@@ -2,7 +2,7 @@
 id: spike-002
 title: "C/C++ dependency mechanism"
 kind: spike
-status: reporting
+status: done
 parent: epic-001
 timebox: "4h"
 links:

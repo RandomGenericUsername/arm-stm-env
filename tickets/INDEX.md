@@ -6,7 +6,7 @@
 
 ## Active epics
 
-- [epic-001-universal-framework](./epic-001-universal-framework/epic.md) — Universal MCU dev framework | `decomposed` | 18/23 children done | done-when: V1 matrix completes create-build-flash-run from clean machines | exec: bmad brief+spec+spine
+- [epic-001-universal-framework](./epic-001-universal-framework/epic.md) — Universal MCU dev framework | `decomposed` | 22/23 children done | done-when: V1 matrix completes create-build-flash-run from clean machines | exec: bmad brief+spec+spine
   - [req-001-product-brief](./req-001-product-brief/ticket.md) — Product brief for universal MCU dev framework | `done`
   - [req-002-distill-spec](./req-002-distill-spec/ticket.md) — Distill spec from finalized brief | `done`
   - [req-008-template-generation](./req-008-template-generation/ticket.md) — Project template generation from packs | `done` | 153/153 tests, 9 cells green
@@ -17,10 +17,10 @@
   - [req-005-cli-verbs](./req-005-cli-verbs/ticket.md) — Thin CLI verbs + shim | `done` | 91/91 tests, gate clean |
   - [req-006-probe-adapters](./req-006-probe-adapters/ticket.md) — Probe adapters OpenOCD (+ probe-rs second) | `done` | 134/134 tests, no live claims |
   - [req-007-container-images](./req-007-container-images/ticket.md) — Container images per toolchain + caches | `done` | both images built+smoked, pins audited |
-  - [spike-001-openocd-targets](./spike-001-openocd-targets/ticket.md) — Per-pack OpenOCD target verification | `reporting` | boxed 3h — findings filed, 2 verdicts corrected by orchestrator; consumes into req-004
-  - [spike-002-cpp-deps](./spike-002-cpp-deps/ticket.md) — C/C++ dependency mechanism | `reporting` | boxed 4h — findings filed, pick vendoring; consumes into req-007/post-V1
-  - [spike-003-toolchain-recon](./spike-003-toolchain-recon/ticket.md) — 2026 toolchain recon | `reporting` | boxed 3h — findings filed, vanilla-GCC verdict; CubeCLT gated on license proof
-  - [spike-004-config-headers](./spike-004-config-headers/ticket.md) — Per-project config-header flow | `reporting` | boxed 2h — findings filed, pack-defaults + project-config-dir; consumes into req-004
+  - [spike-001-openocd-targets](./spike-001-openocd-targets/ticket.md) — Per-pack OpenOCD target verification | `done` | boxed 3h — findings filed, 2 verdicts corrected by orchestrator; consumes into req-004
+  - [spike-002-cpp-deps](./spike-002-cpp-deps/ticket.md) — C/C++ dependency mechanism | `done` | boxed 4h — findings filed, pick vendoring; consumes into req-007/post-V1
+  - [spike-003-toolchain-recon](./spike-003-toolchain-recon/ticket.md) — 2026 toolchain recon | `done` | boxed 3h — findings filed, vanilla-GCC verdict; CubeCLT gated on license proof
+  - [spike-004-config-headers](./spike-004-config-headers/ticket.md) — Per-project config-header flow | `done` | boxed 2h — findings filed, pack-defaults + project-config-dir; consumes into req-004
 
 ## Requirements
 
@@ -34,6 +34,7 @@
 ## Ops tasks
 
 - [ops-007-make-commands](./ops-007-make-commands/ticket.md) — Make commands for fresh-clone rebuild | `done` | exec: direct
+- [ops-008-closeouts-fallback-docs](./ops-008-closeouts-fallback-docs/ticket.md) — Spike close-outs, linker fallback removal, user README | `done`
 
 ## Spikes
 
