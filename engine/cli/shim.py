@@ -5,11 +5,13 @@ image, container argv, per-OS probe mapping.
 into the exact container command. ``--dry-run`` prints it without touching
 the container runtime, so it works with no runtime installed.
 
-Container contract (task-003): images ship toolchains only — no ``stm``,
-no engine. So the container side runs ``python3 -m engine`` with the repo
-mounted read-only at ``/opt/arm-stm-env`` (``PYTHONPATH`` set) and the
-project at ``/project`` (read-write, working dir). The project mount uses
-an absolute host path (relative paths are invalid for the runtime).
+Container contract (task-003, narrowed task-004): images ship toolchains only — no ``stm``,
+no engine. So the container side runs ``python3 -m engine`` with exactly two
+read-only mounts — the ``engine`` package and ``packs/`` — plus the project
+read-write at ``/project`` (working dir). Container paths mirror the checkout
+layout (``/opt/arm-stm-env/{engine,packs}``) so ``__file__``-derived resolution
+works unchanged. The project mount uses an absolute host path (relative paths
+are invalid for the runtime).
 
 Probe mapping (shim only): Linux passes the resolved node through as
 ``--device <node>:<node>``; macOS (Docker Desktop) cannot forward USB
@@ -75,6 +77,11 @@ def engine_root() -> Path:
 def repo_root() -> Path:
     """Checkout root: parent of the ``engine`` package directory."""
     return engine_root().parent
+
+
+def packs_dir() -> Path:
+    """Shipped packs directory (single source; ``main.PACKS_DIR`` aliases this)."""
+    return repo_root() / "packs"
 
 
 def resolve_probe_device(
@@ -205,7 +212,9 @@ def build_container_argv(
         "-v",
         f"{project_abs}:{CONTAINER_PROJECT}:rw",
         "-v",
-        f"{repo_root()}:/opt/arm-stm-env:ro",
+        f"{engine_root()}:{CONTAINER_REPO}/engine:ro",
+        "-v",
+        f"{packs_dir()}:{CONTAINER_REPO}/packs:ro",
         "-e",
         "PYTHONPATH=/opt/arm-stm-env",
         "-w",

@@ -4,7 +4,7 @@ import pytest
 
 from engine.adapters import DefaultImageLookup, ImageLookup
 from engine.cli.main import main
-from engine.cli.shim import ShimRequest, build_container_argv
+from engine.cli.shim import ShimRequest, build_container_argv, engine_root, packs_dir
 
 
 class _RecordingLookup(ImageLookup):
@@ -77,7 +77,8 @@ def test_shim_container_argv_mounts_engine_and_project(tmp_path):
     assert "-v" in argv
     joined = " ".join(argv)
     assert f"{tmp_path.resolve()}:/project:rw" in joined
-    assert ":/opt/arm-stm-env:ro" in joined
+    assert f"{engine_root()}:/opt/arm-stm-env/engine:ro" in argv
+    assert f"{packs_dir()}:/opt/arm-stm-env/packs:ro" in argv
     assert "PYTHONPATH=/opt/arm-stm-env" in joined
     assert "-w" in argv and "/project" in argv
     assert "--project-dir" in argv and "/project" in argv
