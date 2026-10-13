@@ -1,9 +1,14 @@
-"""``stm`` entry point (req-005, groups 1-2): five thin verbs over argparse.
+"""``stm`` entry point (req-005, groups 1-2; task-003 verb wiring): five thin
+verbs over argparse.
 
-``create`` renders a project tree locally from a pack (loader + renderer);
-the other verbs resolve language -> image through the lookup port and exec
-the verb in that image. ``--dry-run`` prints the exact container argv without
-requiring a container runtime (for ``create``: the render plan, no writes).
+``create`` renders a project tree locally from a pack (loader + renderer).
+``build`` runs the language toolchain locally (``make``/``cargo``);
+``flash``/``debug`` resolve the pack + probe endpoint and drive the default
+probe backend; ``dev`` spawns an interactive shell. ``--mode auto`` wraps
+the same invocation for a container (engine mounted read-only, project
+read-write); ``--mode local`` executes in-process — never re-execs ``stm``.
+``--dry-run`` prints the exact command without executing (container argv in
+``auto``, local toolchain command in ``local``) and needs no runtime.
 Verbs carry no device knowledge.
 One-source rule: ``--mcu-config`` XOR individual flags (``--mcu``,
 ``--device``/``--vid``/``--pid``/``--serial``); mixing exits 2.
@@ -12,16 +17,24 @@ One-source rule: ``--mcu-config`` XOR individual flags (``--mcu``,
 from __future__ import annotations
 
 import argparse
+import os
 import platform
 import shutil
 import subprocess
 import sys
 from pathlib import Path
 
-from engine.adapters import DefaultImageLookup
-from engine.cli.shim import MODES, ShimRequest, build_container_argv, format_argv
+from engine.adapters import DefaultImageLookup, ProbeAdapter, get_adapter
+from engine.cli.shim import (
+    MODES,
+    ShimRequest,
+    build_container_argv,
+    format_argv,
+    probe_endpoint,
+)
+from engine.cli.verdict import render_flash_verdict
 from engine.core.loader import FrameError, load_file
-from engine.core.model import Device
+from engine.core.model import Device, DeviceView, Endpoint
 from engine.templates.renderer import SUPPORTED_LANGS, render
 
 __all__ = ["VERBS", "build_parser", "main", "probe_os"]
@@ -84,13 +97,21 @@ def build_parser() -> argparse.ArgumentParser:
     for verb, help_text in (
         ("dev", "containerized interactive dev env"),
         ("build", "transparent container build"),
-        ("flash", "program pieces via the probe port + verdict"),
-        ("debug", "attach a debug session via the probe port"),
+        ("flash", "program pieces via the probe port + verdict (default backend)"),
+        ("debug", "attach a debug session via the probe port (default backend)"),
     ):
         sub = subs.add_parser(verb, help=help_text)
         _add_common(sub)
         if verb in ("flash", "debug"):
             _add_probe_flags(sub)
+        if verb == "flash":
+            sub.add_argument(
+                "--files",
+                nargs="*",
+                default=[],
+                metavar="ELF",
+                help="firmware image(s) to program, in order",
+            )
     return parser
 
 
@@ -156,7 +177,167 @@ def _run_create(args: argparse.Namespace) -> int:
     return 0
 
 
+def _local_tool_cmd(lang: str) -> list[str]:
+    """Toolchain command implementing ``build`` for ``lang`` (local exec)."""
+    if lang in ("c", "cpp"):
+        return ["make", "build"]
+    return ["cargo", "build"]
+
+
+def _run_tool(cmd: list[str], cwd: str) -> int:
+    """Run a toolchain command in ``cwd``; missing tool is exit 1, else passthrough."""
+    try:
+        completed = subprocess.run(cmd, cwd=cwd)
+    except FileNotFoundError:
+        print(
+            f"stm: error: build tool not found: {cmd[0]} "
+            f"(run inside the toolchain image or install it)",
+            file=sys.stderr,
+        )
+        return 1
+    return completed.returncode
+
+
+def _run_build_local(args: argparse.Namespace) -> int:
+    cmd = _local_tool_cmd(args.lang)
+    if args.dry_run:
+        print(f"cd {args.project_dir} && {format_argv(cmd)}")
+        return 0
+    return _run_tool(cmd, args.project_dir)
+
+
+def _load_pack_or_exit(ref: str) -> Device | None:
+    """Load a pack, printing usage errors; None means the caller already reported."""
+    try:
+        return _resolve_pack(ref)
+    except FileNotFoundError as exc:
+        print(f"stm: error: {exc}", file=sys.stderr)
+        return None
+    except (FrameError, ValueError, OSError) as exc:
+        print(f"stm: error: invalid pack {ref!r}: {exc}", file=sys.stderr)
+        return None
+
+
+def _prepare_flash(args: argparse.Namespace) -> tuple[Device, Endpoint, ProbeAdapter] | None:
+    """Resolve pack + endpoint for flash/debug; None means already reported."""
+    if args.mcu_config is None:
+        print("stm: error: this verb requires --mcu-config <pack-id-or-file>", file=sys.stderr)
+        return None
+    device = _load_pack_or_exit(args.mcu_config)
+    if device is None:
+        return None
+    try:
+        endpoint = probe_endpoint(
+            os_name=probe_os(),
+            device=getattr(args, "device", None),
+            vid=getattr(args, "vid", None),
+            pid=getattr(args, "pid", None),
+            serial=getattr(args, "serial", None),
+        )
+    except ValueError as exc:
+        print(f"stm: error: {exc}", file=sys.stderr)
+        return None
+    if endpoint is None:
+        print(
+            "stm: error: no probe selector given; pass --device, --vid/--pid, or --serial",
+            file=sys.stderr,
+        )
+        return None
+    return device, endpoint, get_adapter()
+
+
+def _run_flash_local(args: argparse.Namespace) -> int:
+    prepared = _prepare_flash(args)
+    if prepared is None:
+        return 2
+    device, endpoint, adapter = prepared
+    if not args.files:
+        print("stm: error: flash requires --files <elf...>", file=sys.stderr)
+        return 2
+    view = DeviceView.of(device)
+    if args.dry_run:
+        print(format_argv(adapter.render_argv(view, endpoint, args.files)))
+        return 0
+    try:
+        results = adapter.flash(view, endpoint, args.files)
+    except FileNotFoundError:
+        print("stm: error: probe tool not found (run inside the toolchain image)", file=sys.stderr)
+        return 1
+    print(render_flash_verdict(results))
+    return 0 if all(r.ok for r in results) else 1
+
+
+def _run_debug_local(args: argparse.Namespace) -> int:
+    prepared = _prepare_flash(args)
+    if prepared is None:
+        return 2
+    device, endpoint, adapter = prepared
+    view = DeviceView.of(device)
+    if args.dry_run:
+        print(format_argv(adapter.render_argv(view, endpoint, ())))
+        return 0
+    handle = adapter.debug(view, endpoint)
+    print(f"debug session: {handle.session_id} on {handle.endpoint.address}")
+    print("note: live attach stays OPEN (no probe claim); session parameters above are reviewable")
+    return 0
+
+
+def _run_dev_local(args: argparse.Namespace) -> int:
+    shell = os.environ.get("SHELL", "/bin/sh")
+    if args.dry_run:
+        print(shell)
+        return 0
+    try:
+        completed = subprocess.run([shell])
+    except FileNotFoundError:
+        print(f"stm: error: shell not found: {shell}", file=sys.stderr)
+        return 1
+    return completed.returncode
+
+
+def _run_local(args: argparse.Namespace) -> int:
+    """Execute the verb in-process (never re-execs ``stm``)."""
+    if args.verb == "build":
+        return _run_build_local(args)
+    if args.verb == "flash":
+        return _run_flash_local(args)
+    if args.verb == "debug":
+        return _run_debug_local(args)
+    if args.verb == "dev":
+        return _run_dev_local(args)
+    raise AssertionError(f"unhandled verb: {args.verb}")
+
+
+def _mcu_config_outside_project(args: argparse.Namespace) -> str | None:
+    """Reject ``--mcu-config`` files the container mount cannot see.
+
+    Pack ids always resolve via the mounted repo; only on-host files outside
+    the project mount are unusable in ``auto`` mode (``local`` reads host
+    paths directly, so it is exempt).
+    """
+    ref = args.mcu_config
+    if ref is None:
+        return None
+    candidate = Path(ref)
+    if not candidate.is_file():
+        return None
+    try:
+        candidate.resolve().relative_to(Path(args.project_dir).resolve())
+    except ValueError:
+        return (
+            f"--mcu-config file {candidate} is outside --project-dir "
+            f"{args.project_dir}; the container mounts only the project — "
+            "place the file under the project or pass a pack id"
+        )
+    return None
+
+
 def _run_verb(args: argparse.Namespace) -> int:
+    try:
+        DefaultImageLookup().image_for(args.lang)
+    except ValueError as exc:
+        print(f"stm: error: {exc}", file=sys.stderr)
+        return 2
     violation = _one_source_violation(args)
     if violation is not None:
         build_parser().print_usage(sys.stderr)
@@ -164,7 +345,15 @@ def _run_verb(args: argparse.Namespace) -> int:
         return 2
     if args.verb == "create":
         return _run_create(args)
+    if args.mode == "local":
+        return _run_local(args)
+    outside = _mcu_config_outside_project(args)
+    if outside is not None:
+        print(f"stm: error: {outside}", file=sys.stderr)
+        return 2
     extra: list[str] = []
+    if args.verb == "flash" and getattr(args, "files", None):
+        extra = ["--files", *args.files]
     request = ShimRequest(
         verb=args.verb,
         lang=args.lang,
@@ -176,6 +365,8 @@ def _run_verb(args: argparse.Namespace) -> int:
         pid=getattr(args, "pid", None),
         serial=getattr(args, "serial", None),
         os_name=probe_os(),
+        interactive=(args.verb == "dev"),
+        mcu_config=args.mcu_config,
     )
     try:
         argv = build_container_argv(request, lookup=DefaultImageLookup())

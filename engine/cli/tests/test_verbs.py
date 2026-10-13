@@ -46,7 +46,65 @@ def test_verbs_create_dry_run_renders_locally_without_runtime(capsys, monkeypatc
 def test_verbs_local_mode_dry_run_has_no_runtime_wrap(capsys):
     assert main(["build", "--mode", "local", "--dry-run"]) == 0
     out = capsys.readouterr().out.strip()
-    assert out.startswith("stm build") and "docker" not in out
+    assert out == "cd . && make build" and "docker" not in out
+
+
+def test_verbs_local_build_runs_toolchain(monkeypatch, tmp_path):
+    calls: list = []
+
+    class _Done:
+        returncode = 0
+
+    monkeypatch.setattr(
+        "subprocess.run",
+        lambda cmd, **kw: calls.append((cmd, kw)) or _Done(),
+    )
+    assert main(["build", "--mode", "local", "--project-dir", str(tmp_path)]) == 0
+    assert calls == [(["make", "build"], {"cwd": str(tmp_path)})]
+
+
+def test_verbs_local_build_rust_runs_cargo(monkeypatch, tmp_path):
+    calls: list = []
+
+    class _Done:
+        returncode = 0
+
+    monkeypatch.setattr(
+        "subprocess.run",
+        lambda cmd, **kw: calls.append((cmd, kw)) or _Done(),
+    )
+    assert main(["build", "--lang", "rust", "--mode", "local",
+                  "--project-dir", str(tmp_path)]) == 0
+    assert calls == [(["cargo", "build"], {"cwd": str(tmp_path)})]
+
+
+def test_verbs_mcu_config_outside_project_rejected(capsys, tmp_path):
+    outside = tmp_path / "elsewhere.yaml"
+    outside.write_text("target: x\n")
+    assert main(["flash", "--mcu-config", str(outside),
+                  "--project-dir", str(tmp_path / "proj"),
+                  "--files", "a.elf"]) == 2
+    assert "outside --project-dir" in capsys.readouterr().err
+
+
+def test_verbs_flash_missing_config_is_usage_error(capsys):
+    assert main(["flash", "--mode", "local", "--files", "a.elf"]) == 2
+    assert "--mcu-config" in capsys.readouterr().err
+
+
+def test_verbs_flash_files_forwarded_into_container(capsys, tmp_path):
+    from pathlib import Path
+
+    from engine.cli.main import PACKS_DIR
+
+    pack = sorted(Path(PACKS_DIR).glob("*.yaml"))[0].stem
+    proj = tmp_path / "proj"
+    proj.mkdir()
+    assert main(["flash", "--mcu-config", pack,
+                  "--project-dir", str(proj),
+                  "--files", "a.elf", "b.elf", "--dry-run"]) == 0
+    out = capsys.readouterr().out
+    assert "--files a.elf b.elf" in out and "docker" in out
 
 
 def test_verbs_unknown_language_is_usage_error(capsys):

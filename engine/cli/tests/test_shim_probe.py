@@ -76,7 +76,10 @@ def test_shim_probe_dry_run_argv_embeds_probe_flag():
     argv_mac = build_container_argv(
         ShimRequest(verb="flash", device="/dev/cu.usbserial-X", os_name="darwin")
     )
-    assert "--device" not in argv_mac
+    # No docker-level device mapping on macOS (Desktop limit) ...
+    assert "/dev/cu.usbserial-X:/dev/cu.usbserial-X" not in argv_mac
+    # ... but the selector still forwards for in-container use:
+    assert "--device" in argv_mac and "/dev/cu.usbserial-X" in argv_mac
 
 
 def test_shim_probe_xor_mcu_config_vs_individual_flags(capsys):

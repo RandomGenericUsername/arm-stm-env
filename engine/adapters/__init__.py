@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Sequence
+from typing import Callable, Sequence
 
 from engine.core.model import DeviceView, Endpoint, ProofResult
 
@@ -20,6 +20,9 @@ __all__ = [
     "ImageLookup",
     "PieceResult",
     "ProbeAdapter",
+    "default_backend_name",
+    "get_adapter",
+    "register_backend",
 ]
 
 
@@ -65,6 +68,48 @@ class ProbeAdapter(ABC):
     @abstractmethod
     def debug(self, device: DeviceView, endpoint: Endpoint) -> DebugHandle:
         """Attach a debug session; return its handle."""
+
+
+_BACKEND_FACTORIES: dict[str, Callable[[], ProbeAdapter]] = {}
+
+
+def register_backend(name: str, factory: Callable[[], ProbeAdapter]) -> None:
+    """Register a probe backend factory (adapters own backend vocabulary)."""
+    _BACKEND_FACTORIES[name] = factory
+
+
+def default_backend_name() -> str:
+    """Backend used when the invocation names none."""
+    return "openocd"
+
+
+def _ensure_builtin_backends() -> None:
+    # Deferred imports: backend modules import the ABCs above, so importing
+    # them at package top would be circular.
+    if "openocd" not in _BACKEND_FACTORIES:
+        from engine.adapters.openocd import OpenOCDAdapter
+
+        _BACKEND_FACTORIES["openocd"] = OpenOCDAdapter
+    if "probe-rs" not in _BACKEND_FACTORIES:
+        from engine.adapters.probe_rs import ProbeRsAdapter
+
+        _BACKEND_FACTORIES["probe-rs"] = ProbeRsAdapter
+
+
+def get_adapter(name: str | None = None) -> ProbeAdapter:
+    """Instantiate a registered probe backend (default when unnamed).
+
+    Callers never name backend modules — adding a backend touches this
+    registry only, never CLI code.
+    """
+    _ensure_builtin_backends()
+    key = name or default_backend_name()
+    try:
+        return _BACKEND_FACTORIES[key]()
+    except KeyError:
+        raise ValueError(
+            f"unknown probe backend {key!r}; registered: {sorted(_BACKEND_FACTORIES)}"
+        ) from None
 
 
 class ImageLookup(ABC):

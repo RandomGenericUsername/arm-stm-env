@@ -36,32 +36,58 @@ def test_shim_lookup_uses_injected_core_interface():
 
 
 @pytest.mark.parametrize("lang", ["c", "cpp", "rust"])
-def test_shim_lookup_identical_resolution_both_modes(lang):
+def test_shim_lookup_identical_resolution_both_modes(lang, tmp_path):
     lookup = DefaultImageLookup()
     auto = build_container_argv(
-        ShimRequest(verb="build", lang=lang, mode="auto"), lookup=lookup
-    )
-    local = build_container_argv(
-        ShimRequest(verb="build", lang=lang, mode="local"), lookup=lookup
+        ShimRequest(verb="build", lang=lang, mode="auto", project_dir=str(tmp_path)),
+        lookup=lookup,
     )
     assert lookup.image_for(lang) in auto  # same image host-side ...
-    assert local == ["stm", "build", "--lang", lang]  # ... and inside-container
-    assert auto[-3:] == ["stm", "build", "--lang"] or "--lang" in auto
+    # ... and the container side runs the engine, never bare ``stm``:
+    assert "stm" not in auto
+    assert "python3" in auto and "-m" in auto and "engine" in auto
+    assert "--mode" in auto and "local" in auto
+    with pytest.raises(ValueError):
+        build_container_argv(
+            ShimRequest(verb="build", lang=lang, mode="local"), lookup=lookup
+        )  # local executes in-process; no container argv exists
 
 
-def test_shim_lookup_dry_run_equivalence_auto_vs_local(capsys):
+def test_shim_lookup_dry_run_equivalence_auto_vs_local(capsys, tmp_path):
     assert main(["build", "--lang", "cpp", "--dry-run"]) == 0
     auto_out = capsys.readouterr().out
     assert DefaultImageLookup().image_for("cpp") in auto_out
     assert main(["build", "--lang", "cpp", "--mode", "local", "--dry-run"]) == 0
     local_out = capsys.readouterr().out.strip()
-    assert local_out == "stm build --lang cpp"
+    assert local_out == "cd . && make build"
+    assert "docker" not in local_out
     # identical resolution: auto wraps the same lang/image pair
     assert "--lang cpp" in auto_out
 
 
-def test_shim_lookup_unknown_lang_rejected_both_modes():
+def test_shim_lookup_unknown_lang_rejected():
     with pytest.raises(ValueError):
         build_container_argv(ShimRequest(verb="build", lang="nope", mode="auto"))
-    with pytest.raises(ValueError):
-        build_container_argv(ShimRequest(verb="build", lang="nope", mode="local"))
+
+
+def test_shim_container_argv_mounts_engine_and_project(tmp_path):
+    argv = build_container_argv(
+        ShimRequest(verb="build", lang="c", project_dir=str(tmp_path))
+    )
+    assert "-v" in argv
+    joined = " ".join(argv)
+    assert f"{tmp_path.resolve()}:/project:rw" in joined
+    assert ":/opt/arm-stm-env:ro" in joined
+    assert "PYTHONPATH=/opt/arm-stm-env" in joined
+    assert "-w" in argv and "/project" in argv
+    assert "--project-dir" in argv and "/project" in argv
+
+
+def test_shim_dev_argv_is_interactive_shell(tmp_path):
+    argv = build_container_argv(
+        ShimRequest(verb="dev", lang="c", interactive=True,
+                    project_dir=str(tmp_path))
+    )
+    assert "-it" in argv
+    assert argv[-1] == "/bin/bash"
+    assert "python3" not in argv
