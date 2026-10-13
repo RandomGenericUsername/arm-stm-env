@@ -29,3 +29,28 @@ def test_probe_rs_keeps_last_transcript():
     assert adapter.last_transcript is not None
     proof = adapter.proof_for(_device_view(), results, adapter.last_transcript)
     assert proof.rung == "frame"
+
+
+def test_streaming_runner_passes_output_live_and_captures(capsys, tmp_path):
+    import sys as _sys
+
+    from engine.adapters.openocd import subprocess_runner
+
+    log = tmp_path / "tool.log"
+    tool = [_sys.executable, "-c", "print('progress-line')"]
+    tx = subprocess_runner(tool, stream=True, log_path=str(log))
+    assert tx.returncode == 0
+    assert "progress-line" in tx.stdout
+    assert "progress-line" in capsys.readouterr().out
+    assert "progress-line" in log.read_text()
+
+
+def test_plain_runner_stays_silent(capsys, tmp_path):
+    import sys as _sys
+
+    from engine.adapters.probe_rs import subprocess_runner
+
+    tool = [_sys.executable, "-c", "print('quiet-line')"]
+    tx = subprocess_runner(tool)
+    assert "quiet-line" in tx.stdout
+    assert capsys.readouterr().out == ""

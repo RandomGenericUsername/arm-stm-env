@@ -24,6 +24,7 @@ from __future__ import annotations
 
 import re
 import subprocess
+from pathlib import Path
 from dataclasses import dataclass
 from typing import Callable, Sequence
 
@@ -66,14 +67,47 @@ class Transcript:
 Runner = Callable[[Sequence[str]], Transcript]
 
 
-def subprocess_runner(argv: Sequence[str]) -> Transcript:
-    """Production runner: exec argv via ``subprocess``, capture output."""
-    completed = subprocess.run(list(argv), capture_output=True, text=True)
+def subprocess_runner(
+    argv: Sequence[str],
+    *,
+    stream: bool = False,
+    log_path: str | Path | None = None,
+) -> Transcript:
+    """Production runner: exec argv via ``subprocess``, capture output.
+
+    ``stream=True`` additionally passes tool output through to the terminal
+    live (merged stdout+stderr) while still capturing the transcript;
+    ``log_path`` tees the same bytes to a file. Plain calls behave exactly
+    as before (capture only), so injected test fakes are unaffected.
+    """
+    if not stream and log_path is None:
+        completed = subprocess.run(list(argv), capture_output=True, text=True)
+        return Transcript(
+            argv=tuple(argv),
+            returncode=completed.returncode,
+            stdout=completed.stdout,
+            stderr=completed.stderr,
+        )
+    proc = subprocess.Popen(
+        list(argv), stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True
+    )
+    chunks: list[str] = []
+    log_fh = open(str(log_path), "a") if log_path is not None else None
+    try:
+        assert proc.stdout is not None
+        for line in proc.stdout:
+            print(line, end="", flush=True)
+            chunks.append(line)
+            if log_fh is not None:
+                log_fh.write(line)
+    finally:
+        if log_fh is not None:
+            log_fh.close()
     return Transcript(
         argv=tuple(argv),
-        returncode=completed.returncode,
-        stdout=completed.stdout,
-        stderr=completed.stderr,
+        returncode=proc.wait(),
+        stdout="".join(chunks),
+        stderr="",
     )
 
 
@@ -132,8 +166,10 @@ def parse_output(
 class ProbeRsAdapter(ProbeAdapter):
     """``ProbeAdapter`` via ``probe-rs download --chip <id>``."""
 
-    def __init__(self, runner: Runner | None = None) -> None:
+    def __init__(self, runner: Runner | None = None, *, stream: bool = False, log_path: str | Path | None = None) -> None:
         self._runner = runner if runner is not None else subprocess_runner
+        self._stream = stream
+        self._log_path = log_path
         #: Transcript of the most recent :meth:`flash` (else ``None``); feeds
         #: :meth:`proof_for` so verdicts carry proof without widening the ABC.
         self.last_transcript: Transcript | None = None
@@ -175,7 +211,16 @@ class ProbeRsAdapter(ProbeAdapter):
         pieces = tuple(pieces)
         if not pieces:
             return ()
-        transcript = self._runner(self.render_argv(device, endpoint, pieces))
+        argv = self.render_argv(device, endpoint, pieces)
+        if self._stream or self._log_path is not None:
+            if self._runner is not subprocess_runner:
+                raise ValueError(
+                    "streaming requires the default subprocess runner "
+                    "(injected fakes capture instead)"
+                )
+            transcript = subprocess_runner(argv, stream=self._stream, log_path=self._log_path)
+        else:
+            transcript = self._runner(argv)
         self.last_transcript = transcript
         return parse_output(pieces, transcript)
 

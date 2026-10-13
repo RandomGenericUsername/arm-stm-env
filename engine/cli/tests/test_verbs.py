@@ -154,8 +154,8 @@ def test_verbs_probe_defaults_to_pack_backend(monkeypatch, tmp_path, capsys):
         def last_transcript(self):
             return None
 
-    def _factory(name=None):
-        seen.append(name)
+    def _factory(name=None, **kwargs):
+        seen.append((name, kwargs))
         return _Fake()
 
     monkeypatch.setattr(sys.modules["engine.cli.main"], "get_adapter", _factory)
@@ -163,7 +163,7 @@ def test_verbs_probe_defaults_to_pack_backend(monkeypatch, tmp_path, capsys):
                  "--files", "a.elf", "--mode", "local",
                  "--project-dir", str(tmp_path)])
     assert code == 0
-    assert seen == [expected]
+    assert seen == [(expected, {"stream": True, "log_path": None})]
     assert "2" not in capsys.readouterr().err
 
 
@@ -183,3 +183,41 @@ def test_verbs_missing_image_names_make_images(capsys, monkeypatch):
     code = main(["build", "--project-dir", "."])
     assert code == 1
     assert "make images" in capsys.readouterr().err
+
+
+def test_verbs_verbose_creates_log_dir(monkeypatch, tmp_path, capsys):
+    import sys as _sys
+
+    from pathlib import Path
+
+    from engine.adapters import PieceResult
+    from engine.cli.main import PACKS_DIR, load_file
+
+    pack = sorted(Path(PACKS_DIR).glob("*.yaml"))[0]
+    seen: list = []
+
+    class _Fake:
+        def flash(self, device, endpoint, pieces):
+            return [PieceResult(name=p, ok=True) for p in pieces]
+
+        def debug(self, device, endpoint):
+            raise AssertionError("not under test")
+
+        @property
+        def last_transcript(self):
+            return None
+
+    def _factory(name=None, **kwargs):
+        seen.append(kwargs)
+        return _Fake()
+
+    monkeypatch.setattr(_sys.modules["engine.cli.main"], "get_adapter", _factory)
+    proj = tmp_path / "proj"
+    proj.mkdir()
+    code = main(["flash", "--mcu-config", str(pack), "--device", "/dev/x",
+                 "--files", "a.elf", "--mode", "local", "--verbose",
+                 "--project-dir", str(proj)])
+    assert code == 0
+    assert (proj / ".stm" / "logs").is_dir()
+    assert seen and seen[0].get("stream") is True
+    assert str(seen[0].get("log_path", "")).startswith(str(proj / ".stm" / "logs"))

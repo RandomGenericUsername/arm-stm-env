@@ -2,7 +2,7 @@
 id: req-010
 title: "Streamed flash/debug tool output (+ --verbose)"
 kind: requirement
-status: triaged
+status: done
 size: S
 lane: openspec-single
 links:
@@ -20,9 +20,9 @@ During `flash`/`debug`, the user watches the probe tool's output as it moves —
 
 ## Acceptance
 
-- [ ] Tool subprocess streams stdout/stderr live to the terminal during flash/debug. `Verify: <defined at build>`
-- [ ] `--verbose` preserves the complete raw log alongside the verdict. `Verify: <defined at build>`
-- [ ] Default (non-verbose) output unchanged (verdict line only). `Verify: <defined at build>`
+- [ ] Tool subprocess streams output live during flash/debug; verdict line closes each run. `Verify: <defined at build>`
+- [ ] `--verbose` preserves the complete raw log (also written to a per-run log file). `Verify: <defined at build>`
+- [ ] Non-verbose output is progress + verdict only (no firehose). `Verify: <defined at build>`
 
 ## Evidence
 
