@@ -95,6 +95,7 @@ def validate_frame(doc: dict) -> Device:
         openocd=openocd,
         provenance={"pack_id": doc["id"], "pack_version": str(doc["version"])},
         facets=facets,
+        probe_backend=doc.get("probe_backend"),
     )
 
 

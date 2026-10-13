@@ -47,3 +47,23 @@ def test_pack_missing_frame_key_rejects():
 
     with pytest.raises(FrameError, match="memory|cores|probe|proof_rung"):
         load_text("id: x\nversion: '1'\ncores: [{name: A, arch: B}]\n")
+
+
+def test_pack_probe_backend_defaults_from_shipped_packs():
+    repo_packs = Path(__file__).resolve().parents[3] / "packs"
+    for pack_id in ("stm32f411re", "stm32h755", "stm32wl55jc"):
+        dev = load_file(repo_packs / f"{pack_id}.yaml")
+        assert dev.probe_backend, f"{pack_id} declares no probe default"
+
+
+def test_pack_probe_backend_absent_is_none():
+    from engine.core.loader import load_text
+
+    dev = load_text(
+        "id: x\nversion: '1'\n"
+        "cores: [{name: A, arch: B}]\n"
+        "memory: [{name: flash, origin_hex: '0x0', size: 1024}]\n"
+        "probe: {transport: t, address: a}\n"
+        "proof_rung: frame\n"
+    )
+    assert dev.probe_backend is None

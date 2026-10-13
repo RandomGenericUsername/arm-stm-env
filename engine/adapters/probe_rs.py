@@ -135,6 +135,9 @@ class ProbeRsAdapter(ProbeAdapter):
 
     def __init__(self, runner: Runner | None = None) -> None:
         self._runner = runner if runner is not None else subprocess_runner
+        #: Transcript of the most recent :meth:`flash` (else ``None``); feeds
+        #: :meth:`proof_for` so verdicts carry proof without widening the ABC.
+        self.last_transcript: Transcript | None = None
 
     def render_argv(
         self,
@@ -171,6 +174,7 @@ class ProbeRsAdapter(ProbeAdapter):
         if not pieces:
             return ()
         transcript = self._runner(self.render_argv(device, endpoint, pieces))
+        self.last_transcript = transcript
         return parse_output(pieces, transcript)
 
     def debug(self, device: DeviceView, endpoint: Endpoint) -> DebugHandle:

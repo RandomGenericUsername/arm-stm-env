@@ -21,6 +21,7 @@ probe:
   transport: stlink-dap
   address: openocd:stlink-dap
 # Readback-first ladder: readback rung executed per core (M7 then M4).
+probe_backend: openocd
 proof_rung: readback-m7-m4
 blocks:
   openocd:

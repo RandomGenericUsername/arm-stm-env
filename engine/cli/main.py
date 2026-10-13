@@ -109,6 +109,12 @@ def build_parser() -> argparse.ArgumentParser:
         _add_common(sub)
         if verb in ("flash", "debug"):
             _add_probe_flags(sub)
+            sub.add_argument(
+                "--probe",
+                default=None,
+                metavar="BACKEND",
+                help="probe backend: overrides the pack default",
+            )
         if verb == "flash":
             sub.add_argument(
                 "--files",
@@ -248,7 +254,12 @@ def _prepare_flash(args: argparse.Namespace) -> tuple[Device, Endpoint, ProbeAda
             file=sys.stderr,
         )
         return None
-    return device, endpoint, get_adapter()
+    try:
+        adapter = get_adapter(getattr(args, "probe", None) or device.probe_backend)
+    except ValueError as exc:
+        print(f"stm: error: {exc}", file=sys.stderr)
+        return None
+    return device, endpoint, adapter
 
 
 def _run_flash_local(args: argparse.Namespace) -> int:
@@ -268,7 +279,9 @@ def _run_flash_local(args: argparse.Namespace) -> int:
     except FileNotFoundError:
         print("stm: error: probe tool not found (run inside the toolchain image)", file=sys.stderr)
         return 1
-    print(render_flash_verdict(results))
+    transcript = adapter.last_transcript
+    proof = adapter.proof_for(view, results, transcript) if transcript is not None else None
+    print(render_flash_verdict(results, proof))
     return 0 if all(r.ok for r in results) else 1
 
 
@@ -385,6 +398,18 @@ def _run_verb(args: argparse.Namespace) -> int:
         print(
             "stm: error: container runtime 'docker' not found; "
             "install it or re-run with --dry-run to review the command",
+            file=sys.stderr,
+        )
+        return 1
+    image = DefaultImageLookup().image_for(args.lang)
+    inspected = subprocess.run(
+        ["docker", "image", "inspect", image],
+        capture_output=True,
+    )
+    if inspected.returncode != 0:
+        print(
+            f"stm: error: image {image} not present locally; "
+            f"run `make images` or `docker pull {image}` first",
             file=sys.stderr,
         )
         return 1

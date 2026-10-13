@@ -19,6 +19,7 @@ children:
   - task-002
   - task-003
   - task-004
+  - task-005
   - bug-001
   - bug-002
   - req-009
