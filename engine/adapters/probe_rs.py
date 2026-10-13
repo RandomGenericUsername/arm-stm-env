@@ -1,9 +1,8 @@
-"""probe-rs backend skeleton (req-006, group 2.1): model-only rendering.
+"""probe-rs backend (req-006 group 2.1; task-006 chip override).
 
-``--chip`` renders strictly from the certified model fact ``device.id``
-(the pack's own identifier) + endpoint address from the shim — no board
-or chip names appear literally in this module. Exact probe-rs registry
-chip strings (vendor ``...Tx`` suffixes) stay a pack concern for later.
+``--chip`` carries the pack's ``probe_settings`` chip string when declared
+(verified against the pinned probe-rs chip list), else the pack id — no board
+or chip names appear literally in this module.
 
 Parser targets probe-rs ``download`` output at pinned version
 :const:`PROBE_RS_VERSION` (v0.32.0 per spike-003); the parser is
@@ -147,17 +146,20 @@ class ProbeRsAdapter(ProbeAdapter):
     ) -> list[str]:
         """Build argv strictly from model facts + shim endpoint.
 
-        ``--chip`` carries the certified pack id; ``--probe`` carries the
-        shim endpoint address; each piece is a positional binary path
-        (one ``download`` per piece, in order). Empty pack id raises.
+        ``--chip`` carries the pack's probe-rs chip string when the pack
+        declares one (verified against the pinned probe-rs chip list),
+        else falls back to the pack id; ``--probe`` carries the shim
+        endpoint address; each piece is a positional binary path
+        (one ``download`` per piece, in order). Empty chip raises.
         """
-        if not device.id:
-            raise ValueError("device model carries no pack id for '--chip'")
+        chip = device.probe_setting("probe-rs", "chip") or device.id
+        if not chip:
+            raise ValueError("device model carries no chip fact for '--chip'")
         argv = [
             "probe-rs",
             "download",
             "--chip",
-            device.id,
+            chip,
             "--probe",
             endpoint.address,
         ]

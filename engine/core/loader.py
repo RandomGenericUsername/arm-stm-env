@@ -76,6 +76,7 @@ def validate_frame(doc: dict) -> Device:
     fpu_block = blocks.get("fpu", {})
     linker_block = blocks.get("linker", {})
     cfg_block = blocks.get("config_headers", {})
+    probe_settings_block = blocks.get("probe_settings", {})
     facets = DeviceFacets(
         fpu_mode=fpu_block.get("mode", "soft"),
         fpu_variant=fpu_block.get("variant", "none"),
@@ -83,6 +84,12 @@ def validate_frame(doc: dict) -> Device:
         config_library=cfg_block.get("library", "stm32hal"),
         config_header=cfg_block.get("header", "stm32_config.h"),
         config_defaults_source=cfg_block.get("defaults_source", "pack/defaults.h"),
+        probe_settings=tuple(
+            sorted(
+                (backend, tuple(sorted(settings.items())))
+                for backend, settings in probe_settings_block.items()
+            )
+        ),
     )
     return Device(
         id=doc["id"],

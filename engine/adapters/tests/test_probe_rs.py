@@ -87,7 +87,7 @@ def test_probe_rs_argv_renders_chip_from_model_id_only():
 def test_probe_rs_argv_chip_tracks_pack_id():
     view = DeviceView.of(load_file(PACKS / "stm32h755.yaml"))
     argv = ProbeRsAdapter(runner=_fake_runner("")).render_argv(view, _endpoint(), [])
-    assert "--chip" in argv and "stm32h755" in argv
+    assert "--chip" in argv and "STM32H755ZI" in argv  # pack-declared chip wins
 
 
 def test_probe_rs_argv_missing_pack_id_raises():
@@ -193,3 +193,23 @@ def test_proof_dual_session_vectors_fill_per_core_pieces():
         "verified": "2/2",
         "sessions": "core-0,core-1",
     }
+
+
+def test_probe_rs_argv_prefers_pack_chip_setting():
+    base_view = _device_view()
+    view = DeviceView(
+        id=base_view.id,
+        version=base_view.version,
+        source_hash=base_view.source_hash,
+        cores=base_view.cores,
+        memory=base_view.memory,
+        probe_transport=base_view.probe_transport,
+        probe_address=base_view.probe_address,
+        proof_rung=base_view.proof_rung,
+        openocd_interface=base_view.openocd_interface,
+        openocd_target=base_view.openocd_target,
+        openocd_dual_core=base_view.openocd_dual_core,
+        probe_settings=(("probe-rs", (("chip", "PACK-CHIP-X"),)),),
+    )
+    argv = ProbeRsAdapter(runner=_fake_runner("")).render_argv(view, _endpoint(), ["a"])
+    assert argv[3] == "PACK-CHIP-X"

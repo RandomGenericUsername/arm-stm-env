@@ -154,12 +154,21 @@ class DeviceFacets:
     config_library: str = "stm32hal"
     config_header: str = "stm32_config.h"
     config_defaults_source: str = "pack/defaults.h"
+    probe_settings: Tuple[Tuple[str, Tuple[Tuple[str, str], ...]], ...] = ()
 
     def linker_for(self, core_name: str, device_id: str) -> str:
         for name, script in self.linker:
             if name == core_name:
                 return script
         return f"{device_id}_{core_name}_FLASH.ld"
+
+    def probe_setting(self, backend: str, key: str) -> str | None:
+        for name, settings in self.probe_settings:
+            if name == backend:
+                for k, v in settings:
+                    if k == key:
+                        return v
+        return None
 
 
 @dataclass(frozen=True)
@@ -273,6 +282,15 @@ class DeviceView:
     openocd_interface: str | None = None
     openocd_target: str | None = None
     openocd_dual_core: bool = False
+    probe_settings: Tuple[Tuple[str, Tuple[Tuple[str, str], ...]], ...] = ()
+
+    def probe_setting(self, backend: str, key: str) -> str | None:
+        for name, settings in self.probe_settings:
+            if name == backend:
+                for k, v in settings:
+                    if k == key:
+                        return v
+        return None
 
     @classmethod
     def of(cls, device: Device) -> DeviceView:
@@ -288,6 +306,7 @@ class DeviceView:
             openocd_interface=device.openocd.interface if device.openocd else None,
             openocd_target=device.openocd.target if device.openocd else None,
             openocd_dual_core=device.openocd.dual_core if device.openocd else False,
+            probe_settings=device.facets.probe_settings if device.facets else (),
         )
 
     def __iter__(self) -> Iterator[str]:

@@ -131,3 +131,18 @@ def test_frame_missing_version_rejects():
     doc = {k: v for k, v in BASE.items() if k != "version"}
     with pytest.raises(FrameError, match="version"):
         validate_frame(doc)
+
+
+def test_probe_settings_accepts_backend_map():
+    registry.validate_block("probe_settings", {"probe-rs": {"chip": "SOME-CHIP"}})
+
+
+def test_probe_settings_rejects_bad_shapes():
+    from engine.core import registry as _r
+
+    with pytest.raises(ValueError, match="probe_settings"):
+        _r.validate_block("probe_settings", "not-a-mapping")
+    with pytest.raises(ValueError, match="probe_settings"):
+        _r.validate_block("probe_settings", {"probe-rs": "not-a-mapping"})
+    with pytest.raises(ValueError, match="probe_settings"):
+        _r.validate_block("probe_settings", {"probe-rs": {"chip": ""}})
