@@ -41,4 +41,13 @@ RUN git clone "${OPENOCD_REPO}" /tmp/openocd \
     && make -j"$(nproc)" && make install && cd / && rm -rf /tmp/openocd \
     && openocd --version | head -2
 
+# Engine runtime: the shim execs `python3 -m engine` from the read-only repo
+# mount, so images need an interpreter + the engine's single dependency.
+# pyyaml pinned to uv.lock (6.0.3); trailing layer preserves toolchain cache.
+ARG PYYAML_VERSION=6.0.3
+RUN apt-get update && apt-get install -y --no-install-recommends python3 python3-pip \
+    && rm -rf /var/lib/apt/lists/* \
+    && pip install --break-system-packages "pyyaml==${PYYAML_VERSION}" \
+    && python3 -c "import yaml; assert yaml.__version__ == '${PYYAML_VERSION}', yaml.__version__"
+
 CMD ["arm-none-eabi-gcc", "--version"]

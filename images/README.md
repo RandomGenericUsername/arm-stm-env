@@ -60,3 +60,15 @@ recorded, images ship **vanilla ARM GNU from the public gitlab host**
       redistribution terms not reviewed).
 - [ ] CubeCLT version + SLA redistribution terms + stable download URL —
       still OPEN (st.com unreachable twice).
+
+## Troubleshooting
+
+- `mkdir /host_mnt/...: operation not permitted` on `-v` mounts: the checkout
+  or project lives outside Docker Desktop's shared paths (Settings → Resources
+  → File Sharing). Move the project under a shared path (e.g. `/tmp`) or add
+  the parent dir. Verified 2026-10-13: `/tmp` shared, `~/Desktop` unshared on
+  the dev machine.
+- Fresh `create`d C projects need the CMSIS submodule (spike-002 vendoring,
+  not yet wired into `create`): until then, builds fail on the missing
+  `vendor/.../startup_*.s` — same documented interim as the e2e harness,
+  which injects freestanding stubs.
