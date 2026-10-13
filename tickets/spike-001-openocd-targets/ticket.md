@@ -2,7 +2,7 @@
 id: spike-001
 title: "Per-pack OpenOCD target verification"
 kind: spike
-status: reporting
+status: done
 parent: epic-001
 timebox: "3h"
 links:

@@ -2,7 +2,7 @@
 id: spike-004
 title: "Per-project config-header flow (lwipopts.h-style)"
 kind: spike
-status: reporting
+status: done
 parent: epic-001
 timebox: "2h"
 links:

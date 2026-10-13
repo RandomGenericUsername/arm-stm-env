@@ -1,21 +1,62 @@
 # arm-stm-env
 
-Greenfield unified STM32 development environment (C / C++ / Rust). Baseline lessons from `../ArmDevelopmentEnvironment@last-branch` + `../rust-embedded-environment@recover-branch` — no code reuse, requirements-first.
+One CLI from zero to a running program on supported MCUs: scaffold projects
+from prebuilt hardware packs (or your own config), hack in a containerized
+dev environment, and build/flash from a bare host with zero toolchain setup.
 
-## Core intent (do not lose)
+Day-one packs: Nucleo-F411RE, Nucleo-H755ZI-Q, Nucleo-WL55JC — in C, C++,
+Rust. Linux/macOS hosts. Windows: deferred lane.
 
-Dual-mode CLI:
-1. **Containerized dev env** — `cli create/dev` provisions interactive container env (toolchain + CMSIS/SVD fetcher + build/flash/debug + VSCode).
-2. **Host-transparent** — on bare host with zero deps, `cli compile/build/flash` delegates into container (cf. Rust `compile_project.sh --path --arch --output-dir`). Must work on cloned project without host setup.
+## Install (host prerequisites: Git, Docker, `python3 >= 3.11`, `uv`)
 
-Selector: `--lang c|cpp|rust --mcu f411re|h755|wl55jc --name <proj>`
+```sh
+git clone https://github.com/RandomGenericUsername/arm-stm-env.git
+cd arm-stm-env
+make sync      # Python env (uv, locked)
+make test      # engine suite, no Docker needed
+make images    # build cpp + rust toolchain images (needs Docker + network)
+make smoke     # version probes inside both images
+```
 
-## Tooling here
+## Quickstart
 
-- BMAD-METHOD: `.agents/skills/` (`bmad`, `bmod-method`, `bmod-core-tools`, `bmad-build`). Run `bmad setup` in agent, then `bmad-build`.
-- OpenSpec: `openspec/` (spec-driven). Start: `/opsx-propose "your idea"`.
-- See `openspec/config.yaml`, `skills-lock.json`.
+```sh
+# Scaffold (works offline after clone; needs git + network for CMSIS submodules)
+uv run stm create --mcu-config stm32f411re --lang c --name demo --out-dir .
+# Build transparently in the pinned toolchain image (no host toolchain needed)
+uv run stm build --project-dir ./demo
+# Inspect what any command will do without running it
+uv run stm build --project-dir ./demo --dry-run
+# Interactive dev shell in the same image
+uv run stm dev
+```
+
+`stm create --help` lists packs (`stm32f411re`, `stm32h755`, `stm32wl55jc`),
+languages (`c`, `cpp`, `rust`), and the `--config` escape hatch for your own
+device files (one source per invocation: `--mcu-config` XOR `--mcu`).
+
+## Flashing (needs a probe + board)
+
+```sh
+uv run stm flash --mcu-config stm32f411re --project-dir ./demo \
+  --device /dev/ttyUSB0 --files demo.elf
+```
+
+Per-board OpenOCD configs ship in each generated project (`openocd.cfg`,
+verified against the ST OpenOCD fork). Live flash/run is the one path not
+yet proven without hardware — see `tickets/` for status.
+
+## Repo map
+
+- `engine/` — hexagonal core: model, packs loader, thin CLI verbs, probe
+  adapters, templates, verify harness. `make test` runs the suite.
+- `packs/` — the three STM32 device packs (validated YAML).
+- `images/` — pinned toolchain Dockerfiles + build/smoke/push commands.
+- `tickets/` — the work index (`INDEX.md` board, per-kind lifecycles).
+- `openspec/` + `_bmad-output/` — specs, proposals, brief, spec, architecture.
 
 ## Status
 
-Empty scaffold. Next: requirements + 2026 technical background + architecture, then bootstrap.
+Active development toward V1 (create → build → flash → run per matrix cell).
+`make test` green is the merge gate; every technical claim in planning
+artifacts carries evidence per `AGENTS.md`.

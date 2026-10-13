@@ -2,7 +2,7 @@
 id: spike-003
 title: "2026 toolchain recon"
 kind: spike
-status: reporting
+status: done
 parent: epic-001
 timebox: "3h"
 links:
