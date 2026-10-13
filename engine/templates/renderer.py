@@ -14,6 +14,7 @@ from pathlib import Path
 from string import Template
 
 from engine.core.model import Core, Device
+from engine.templates.vendoring import vendor
 
 __all__ = [
     "CPU_BY_CORE",
@@ -52,6 +53,13 @@ def _fpu_flags(mode: str, variant: str) -> str:
     if mode == "soft" or variant == "none":
         return "-mfloat-abi=soft"
     return f"-mfpu={variant} -mfloat-abi={mode}"
+
+
+def _define_flags(macros: str | None) -> str:
+    """Space-separated pack macros -> ``-D`` flags (dual-core cores need two)."""
+    if not macros:
+        return ""
+    return " ".join(f"-D{m}" for m in macros.split())
 
 
 def _oc_cfg_path(device: Device) -> str:
@@ -94,12 +102,17 @@ def core_context(device: Device, core: Core, lang: str) -> dict:
         "cpu": cpu,
         "cpu_flags": f"-mcpu={cpu} -mthumb",
         "fpu_flags": _fpu_flags(facets.fpu_mode, facets.fpu_variant),
+        "define_flags": _define_flags(facets.define_for(core.name)),
         "linker_script": facets.linker_for(core.name, device.id),
-        "cmsis_include": "vendor/CMSIS/Include",
+        "cmsis_include": "vendor/CMSIS/CMSIS/Core/Include",
         "device_include": f"vendor/cmsis-device-{device.id}/Include",
         "startup_s": (
             f"vendor/cmsis-device-{device.id}/Source/Templates/gcc"
-            f"/startup_{device.id}_{core.name}.s"
+            f"/{facets.startup_for(core.name, device.id)}"
+        ),
+        "system_c": (
+            f"vendor/cmsis-device-{device.id}/Source/Templates"
+            f"/{facets.system_for(core.name, device.id)}"
         ),
         "config_header": header,
         "config_guard": guard,
@@ -129,7 +142,7 @@ _MAKEFILE_HEAD = Template(
     "OBJCOPY = arm-none-eabi-objcopy\n"
     "SIZE = arm-none-eabi-size\n"
     "OPENOCD ?= openocd\n"
-    "CMSIS_INC = -Ivendor/CMSIS/Include -I$device_include\n"
+    "CMSIS_INC = -Ivendor/CMSIS/CMSIS/Core/Include -I$device_include\n"
     "CONFIG_INC = -Iconfig\n"
     "CONFIG_DEF = -DUSE_$config_guard\n"
     "\n"
@@ -140,12 +153,13 @@ _MAKEFILE_CORE = Template(
     "TARGET_$core = $project-$core\n"
     "CPU_FLAGS_$core = $cpu_flags\n"
     "FPU_FLAGS_$core = $fpu_flags\n"
-    "CFLAGS_$core = $$(CPU_FLAGS_$core) $$(FPU_FLAGS_$core)$std_flags "
+    "CFLAGS_$core = $$(CPU_FLAGS_$core) $$(FPU_FLAGS_$core)$std_flags $define_flags "
     "$$(CMSIS_INC) $$(CONFIG_INC) $$(CONFIG_DEF) -Os -ffunction-sections -fdata-sections -g3 -Wall\n"
     "LDSCRIPT_$core = linker/$linker_script\n"
     "STARTUP_$core = $startup_s\n"
+    "SYSTEM_C_$core = $system_c\n"
     "SRCS_$core = src/main-$core.c\n"
-    "OBJS_$core = build/$core/main-$core.o build/$core/startup-$core.o\n"
+    "OBJS_$core = build/$core/main-$core.o build/$core/startup-$core.o build/$core/system-$core.o\n"
     "\n"
     "build/$core/main-$core.o: src/main-$core.c config/$config_header\n"
     "\t@mkdir -p $$(@D)\n"
@@ -154,6 +168,11 @@ _MAKEFILE_CORE = Template(
     "# Vendor startup assembly stays in its submodule (see Startup/NOTE.md);\n"
     "# this rule assembles it straight from vendor/ — never copied.\n"
     "build/$core/startup-$core.o: $$(STARTUP_$core)\n"
+    "\t@mkdir -p $$(@D)\n"
+    "\t$compiler $$(CFLAGS_$core) -c -o $$@ $$<\n"
+    "\n"
+    "# Vendor system file (SystemInit) compiles from its submodule likewise.\n"
+    "build/$core/system-$core.o: $$(SYSTEM_C_$core)\n"
     "\t@mkdir -p $$(@D)\n"
     "\t$compiler $$(CFLAGS_$core) -c -o $$@ $$<\n"
     "\n"
@@ -256,6 +275,7 @@ _LINKER = Template(
     "        *(.data*)\n"
     "        . = ALIGN(4);\n"
     "        _edata = .;\n"
+    "        _sidata = LOADADDR(.data);\n"
     "    } >$ram_region\n"
     "\n"
     "    .bss :\n"
@@ -587,6 +607,10 @@ def render(pack_model: Device, lang: str, out_dir: str | Path) -> list[Path]:
             clean_targets=" ".join(f"clean-{c.name}" for c in pack_model.cores),
         ))
         write("Startup/NOTE.md", _STARTUP_NOTE.substitute(project=pack_model.id, rows="\n".join(rows) + "\n"))
+        # Pinned CMSIS submodules for C/C++ only (strict: VendorError
+        # propagates so `create` fails loud with no partial tree — spec
+        # "No network means clear error"; Rust carries no vendor tree).
+        vendor(pack_model.id, out)
     else:  # rust: single tree, memory.x covers every region
         arch = pack_model.cores[0].arch
         write(

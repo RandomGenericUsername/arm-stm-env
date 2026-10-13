@@ -37,6 +37,13 @@ EXPECTED_OC = {
 }
 
 
+@pytest.fixture(autouse=True)
+def _stub_vendoring(monkeypatch) -> None:
+    """req-011: render() strictly vendors C/C++ via git; unit renders stub it
+    (tmp dirs are non-repos, no network). Wiring is covered in test_vendoring."""
+    monkeypatch.setattr("engine.templates.renderer.vendor", lambda _pack_id, _out: [])
+
+
 def _pack_doc(pack_id: str) -> dict:
     return yaml.safe_load((PACKS_DIR / f"{pack_id}.yaml").read_text())
 
@@ -87,15 +94,20 @@ def test_cells(pack_id: str, lang: str, tmp_path: Path) -> None:
             assert core["arch"] in text, f"arch {core['arch']} missing"
             assert doc["blocks"]["linker"][core["name"]] in text, "linker ref missing"
             assert f"build-{core['name']}" in text, "build target missing"
+            for macro in doc["blocks"]["defines"][core["name"]].split():
+                assert f"-D{macro}" in text, f"device define {macro} missing"
+            assert f"SYSTEM_C_{core['name']}" in text, "system file ref missing"
             assert f"clean-{core['name']}" in text, "clean target missing"
             assert f"flash-{core['name']}" in text, "flash-helper target missing"
             main = (out / f"src/main-{core['name']}.c").read_text()
             assert "wfi" in main and header in main, "bring-up source incomplete"
             linker = (out / f"linker/{doc['blocks']['linker'][core['name']]}").read_text()
             assert "ENTRY(Reset_Handler)" in linker and "MEMORY" in linker
+            for sym in ("_estack", "_sdata", "_edata", "_sbss", "_ebss", "_sidata"):
+                assert sym in linker, f"startup-required symbol {sym} missing"
         fpu = doc["blocks"]["fpu"]
         assert ("-mfloat-abi=soft" if fpu["mode"] == "soft" else fpu["variant"]) in text
-        assert "vendor/CMSIS/Include" in text and "-Iconfig" in text
+        assert "vendor/CMSIS/CMSIS/Core/Include" in text and "-Iconfig" in text
         assert "verify reset exit" in text, "flash helper must verify+reset"
         assert "Reset_Handler" in (out / "Startup/NOTE.md").read_text()
         if lang == "cpp":

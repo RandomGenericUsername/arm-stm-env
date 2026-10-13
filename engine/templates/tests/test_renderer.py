@@ -11,6 +11,13 @@ from engine.templates.renderer import SUPPORTED_LANGS, core_context, render
 from .test_cells import PACK_IDS, PACKS_DIR
 
 
+@pytest.fixture(autouse=True)
+def _stub_vendoring(monkeypatch) -> None:
+    """req-011: render() strictly vendors C/C++ via git; unit renders stub it
+    (tmp dirs are non-repos, no network). Wiring is covered in test_vendoring."""
+    monkeypatch.setattr("engine.templates.renderer.vendor", lambda _pack_id, _out: [])
+
+
 def test_renderer_bad_lang(tmp_path) -> None:
     device = load_file(PACKS_DIR / "stm32f411re.yaml")
     with pytest.raises(ValueError, match="unsupported lang"):
@@ -84,6 +91,8 @@ def _synthetic_device() -> Device:
             config_library="synthlib",
             config_header="synth_config.h",
             config_defaults_source="pack/synth.h",
+            startup=(("M4", "startup_synth.s"),),
+            system=(("M4", "system_synth.c"),),
         ),
     )
 

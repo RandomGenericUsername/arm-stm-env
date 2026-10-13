@@ -107,7 +107,9 @@ def test_check_memory_x_missing_region_negative() -> None:
         check_memory_x(device, "MEMORY { RAM (rwx) : ORIGIN = 0x20000000, LENGTH = 131072 }")
 
 
-def test_vendor_stubs_land_on_startup_paths(tmp_path: Path) -> None:
+def test_vendor_stubs_land_on_startup_paths(tmp_path: Path, monkeypatch) -> None:
+    # req-011: render() strictly vendors C/C++; stub it (non-repo tmp, no network).
+    monkeypatch.setattr("engine.templates.renderer.vendor", lambda _pack_id, _out: [])
     device = load_file(PACKS_DIR / "stm32wl55jc.yaml")
     render(device, "c", tmp_path)
     stubs = inject_vendor_stubs(device, tmp_path)

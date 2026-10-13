@@ -76,11 +76,17 @@ def validate_frame(doc: dict) -> Device:
     fpu_block = blocks.get("fpu", {})
     linker_block = blocks.get("linker", {})
     cfg_block = blocks.get("config_headers", {})
+    startup_block = blocks.get("startup", {})
+    system_block = blocks.get("system", {})
+    defines_block = blocks.get("defines", {})
     probe_settings_block = blocks.get("probe_settings", {})
     facets = DeviceFacets(
         fpu_mode=fpu_block.get("mode", "soft"),
         fpu_variant=fpu_block.get("variant", "none"),
         linker=tuple(sorted(linker_block.items())),
+        startup=tuple(sorted(startup_block.items())),
+        system=tuple(sorted(system_block.items())),
+        defines=tuple(sorted(defines_block.items())),
         config_library=cfg_block.get("library", "stm32hal"),
         config_header=cfg_block.get("header", "stm32_config.h"),
         config_defaults_source=cfg_block.get("defaults_source", "pack/defaults.h"),

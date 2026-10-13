@@ -151,6 +151,9 @@ class DeviceFacets:
     fpu_mode: str = "soft"
     fpu_variant: str = "none"
     linker: Tuple[Tuple[str, str], ...] = ()
+    startup: Tuple[Tuple[str, str], ...] = ()
+    system: Tuple[Tuple[str, str], ...] = ()
+    defines: Tuple[Tuple[str, str], ...] = ()
     config_library: str = "stm32hal"
     config_header: str = "stm32_config.h"
     config_defaults_source: str = "pack/defaults.h"
@@ -161,6 +164,31 @@ class DeviceFacets:
             if name == core_name:
                 return script
         return f"{device_id}_{core_name}_FLASH.ld"
+
+    def startup_for(self, core_name: str, device_id: str) -> str:
+        # No invented fallback (bug-002 class): an undeclared core is a loud
+        # error, never a plausible-but-absent filename.
+        for name, script in self.startup:
+            if name == core_name:
+                return script
+        raise ValueError(
+            f"pack {device_id!r} declares no startup file for core {core_name!r}"
+        )
+
+    def system_for(self, core_name: str, device_id: str) -> str:
+        # Same no-fallback rule: the vendor system file must be declared.
+        for name, script in self.system:
+            if name == core_name:
+                return script
+        raise ValueError(
+            f"pack {device_id!r} declares no system file for core {core_name!r}"
+        )
+
+    def define_for(self, core_name: str) -> str | None:
+        for name, macro in self.defines:
+            if name == core_name:
+                return macro
+        return None
 
     def probe_setting(self, backend: str, key: str) -> str | None:
         for name, settings in self.probe_settings:
