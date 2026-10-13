@@ -46,3 +46,8 @@ blocks:
     library: stm32hal
     header: stm32_config.h
     defaults_source: pack/defaults.h
+  # probe-rs registry names verified against the pinned tool
+  # (`probe-rs chip list` in lang-rust:1.99.0), 2026-10-13.
+  probe_settings:
+    probe-rs:
+      chip: STM32H755ZI

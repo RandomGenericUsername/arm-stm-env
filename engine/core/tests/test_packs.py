@@ -67,3 +67,18 @@ def test_pack_probe_backend_absent_is_none():
         "proof_rung: frame\n"
     )
     assert dev.probe_backend is None
+
+
+def test_pack_probe_settings_reach_view():
+    from engine.core.model import DeviceView
+
+    repo_packs = Path(__file__).resolve().parents[3] / "packs"
+    expected = {
+        "stm32f411re": "STM32F411RE",
+        "stm32h755": "STM32H755ZI",
+        "stm32wl55jc": "STM32WL55JC",
+    }
+    for pack_id, chip in expected.items():
+        view = DeviceView.of(load_file(repo_packs / f"{pack_id}.yaml"))
+        assert view.probe_setting("probe-rs", "chip") == chip, pack_id
+        assert view.probe_setting("probe-rs", "nope") is None

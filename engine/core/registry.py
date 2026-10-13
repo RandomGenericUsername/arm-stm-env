@@ -126,3 +126,21 @@ def _validate_config_headers(payload: Any) -> None:
 
 
 register("config_headers", _validate_config_headers, families=_STM32_FAMILIES)
+
+
+def _validate_probe_settings(payload: Any) -> None:
+    if not isinstance(payload, dict) or not payload:
+        raise ValueError("probe_settings block must be a non-empty mapping of backend -> settings")
+    for backend, settings in payload.items():
+        if not isinstance(backend, str) or not backend:
+            raise ValueError(f"probe_settings backend name must be a non-empty string, got {backend!r}")
+        if not isinstance(settings, dict) or not settings:
+            raise ValueError(f"probe_settings for backend {backend!r} must be a non-empty mapping")
+        for key, value in settings.items():
+            if not isinstance(key, str) or not key:
+                raise ValueError(f"probe_settings key for backend {backend!r} must be a non-empty string")
+            if not isinstance(value, str) or not value:
+                raise ValueError(f"probe_settings[{backend}][{key}] must be a non-empty string")
+
+
+register("probe_settings", _validate_probe_settings, families=_STM32_FAMILIES)
