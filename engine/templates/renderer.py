@@ -368,10 +368,13 @@ _CARGO = Template(
     'flip-link = "$flip_link"\n'
     "\n"
     "[profile.dev]\n"
+    "# no_std targets cannot unwind: abort is required on stable (bug-002).\n"
+    'panic = "abort"\n'
     "opt-level = 0\n"
     "debug = true\n"
     "\n"
     "[profile.release]\n"
+    'panic = "abort"\n'
     'opt-level = "z"\n'
     "codegen-units = 1\n"
     "lto = true\n"

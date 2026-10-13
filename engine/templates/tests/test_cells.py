@@ -105,6 +105,8 @@ def test_cells(pack_id: str, lang: str, tmp_path: Path) -> None:
         for crate, pin in RUST_PINS.items():
             assert f'{crate} = "{pin}"' in cargo, f"pin {crate} missing"
         assert 'flip-link = "0.1.12"' in cargo
+        # bug-002: no_std targets cannot unwind — both profiles must abort.
+        assert cargo.count('panic = "abort"') >= 2, "panic=abort missing from profiles"
         memx = (out / "memory.x").read_text()
         for region in doc["memory"]:
             origin = int(region["origin_hex"], 16)
