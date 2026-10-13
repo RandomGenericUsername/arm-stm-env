@@ -79,6 +79,11 @@ def _add_probe_flags(sub: argparse.ArgumentParser) -> None:
     sub.add_argument("--vid", default=None, help="probe USB vendor id selector")
     sub.add_argument("--pid", default=None, help="probe USB product id selector")
     sub.add_argument("--serial", default=None, help="probe USB serial selector")
+    sub.add_argument(
+        "--verbose",
+        action="store_true",
+        help="preserve the complete raw tool log under <project>/.stm/logs/",
+    )
 
 
 def _one_source_violation(args: argparse.Namespace) -> str | None:
@@ -259,11 +264,25 @@ def _prepare_flash(args: argparse.Namespace) -> tuple[Device, Endpoint, ProbeAda
         )
         return None
     try:
-        adapter = get_adapter(getattr(args, "probe", None) or device.probe_backend)
+        adapter = get_adapter(
+            getattr(args, "probe", None) or device.probe_backend,
+            stream=True,
+            log_path=_verbose_log_path(args) if getattr(args, "verbose", False) else None,
+        )
     except ValueError as exc:
         print(f"stm: error: {exc}", file=sys.stderr)
         return None
     return device, endpoint, adapter
+
+
+def _verbose_log_path(args: argparse.Namespace) -> str:
+    """Per-run raw-log path for ``--verbose`` (created on first write)."""
+    import time
+
+    stamp = time.strftime("%Y%m%d-%H%M%S")
+    logdir = Path(args.project_dir).resolve() / ".stm" / "logs"
+    logdir.mkdir(parents=True, exist_ok=True)
+    return str(logdir / f"{args.verb}-{stamp}.log")
 
 
 def _run_flash_local(args: argparse.Namespace) -> int:

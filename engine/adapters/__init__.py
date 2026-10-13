@@ -96,16 +96,17 @@ def _ensure_builtin_backends() -> None:
         _BACKEND_FACTORIES["probe-rs"] = ProbeRsAdapter
 
 
-def get_adapter(name: str | None = None) -> ProbeAdapter:
+def get_adapter(name: str | None = None, **kwargs) -> ProbeAdapter:
     """Instantiate a registered probe backend (default when unnamed).
 
     Callers never name backend modules — adding a backend touches this
-    registry only, never CLI code.
+    registry only, never CLI code. Extra kwargs (``stream``, ``log_path``)
+    pass to the backend constructor.
     """
     _ensure_builtin_backends()
     key = name or default_backend_name()
     try:
-        return _BACKEND_FACTORIES[key]()
+        return _BACKEND_FACTORIES[key](**kwargs)
     except KeyError:
         raise ValueError(
             f"unknown probe backend {key!r}; registered: {sorted(_BACKEND_FACTORIES)}"
