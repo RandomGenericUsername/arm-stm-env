@@ -113,6 +113,45 @@ def _validate_linker(payload: Any) -> None:
 
 register("linker", _validate_linker, families=_STM32_FAMILIES)
 
+
+def _validate_startup(payload: Any) -> None:
+    if not isinstance(payload, dict) or not payload:
+        raise ValueError("startup block must be a non-empty mapping of core name -> vendor file")
+    for core, script in payload.items():
+        if not isinstance(core, str) or not core:
+            raise ValueError(f"startup block core name must be a non-empty string, got {core!r}")
+        if not isinstance(script, str) or not script:
+            raise ValueError(f"startup block file for core {core!r} must be a non-empty string")
+
+
+register("startup", _validate_startup, families=_STM32_FAMILIES)
+
+
+def _validate_system(payload: Any) -> None:
+    if not isinstance(payload, dict) or not payload:
+        raise ValueError("system block must be a non-empty mapping of core name -> vendor file")
+    for core, script in payload.items():
+        if not isinstance(core, str) or not core:
+            raise ValueError(f"system block core name must be a non-empty string, got {core!r}")
+        if not isinstance(script, str) or not script:
+            raise ValueError(f"system block file for core {core!r} must be a non-empty string")
+
+
+register("system", _validate_system, families=_STM32_FAMILIES)
+
+
+def _validate_defines(payload: Any) -> None:
+    if not isinstance(payload, dict) or not payload:
+        raise ValueError("defines block must be a non-empty mapping of core name -> device macro")
+    for core, macro in payload.items():
+        if not isinstance(core, str) or not core:
+            raise ValueError(f"defines block core name must be a non-empty string, got {core!r}")
+        if not isinstance(macro, str) or not macro:
+            raise ValueError(f"defines block macro for core {core!r} must be a non-empty string")
+
+
+register("defines", _validate_defines, families=_STM32_FAMILIES)
+
 _CONFIG_HEADER_KEYS = ("library", "header", "defaults_source")
 
 

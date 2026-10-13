@@ -3,11 +3,19 @@
 import re
 from pathlib import Path
 
+import pytest
 import yaml
 
 from engine.cli.main import PACKS_DIR, main
 
 PLACEHOLDER = re.compile(r"\$\{|\$[A-Za-z_]")
+
+
+@pytest.fixture(autouse=True)
+def _stub_vendoring(monkeypatch) -> None:
+    """req-011: create strictly vendors C/C++ via git; unit creates stub it
+    (tmp dirs are non-repos, no network). Wiring is covered in test_vendoring."""
+    monkeypatch.setattr("engine.templates.renderer.vendor", lambda _pack_id, _out: [])
 
 
 def _first_pack() -> tuple[str, Path]:

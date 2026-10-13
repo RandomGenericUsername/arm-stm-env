@@ -146,3 +146,42 @@ def test_probe_settings_rejects_bad_shapes():
         _r.validate_block("probe_settings", {"probe-rs": "not-a-mapping"})
     with pytest.raises(ValueError, match="probe_settings"):
         _r.validate_block("probe_settings", {"probe-rs": {"chip": ""}})
+
+
+def test_startup_accepts_per_core_files():
+    registry.validate_block("startup", {"M4": "startup_stm32f411xe.s"})
+
+
+def test_startup_rejects_bad_shapes():
+    import pytest as _pytest
+
+    with _pytest.raises(ValueError, match="startup"):
+        registry.validate_block("startup", "not-a-mapping")
+    with _pytest.raises(ValueError, match="startup"):
+        registry.validate_block("startup", {"M4": ""})
+
+
+def test_system_accepts_per_core_files():
+    registry.validate_block("system", {"M4": "system_stm32f4xx.c"})
+
+
+def test_system_rejects_bad_shapes():
+    import pytest as _pytest
+
+    with _pytest.raises(ValueError, match="system"):
+        registry.validate_block("system", "not-a-mapping")
+    with _pytest.raises(ValueError, match="system"):
+        registry.validate_block("system", {"M4": ""})
+
+
+def test_defines_accepts_per_core_macros():
+    registry.validate_block("defines", {"M4": "STM32F411xE"})
+
+
+def test_defines_rejects_bad_shapes():
+    import pytest as _pytest
+
+    with _pytest.raises(ValueError, match="defines"):
+        registry.validate_block("defines", "not-a-mapping")
+    with _pytest.raises(ValueError, match="defines"):
+        registry.validate_block("defines", {"M4": ""})

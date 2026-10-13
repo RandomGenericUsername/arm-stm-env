@@ -1,0 +1,126 @@
+"""Pinned CMSIS submodule vendoring (req-011).
+
+``vendor(pack_id, project_dir)`` registers two pinned submodules in an
+already-rendered C/C++ project tree: CMSIS core at ``vendor/CMSIS`` and the
+family device repo at ``vendor/cmsis-device-<pack-id>``.
+
+Mechanism (design.md): ``git submodule add <url> <path>`` then a detached
+``git -C <path> checkout <tag>`` inside each submodule. Tags are immutable
+so pins are reproducible. Every failure raises :class:`VendorError`
+naming the missing capability/path/URL — never a half-vendored tree.
+"""
+
+from __future__ import annotations
+
+import shutil
+import subprocess
+from pathlib import Path
+
+__all__ = [
+    "PINS",
+    "FAMILY_REPOS",
+    "VENDOR_CORE_PATH",
+    "VendorError",
+    "family_repo",
+    "vendor",
+]
+
+CMSIS_CORE_URL = "https://github.com/ARM-software/CMSIS_5.git"
+CMSIS_CORE_TAG = "5.9.0"
+VENDOR_CORE_PATH = "vendor/CMSIS"
+
+# Family device repos, verified 2026-10-13 (ls-remote tags + HTTP 200 on
+# core header, device Include header, and gcc startup file per family).
+FAMILY_REPOS = {
+    "f4": ("https://github.com/STMicroelectronics/cmsis_device_f4.git", "v2.6.9"),
+    "h7": ("https://github.com/STMicroelectronics/cmsis_device_h7.git", "v1.9.0"),
+    "wl": ("https://github.com/STMicroelectronics/cmsis_device_wl.git", "v1.4.0"),
+}
+
+# Pin table: logical name -> (repo URL, tag). Kept as the single source the
+# tests assert against (spec: pins recorded as tag SHAs, not branches).
+PINS = {
+    "CMSIS_5": (CMSIS_CORE_URL, CMSIS_CORE_TAG),
+    **{f"cmsis_device_{fam}": pin for fam, pin in FAMILY_REPOS.items()},
+}
+
+
+class VendorError(RuntimeError):
+    """Loud vendoring failure: names the missing capability, path, or URL."""
+
+
+def _family_of(pack_id: str) -> str:
+    """Family key from the pack id prefix (``stm32f4…`` -> ``f4``)."""
+    for fam in FAMILY_REPOS:
+        if pack_id.startswith(f"stm32{fam}"):
+            return fam
+    raise VendorError(
+        f"vendoring: unknown family for pack id {pack_id!r}; "
+        f"expected one of {sorted('stm32' + f for f in FAMILY_REPOS)}"
+    )
+
+
+def family_repo(pack_id: str) -> tuple[str, str, str]:
+    """(repo URL, tag, submodule path) for the pack's family device repo."""
+    fam = _family_of(pack_id)
+    url, tag = FAMILY_REPOS[fam]
+    return url, tag, f"vendor/cmsis-device-{pack_id}"
+
+
+def _run_git(args: list[str], cwd: Path) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(args, cwd=cwd, capture_output=True, text=True)
+
+
+def _add_pin(url: str, tag: str, dest: str, project_dir: Path) -> None:
+    added = _run_git(["git", "submodule", "add", url, dest], project_dir)
+    if added.returncode != 0:
+        raise VendorError(
+            f"vendoring: `git submodule add {url} {dest}` failed in {project_dir} "
+            f"(network required at create time; unreachable remote → no partial tree): "
+            f"{added.stderr.strip()}"
+        )
+    checked = _run_git(["git", "-C", dest, "checkout", tag], project_dir)
+    if checked.returncode != 0:
+        raise VendorError(
+            f"vendoring: `git -C {dest} checkout {tag}` failed in {project_dir} "
+            f"(upstream moved the tag? pin {url}@{tag} no longer resolves): "
+            f"{checked.stderr.strip()}"
+        )
+    # Re-stage: `add` recorded the branch-tip gitlink; without this, a later
+    # `submodule update --init` silently resets the worktree to the tip.
+    staged = _run_git(["git", "-C", str(project_dir), "add", dest], project_dir)
+    if staged.returncode != 0:
+        raise VendorError(
+            f"vendoring: `git add {dest}` failed in {project_dir} "
+            f"(cannot record the pinned gitlink): {staged.stderr.strip()}"
+        )
+
+
+def vendor(pack_id: str, project_dir: str | Path) -> list[Path]:
+    """Register pinned CMSIS submodules; return the submodule dirs.
+
+    Raises :class:`VendorError` (non-zero create path) when git is missing,
+    the out-dir is not in a repo, the family is unknown, or any git step
+    fails (e.g. offline: unreachable remote URL named in the message).
+    """
+    out = Path(project_dir)
+    if not out.is_dir():
+        raise VendorError(
+            f"vendoring: out-dir {out} does not exist; render the project first"
+        )
+    if shutil.which("git") is None:
+        raise VendorError(
+            "vendoring: `git` not found on PATH; install git and re-run create "
+            "(submodule init requires the git CLI on the host)"
+        )
+    inside = _run_git(["git", "-C", str(out), "rev-parse", "--is-inside-work-tree"], out)
+    if inside.returncode != 0 or inside.stdout.strip() != "true":
+        raise VendorError(
+            f"vendoring: out-dir {out} is not inside a git work tree; "
+            f"`git submodule add` needs a repo — `git init` the project dir first "
+            f"(stderr: {inside.stderr.strip()})"
+        )
+    _add_pin(CMSIS_CORE_URL, CMSIS_CORE_TAG, VENDOR_CORE_PATH, out)
+    url, tag, dest = family_repo(pack_id)
+    _add_pin(url, tag, dest, out)
+    return [out / VENDOR_CORE_PATH, out / dest]

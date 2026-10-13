@@ -42,6 +42,23 @@ blocks:
   # Placeholder-until-template-story: plausible HAL header default; real
   # defaults source + override precedence wired at template level (spike-004:
   # project-file-wins, pack default fills the rest).
+  # Startup filenames verified against pinned submodules (ls), 2026-10-13.
+  # Vendor system file (SystemInit) per core; verified against pinned
+  # submodules (ls), 2026-10-13. H755 uses the dual-core boot file;
+  # runtime boot semantics stay OPEN for HW smoke.
+  system:
+    M7: system_stm32h7xx_dualcore_boot_cm4_cm7.c
+    M4: system_stm32h7xx_dualcore_boot_cm4_cm7.c
+  # Device selection macros, verified against the pinned submodule
+  # family headers, 2026-10-13.
+  # Space-separated: every macro becomes a -D flag. Dual-core H7 needs
+  # CORE_CM7/CORE_CM4 alongside the part macro (header demands it).
+  defines:
+    M7: STM32H755xx CORE_CM7
+    M4: STM32H755xx CORE_CM4
+  startup:
+    M7: startup_stm32h755xx.s
+    M4: startup_stm32h755xx.s
   config_headers:
     library: stm32hal
     header: stm32_config.h

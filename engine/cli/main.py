@@ -37,6 +37,7 @@ from engine.cli.verdict import render_flash_verdict
 from engine.core.loader import FrameError, load_file
 from engine.core.model import Device, DeviceView, Endpoint
 from engine.templates.renderer import SUPPORTED_LANGS, render
+from engine.templates.vendoring import VendorError
 
 __all__ = ["VERBS", "build_parser", "main", "probe_os"]
 
@@ -177,6 +178,9 @@ def _run_create(args: argparse.Namespace) -> int:
         return 0
     try:
         written = render(device, args.lang, out)
+    except VendorError as exc:
+        print(f"stm: error: {exc}", file=sys.stderr)
+        return 1
     except ValueError as exc:
         print(f"stm: error: {exc}", file=sys.stderr)
         return 2
