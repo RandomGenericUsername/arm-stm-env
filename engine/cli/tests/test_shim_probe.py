@@ -89,12 +89,18 @@ def test_shim_probe_xor_mcu_config_vs_individual_flags(capsys):
     assert "usage" in err.lower() and "--mcu-config" in err
 
 
-def test_shim_probe_xor_mcu_config_vs_probe_flags(capsys):
+def test_shim_probe_mcu_config_composes_with_probe_flags(capsys, tmp_path):
+    # bug-001: probe selectors are run config, not device description —
+    # --mcu-config + --device must compose, not violate XOR.
+    proj = tmp_path / "proj"
+    proj.mkdir()
     code = main(
-        ["flash", "--mcu-config", "cfg.yaml", "--device", "/dev/ttyUSB0", "--dry-run"]
+        ["flash", "--mcu-config", "cfg.yaml", "--device", "/dev/ttyUSB0",
+         "--project-dir", str(proj), "--files", "a.elf", "--dry-run"]
     )
-    assert code == 2
-    assert "--mcu-config" in capsys.readouterr().err
+    assert code == 0
+    out = capsys.readouterr().out
+    assert "--mcu-config cfg.yaml" in out and "--device /dev/ttyUSB0" in out
 
 
 def test_shim_probe_single_source_passes(capsys):
