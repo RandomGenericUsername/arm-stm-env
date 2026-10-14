@@ -715,6 +715,23 @@ def _is_cortex_m(arch: str) -> bool:
     return arch.startswith(_CORTEX_M_ARCH_PREFIXES)
 
 
+def _processor_index(device: Device, core: Core, index: int) -> int:
+    """OpenOCD processor index for ``core`` (bug-013).
+
+    Prefers the pack's declared OpenOCD target name (``…cpuN``); falls back to
+    the core's position in ``device.cores``, which matches OpenOCD's cpu0/cpu1
+    creation order for the packs we ship.
+    """
+    oc = device.openocd
+    if oc is not None:
+        for name, target_name in oc.targets:
+            if name == core.name:
+                match = re.search(r"(\d+)$", target_name)
+                if match:
+                    return int(match.group(1))
+    return index
+
+
 def _vscode_files(device: Device) -> dict[str, str]:
     """Generated ``.vscode/`` for the container-attached flow (req-016/017).
 
@@ -730,8 +747,11 @@ def _vscode_files(device: Device) -> dict[str, str]:
     gdb = "/opt/arm-gnu-toolchain/bin/arm-none-eabi-gdb"
     openocd = "/usr/local/bin/openocd"
 
+    cores = list(device.cores)
+    multi_core = len(cores) > 1
+
     configurations = []
-    for core in device.cores:
+    for index, core in enumerate(device.cores):
         elf = f"build/{core.name}/{device.id}-{core.name}.elf"
         config = {
             "name": f"Debug {core.name} (OpenOCD)",
@@ -745,6 +765,12 @@ def _vscode_files(device: Device) -> dict[str, str]:
             "openocdPath": openocd,
             "gdbPath": gdb,
         }
+        if multi_core:
+            # bug-013: OpenOCD exposes one gdb server per core (…cpu0, …cpu1);
+            # cortex-debug connects to the port for `targetProcessor`, so a
+            # per-core config without it would attach every session to cpu0.
+            config["numberOfProcessors"] = len(cores)
+            config["targetProcessor"] = _processor_index(device, core, index)
         if _is_cortex_m(core.arch):
             # bug-011: OpenOCD never advances the PC on a Cortex-M single-step
             # unless interrupts are masked for the duration of the step
@@ -760,6 +786,24 @@ def _vscode_files(device: Device) -> dict[str, str]:
         if svd is not None:
             config["svdFile"] = "${workspaceFolder}/" + svd
         configurations.append(config)
+
+    if multi_core:
+        # bug-013: a compound config that starts OpenOCD once (primary = the
+        # boot core, cores[0]) and shares it with the other cores, so both can
+        # be debugged at once. OpenOCD shares one gdb server across the device's
+        # cores, so the chained launches stay attached (`detached` false).
+        compound = dict(configurations[0])
+        compound["name"] = "Debug " + "+".join(c.name for c in cores) + " (OpenOCD)"
+        compound["chainedConfigurations"] = {
+            "enabled": True,
+            "waitOnEvent": "postInit",
+            "detached": False,
+            "lifecycleManagedByParent": True,
+            "launches": [
+                {"name": f"Debug {core.name} (OpenOCD)"} for core in cores[1:]
+            ],
+        }
+        configurations.append(compound)
 
     tasks = [
         {
