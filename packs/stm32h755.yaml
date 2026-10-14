@@ -28,6 +28,11 @@ blocks:
     interface: stlink-dap.cfg
     board: st_nucleo_h745zi.cfg
     dual_core: true
+    # Core -> OpenOCD target names (board cfg creates these); lets a two-piece
+    # flash land M7 and M4 images on their own cores (bug-006).
+    targets:
+      M7: stm32h7x.cpu0
+      M4: stm32h7x.cpu1
   # Sibling evidence ArmDevelopmentEnvironment@19a3889:
   # setup/create_project/stm_mcu_families.sh:19 FPU_V_PER_PROCESSOR["m7"]=fpv5-sp-d16 (hard).
   # Pack-level block carries the primary (M7) facet; M4 uses fpv4-sp-d16/hard.

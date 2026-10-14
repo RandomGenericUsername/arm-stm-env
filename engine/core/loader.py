@@ -76,6 +76,7 @@ def validate_frame(doc: dict) -> Device:
             target=target,
             dual_core=bool(raw_block.get("dual_core", False)),
             board=raw_block.get("board"),
+            targets=raw_block.get("targets", {}),
         )
     # Attach validated family blocks as model facets (req-008 group 2):
     # registry validators already certified shapes above, so direct reads
