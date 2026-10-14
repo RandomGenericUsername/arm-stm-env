@@ -53,6 +53,12 @@ CONTAINER_PROJECT = "/project"
 #: Default sysfs root for USB device enumeration (overridable in tests).
 _SYSFS_USB = Path("/sys/bus/usb/devices")
 
+#: Debug-probe USB vendor IDs (host/probe knowledge — the shim is the host
+#: layer, AD-9). STMicroelectronics probes all share 0483 (ST-Link V2-1,
+#: STLINK-V3). Used only to auto-detect a *single* attached probe when no
+#: selector is given (req-020).
+_PROBE_VIDS = ("0483",)
+
 
 @dataclass(frozen=True)
 class ShimRequest:
@@ -133,6 +139,38 @@ def _match_usb(sysfs_root: Path, vid: str | None, pid: str | None, serial: str |
     return None
 
 
+def _autodetect(*, is_mac: bool, sysfs_root: Path | str | None) -> ProbeBinding | None:
+    """Binding for the single attached probe, or ``None`` when none is attached.
+
+    Raises when more than one probe is attached (ambiguous — the caller must
+    pass a selector).
+    """
+    root = Path(sysfs_root) if sysfs_root else _SYSFS_USB
+    found = []
+    if root.is_dir():
+        for entry in sorted(root.iterdir()):
+            if (entry / "idVendor").is_file() and _read_text(entry / "idVendor").lower() in _PROBE_VIDS:
+                found.append(entry)
+    if not found:
+        return None
+    if len(found) > 1:
+        desc = ", ".join(
+            f"{_read_text(e / 'idVendor')}:{_read_text(e / 'idProduct')}"
+            f"({_read_text(e / 'serial') or 'no serial'})"
+            for e in found
+        )
+        raise ValueError(
+            f"{len(found)} probes attached ({desc}); pass --serial or --vid/--pid to select one"
+        )
+    entry = found[0]
+    v = _read_text(entry / "idVendor").lower()
+    p = _read_text(entry / "idProduct").lower()
+    s = _read_text(entry / "serial")
+    node = _usb_device_node(entry)
+    host = () if is_mac else ((node,) if node else ())
+    return ProbeBinding(selector=s or f"{v}:{p}", host_devices=host)
+
+
 def resolve_probe_binding(
     *,
     os_name: str,
@@ -147,15 +185,16 @@ def resolve_probe_binding(
     Explicit ``device`` wins and is used verbatim as both the selector and the
     host device. VID/PID/serial selectors enumerate sysfs to find the USB device
     and derive its ``/dev/bus/usb/<bus>/<dev>`` node; the backend selector is
-    the device serial when present, else ``VID:PID``. macOS (Docker Desktop)
-    cannot forward USB nodes, so ``host_devices`` is empty there (use
-    ``--mode local``). No selector -> ``None``.
+    the device serial when present, else ``VID:PID``. With **no selector**, a
+    single attached probe is auto-detected (``None`` when none is attached; a
+    ``ValueError`` when several are). macOS (Docker Desktop) cannot forward USB
+    nodes, so ``host_devices`` is empty there (use ``--mode local``).
     """
     is_mac = os_name.lower().startswith(("darwin", "mac"))
     if device:
         return ProbeBinding(selector=device, host_devices=() if is_mac else (device,))
     if not (vid or pid or serial):
-        return None
+        return _autodetect(is_mac=is_mac, sysfs_root=sysfs_root)
     if is_mac and not serial:
         raise ValueError(
             "macOS probe limit: automatic VID/PID mapping unsupported; "

@@ -272,7 +272,8 @@ def _prepare_flash(args: argparse.Namespace) -> tuple[Device, Endpoint, ProbeAda
         return None
     if endpoint is None:
         print(
-            "mu: error: no probe selector given; pass --device, --vid/--pid, or --serial",
+            "mu: error: no debug probe found; attach a board "
+            "(or pass --device/--vid/--pid/--serial)",
             file=sys.stderr,
         )
         return None
