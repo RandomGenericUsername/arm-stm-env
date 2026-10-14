@@ -37,11 +37,16 @@ def _ok(args, cwd):
 
 
 class FakeGit:
-    """Records argv; per-command (returncode, stdout, stderr) overrides."""
+    """Records argv; per-command (returncode, stdout, stderr) overrides.
 
-    def __init__(self, monkeypatch, fail: dict | None = None):
+    ``inside`` feeds the ``rev-parse --is-inside-work-tree`` probe: True (a
+    repo) or False (fresh dir → vendor should ``git init``).
+    """
+
+    def __init__(self, monkeypatch, fail: dict | None = None, inside: bool = True):
         self.calls: list[list[str]] = []
         self.fail = fail or {}
+        self.inside = inside
         monkeypatch.setattr(vendoring, "_run_git", self)
 
     def __call__(self, args, cwd):
@@ -51,7 +56,9 @@ class FakeGit:
             if list(pattern) == list(args[: len(pattern)]):
                 return subprocess.CompletedProcess(args, *result)
         if args[:2] == ["git", "-C"] and args[3:5] == ["rev-parse", "--is-inside-work-tree"]:
-            return subprocess.CompletedProcess(args, 0, stdout="true\n", stderr="")
+            return subprocess.CompletedProcess(
+                args, 0, stdout=("true\n" if self.inside else "false\n"), stderr=""
+            )
         return subprocess.CompletedProcess(args, 0, stdout="", stderr="")
 
 
@@ -121,14 +128,22 @@ def test_vendor_missing_git_names_git(tmp_path: Path, monkeypatch) -> None:
         vendor("stm32f411re", tmp_path)
 
 
-def test_vendor_non_repo_out_dir_names_path(tmp_path: Path, monkeypatch) -> None:
+def test_vendor_non_repo_out_dir_runs_git_init(tmp_path: Path, monkeypatch) -> None:
+    """Fresh dir: vendor git-inits the project, then adds the pins."""
     out = tmp_path / "proj"
     out.mkdir()
-    FakeGit(
-        monkeypatch,
-        fail={("git", "-C"): (128, "", "fatal: not a git repository")},
-    )
-    with pytest.raises(VendorError, match="not inside a git work tree"):
+    fake = FakeGit(monkeypatch, inside=False)
+    vendor("stm32f411re", out)
+    assert ["git", "init"] in fake.calls
+    adds = [c for c in fake.calls if c[:3] == ["git", "submodule", "add"]]
+    assert len(adds) == 2
+
+
+def test_vendor_init_failure_names_path(tmp_path: Path, monkeypatch) -> None:
+    out = tmp_path / "proj"
+    out.mkdir()
+    FakeGit(monkeypatch, inside=False, fail={("git", "init"): (128, "", "fatal: cannot init")})
+    with pytest.raises(VendorError, match="git init"):
         vendor("stm32f411re", out)
 
 
