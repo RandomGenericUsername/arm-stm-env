@@ -107,7 +107,8 @@ def test_cells(pack_id: str, lang: str, tmp_path: Path) -> None:
                     "GPIO_BSRR" in main and "delay_half_period" in main and "LED_PIN" in main
                 ), "example blink missing on primary core"
             else:
-                assert "wfi" in main, "stub main missing"
+                # ops-018: non-primary cores get a debuggable counter loop.
+                assert "counter" in main and "delay_loop" in main, "sibling example missing"
             linker = (out / f"linker/{doc['blocks']['linker'][core['name']]}").read_text()
             assert "ENTRY(Reset_Handler)" in linker and "MEMORY" in linker
             for sym in ("_estack", "_sdata", "_edata", "_sbss", "_ebss", "_sidata"):

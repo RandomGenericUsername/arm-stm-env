@@ -86,23 +86,53 @@ def _oc_flash_args(device: Device) -> str:
     return args
 
 
+def _sibling_sections(facets: DeviceFacets) -> tuple[str, str]:
+    """(extra includes, main body) for a core with no LED example (ops-018).
+
+    A volatile counter in a timed loop: set a breakpoint on ``counter++`` (or
+    watch ``counter``) to prove the core is attached and steppable. No pin is
+    touched, so a sibling core can't fight the primary core's LED example.
+    """
+    clock = facets.example_led.clock_hz if facets.example_led else 16_000_000
+    # ~0.05 s half-period; loop ≈ 16 cycles/iter at -O (approximate).
+    iters = round(0.05 * clock / 16)
+    includes = (
+        "#include <stdint.h>\n"
+        "\n"
+        f"#define DELAY_ITERS  {iters}UL  /* ~0.05 s @{clock} Hz; tune */\n"
+        "\n"
+        "/* Volatile so it survives -O and is watchable in a debug session. */\n"
+        "volatile uint32_t counter = 0;\n"
+        "\n"
+        "static void delay_loop(void)\n"
+        "{\n"
+        "    for (volatile uint32_t i = 0; i < DELAY_ITERS; ++i) {\n"
+        '        __asm volatile ("nop");\n'
+        "    }\n"
+        "}\n"
+    )
+    body = (
+        "    /* Sibling-core bring-up: proves this core runs and is debuggable.\n"
+        "       Breakpoint on `counter++` (or watch `counter`) — it advances. */\n"
+        "    for (;;) {\n"
+        "        counter++;\n"
+        "        delay_loop();\n"
+        "    }\n"
+    )
+    return includes, body
+
+
 def _main_sections(facets: DeviceFacets, primary: bool) -> tuple[str, str]:
     """(extra includes, main body) for ``src/main-<core>.c`` (req-014/req-015).
 
     A pack that declares ``example.led`` gets a self-contained blink of that
     on-board LED (raw registers + NOP half-period delay, no HAL) on the
-    **primary** (first) core only — dual-core siblings stay a ``wfi`` stub so
-    they don't fight over the same pin. Otherwise the stub.
+    **primary** (first) core. Any other core (a dual-core sibling, or a pack
+    with no LED fact) gets the ``_sibling_sections`` counter loop instead.
     """
     led = facets.example_led if primary else None
     if led is None:
-        return (
-            "",
-            f"    /* TODO: clock + peripheral init (defaults in config/{facets.config_header}). */\n"
-            "    for (;;) {\n"
-            '        __asm volatile ("wfi");\n'
-            "    }\n",
-        )
+        return _sibling_sections(facets)
     gpio, rcc = led.gpio_base, led.rcc_en_addr
     on_shift, off_shift = (
         (led.pin, led.pin + 16) if led.active == "high" else (led.pin + 16, led.pin)
