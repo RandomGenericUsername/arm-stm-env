@@ -2,7 +2,7 @@
 id: spike-005
 title: "H755 single-step doesn't advance (stlink-dap)"
 kind: spike
-status: reported
+status: consumed
 lane: direct
 timebox: 3h
 questions:

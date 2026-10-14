@@ -731,6 +731,13 @@ def _vscode_files(device: Device) -> dict[str, str]:
             "executable": "${workspaceFolder}/" + elf,
             "runToEntryPoint": "main",
             "configFiles": [iface, target, "probe/resume-on-detach.cfg"],
+            # bug-011: OpenOCD never advances the PC on a Cortex-M single-step
+            # unless interrupts are masked for the duration of the step
+            # (J-Link/ST-Link GDB servers do this by default; OpenOCD must be
+            # told). `steponly` masks only during a step, so normal run keeps
+            # interrupts enabled. These commands run after OpenOCD's
+            # `reset halt` (target halted) and before `runToEntryPoint`.
+            "postLaunchCommands": ["monitor cortex_m maskisr steponly"],
             "openocdPath": openocd,
             "gdbPath": gdb,
         }

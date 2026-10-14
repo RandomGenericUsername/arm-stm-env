@@ -129,6 +129,8 @@ def test_render_vscode_generates_valid_configs(tmp_path) -> None:
         "board/st_nucleo_f4.cfg",
         "probe/resume-on-detach.cfg",
     ]
+    # bug-011: mask interrupts during single-step so stepping advances (H7/M7).
+    assert cfg["postLaunchCommands"] == ["monitor cortex_m maskisr steponly"]
     assert (tmp_path / "probe/resume-on-detach.cfg").is_file()
     resume = (tmp_path / "probe/resume-on-detach.cfg").read_text()
     assert "gdb-detach" in resume and "info exists _TARGETNAME" in resume
@@ -153,6 +155,11 @@ def test_render_vscode_per_core_dual(tmp_path) -> None:
     resume = (tmp_path / "probe/resume-on-detach.cfg").read_text()
     assert "stm32h7x.cpu0 configure -event gdb-detach" in resume
     assert "stm32h7x.cpu1 configure -event gdb-detach" in resume
+    # bug-011: every per-core config gets the single-step workaround.
+    assert all(
+        c["postLaunchCommands"] == ["monitor cortex_m maskisr steponly"]
+        for c in launch["configurations"]
+    )
 
 
 def test_render_vscode_off_by_default(tmp_path) -> None:

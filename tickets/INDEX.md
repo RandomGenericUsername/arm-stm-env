@@ -46,6 +46,7 @@
 - [bug-008-wl55-memory](./bug-008-wl55-memory/ticket.md) — WL55JC pack memory map wrong (RAM 128K vs real 64K) -> HardFault | `done` | S1
 - [bug-009-detach-targets](./bug-009-detach-targets/ticket.md) — resume-on-detach cfg breaks the H7 server (undefined _TARGETNAME) | `done` | S1
 - [bug-010-build-probe-gate](./bug-010-build-probe-gate/ticket.md) — mu build broken: probe auto-detect forwards --device to build | `done` | S1
+- [bug-011-h7-single-step](./bug-011-h7-single-step/ticket.md) — OpenOCD never single-steps the H755 (PC frozen): mask interrupts during step | `done` | S1, consumes spike-005
 
 ## Ops tasks
 
@@ -63,7 +64,7 @@
 
 ## Spikes
 
-- [spike-005-h755-single-step](./spike-005-h755-single-step/ticket.md) — H755 single-step doesn't advance (stlink-dap) | `reported` | boxed 3h — reproduced both cores, not our cfg
+- [spike-005-h755-single-step](./spike-005-h755-single-step/ticket.md) — H755 single-step doesn't advance (stlink-dap) | `consumed` | boxed 3h — cause found (interrupts during step); fixed in bug-011
 
 ## Tasks
 
