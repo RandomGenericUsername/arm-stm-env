@@ -21,6 +21,7 @@ __all__ = [
     "DeviceFacets",
     "DeviceView",
     "Endpoint",
+    "ExampleLed",
     "MemoryRegion",
     "MemoryRegionView",
     "OpenocdConfig",
@@ -152,6 +153,38 @@ class ProofResult:
 
 
 @dataclass(frozen=True)
+class ExampleLed:
+    """On-board LED example fact (req-014/req-015).
+
+    Board/MCU facts to drive the LED with raw registers: port letter, pin,
+    active level, and the family register facts — GPIO port base plus the RCC
+    clock-enable register address and bit (F4: AHB1ENR; H7: AHB4ENR).
+    """
+
+    port: str
+    pin: int
+    active: str
+    gpio_base: int
+    rcc_en_addr: int
+    rcc_en_bit: int
+    clock_hz: int
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.port, str) or len(self.port) != 1 or not self.port.isalpha():
+            raise ValueError("ExampleLed.port must be a single letter A-Z")
+        if not isinstance(self.pin, int) or isinstance(self.pin, bool) or not 0 <= self.pin <= 15:
+            raise ValueError("ExampleLed.pin must be an int 0..15")
+        if self.active not in ("high", "low"):
+            raise ValueError("ExampleLed.active must be 'high' or 'low'")
+        for name in ("gpio_base", "rcc_en_addr", "clock_hz"):
+            value = getattr(self, name)
+            if not isinstance(value, int) or isinstance(value, bool) or value <= 0:
+                raise ValueError(f"ExampleLed.{name} must be a positive int")
+        if not isinstance(self.rcc_en_bit, int) or isinstance(self.rcc_en_bit, bool) or not 0 <= self.rcc_en_bit <= 31:
+            raise ValueError("ExampleLed.rcc_en_bit must be an int 0..31")
+
+
+@dataclass(frozen=True)
 class DeviceFacets:
     """Validated family-block facts attached to a Device (req-008, group 2).
 
@@ -171,8 +204,8 @@ class DeviceFacets:
     config_header: str = "stm32_config.h"
     config_defaults_source: str = "pack/defaults.h"
     probe_settings: Tuple[Tuple[str, Tuple[Tuple[str, str], ...]], ...] = ()
-    #: Optional on-board LED example fact: (port letter, pin, active) or None.
-    example_led: Tuple[str, int, str] | None = None
+    #: Optional on-board LED example fact (req-014/req-015) or None.
+    example_led: ExampleLed | None = None
 
     def linker_for(self, core_name: str, device_id: str) -> str:
         # No invented fallback (startup lesson): an undeclared core is a loud
@@ -331,7 +364,7 @@ class DeviceView:
     openocd_dual_core: bool = False
     openocd_config_files: Tuple[str, str] | None = None
     probe_settings: Tuple[Tuple[str, Tuple[Tuple[str, str], ...]], ...] = ()
-    example_led: Tuple[str, int, str] | None = None
+    example_led: ExampleLed | None = None
 
     def probe_setting(self, backend: str, key: str) -> str | None:
         for name, settings in self.probe_settings:
