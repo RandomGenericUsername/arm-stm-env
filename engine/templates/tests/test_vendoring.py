@@ -67,6 +67,19 @@ def _clones(fake: "FakeGit") -> list[list[str]]:
     return [c for c in fake.calls if c[:2] == ["git", "clone"]]
 
 
+def test_vendor_relative_project_dir_uses_absolute_paths(monkeypatch, tmp_path) -> None:
+    """bug-005: default `--path .` passes a relative dir; `git -C <out>` with
+    cwd=<out> must not double it into <out>/<out> — vendor resolves to absolute."""
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "proj").mkdir()
+    fake = FakeGit(monkeypatch)
+    vendor("stm32f411re", "proj")
+    cfg = next(c for c in fake.calls if "config" in c)
+    assert cfg[cfg.index("-C") + 1] == str(tmp_path / "proj")
+    assert str(tmp_path / "proj" / ".gitmodules") in cfg
+    assert len(_clones(fake)) == 2
+
+
 def test_pins_match_verified_upstream_tags() -> None:
     assert PINS["CMSIS_5"] == ("https://github.com/ARM-software/CMSIS_5.git", "5.9.0")
     assert FAMILY_REPOS["f4"][1] == "v2.6.9"
