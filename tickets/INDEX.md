@@ -43,6 +43,7 @@
 - [ops-011-full-rename-mu](./ops-011-full-rename-mu/ticket.md) — Full rename to mu (repo, package, paths, image namespace) | `done`
 - [ops-012-create-path-flag](./ops-012-create-path-flag/ticket.md) — create: rename output flag to --path | `done`
 - [ops-013-create-git-init](./ops-013-create-git-init/ticket.md) — create: git-init a fresh project dir before vendoring | `done`
+- [ops-014-sparse-vendor](./ops-014-sparse-vendor/ticket.md) — Vendoring: partial+sparse clone (create in seconds, not minutes) | `done`
 
 ## Spikes
 

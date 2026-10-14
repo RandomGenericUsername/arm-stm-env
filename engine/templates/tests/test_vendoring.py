@@ -1,9 +1,10 @@
 """Vendoring unit tests (req-011, group 1): pins, mechanism, loud errors, wiring.
 
 All git interaction is faked (monkeypatched ``_run_git`` / ``shutil.which``)
-— no network, no repo required. Command sequences are asserted exactly:
-``git submodule add <url> <path>`` then detached ``git -C <path> checkout
-<tag>`` per pin, CMSIS core first.
+— no network, no repo required. ops-014 mechanism: each pin is a partial
+(blob-filtered) + sparse shallow clone at the tag, registered in
+``.gitmodules`` + the index, then made a native submodule via
+``submodule absorbgitdirs``/``init`` — CMSIS core first.
 """
 
 from __future__ import annotations
@@ -62,6 +63,10 @@ class FakeGit:
         return subprocess.CompletedProcess(args, 0, stdout="", stderr="")
 
 
+def _clones(fake: "FakeGit") -> list[list[str]]:
+    return [c for c in fake.calls if c[:2] == ["git", "clone"]]
+
+
 def test_pins_match_verified_upstream_tags() -> None:
     assert PINS["CMSIS_5"] == ("https://github.com/ARM-software/CMSIS_5.git", "5.9.0")
     assert FAMILY_REPOS["f4"][1] == "v2.6.9"
@@ -85,41 +90,49 @@ def test_family_repo_unknown_pack_names_pack_id() -> None:
 
 
 @pytest.mark.parametrize("pack_id", PACK_IDS)
-def test_vendor_add_then_detached_checkout_per_pin(pack_id: str, tmp_path: Path, monkeypatch) -> None:
+def test_vendor_partial_sparse_clone_per_pin(pack_id: str, tmp_path: Path, monkeypatch) -> None:
+    """ops-014: each pin is a partial + sparse shallow clone, then a native submodule."""
     fake = FakeGit(monkeypatch)
     got = vendor(pack_id, tmp_path)
     url, tag, dest = family_repo(pack_id)
-    assert fake.calls == [
-        ["git", "-C", str(tmp_path), "rev-parse", "--is-inside-work-tree"],
-        ["git", "submodule", "add", "https://github.com/ARM-software/CMSIS_5.git", VENDOR_CORE_PATH],
-        ["git", "-C", VENDOR_CORE_PATH, "checkout", "5.9.0"],
-        ["git", "-C", str(tmp_path), "add", VENDOR_CORE_PATH],
-        ["git", "submodule", "add", url, dest],
-        ["git", "-C", dest, "checkout", tag],
-        ["git", "-C", str(tmp_path), "add", dest],
-    ]
+    clones = _clones(fake)
+    assert len(clones) == 2
+    cmsis, family = clones
+    for call, (u, t, d) in (
+        (cmsis, ("https://github.com/ARM-software/CMSIS_5.git", "5.9.0", VENDOR_CORE_PATH)),
+        (family, (url, tag, dest)),
+    ):
+        assert "--filter=blob:none" in call and "--sparse" in call
+        assert call[call.index("--depth") + 1] == "1"
+        assert call[call.index("--branch") + 1] == t
+        assert call[-2] == u and call[-1] == d
+    # Only the referenced subtrees are selected ...
+    assert any(c[:3] == ["git", "-C", VENDOR_CORE_PATH] and "CMSIS/Core" in c for c in fake.calls)
+    assert any(c[:3] == ["git", "-C", dest] and "Include" in c and "Source" in c for c in fake.calls)
+    # ... and each becomes a native submodule (absorb + init), never a full clone.
+    assert any(c[-2:] == ["absorbgitdirs", dest] for c in fake.calls)
+    assert any(c[-2:] == ["init", dest] for c in fake.calls)
     assert got == [tmp_path / VENDOR_CORE_PATH, tmp_path / dest]
 
 
 def test_vendor_offline_unreachable_remote_fails_loud(tmp_path: Path, monkeypatch) -> None:
-    """Offline simulation: submodule add fails → non-zero naming the URL."""
+    """Offline simulation: clone fails → non-zero naming the URL."""
     fake = FakeGit(
         monkeypatch,
-        fail={("git", "submodule", "add"): (128, "", "fatal: unable to connect to github.com")},
+        fail={("git", "clone"): (128, "", "fatal: unable to connect to github.com")},
     )
     with pytest.raises(VendorError, match="github.com/STMicroelectronics|github.com/ARM-software"):
         vendor("stm32f411re", tmp_path)
-    assert fake.calls[1][:3] == ["git", "submodule", "add"]
+    assert fake.calls[1][:2] == ["git", "clone"]
 
 
-def test_vendor_checkout_failure_names_tag(tmp_path: Path, monkeypatch) -> None:
-    fake = FakeGit(
+def test_vendor_sparse_checkout_failure_names_subtree(tmp_path: Path, monkeypatch) -> None:
+    FakeGit(
         monkeypatch,
-        fail={("git", "-C", VENDOR_CORE_PATH, "checkout"): (128, "", "error: pathspec '5.9.0' did not match")},
+        fail={("git", "-C", VENDOR_CORE_PATH, "sparse-checkout"): (128, "", "error: pathspec did not match")},
     )
-    with pytest.raises(VendorError, match="5.9.0"):
+    with pytest.raises(VendorError, match="subtree"):
         vendor("stm32f411re", tmp_path)
-    assert any(c[:3] == ["git", "-C", VENDOR_CORE_PATH] for c in fake.calls)
 
 
 def test_vendor_missing_git_names_git(tmp_path: Path, monkeypatch) -> None:
@@ -135,8 +148,7 @@ def test_vendor_non_repo_out_dir_runs_git_init(tmp_path: Path, monkeypatch) -> N
     fake = FakeGit(monkeypatch, inside=False)
     vendor("stm32f411re", out)
     assert ["git", "init"] in fake.calls
-    adds = [c for c in fake.calls if c[:3] == ["git", "submodule", "add"]]
-    assert len(adds) == 2
+    assert len(_clones(fake)) == 2
 
 
 def test_vendor_init_failure_names_path(tmp_path: Path, monkeypatch) -> None:
@@ -160,11 +172,12 @@ def test_render_vendors_c_cpp(pack_id: str, lang: str, tmp_path: Path, monkeypat
     fake = FakeGit(monkeypatch)
     device = load_file(PACKS_DIR / f"{pack_id}.yaml")
     render(device, lang, tmp_path)
-    adds = [c for c in fake.calls if c[:3] == ["git", "submodule", "add"]]
-    assert len(adds) == 2
-    assert adds[0][3] == "https://github.com/ARM-software/CMSIS_5.git"
-    assert adds[1][3] == FAMILY_REPOS[EXPECTED_FAMILY[pack_id]][0]
-    assert adds[1][4] == f"vendor/cmsis-device-{pack_id}"
+    clones = _clones(fake)
+    assert len(clones) == 2
+    assert clones[0][-2] == "https://github.com/ARM-software/CMSIS_5.git"
+    assert clones[0][-1] == VENDOR_CORE_PATH
+    assert clones[1][-2] == FAMILY_REPOS[EXPECTED_FAMILY[pack_id]][0]
+    assert clones[1][-1] == f"vendor/cmsis-device-{pack_id}"
 
 
 @pytest.mark.parametrize("pack_id", PACK_IDS)
@@ -185,7 +198,7 @@ def test_render_vendor_failure_propagates_loud(tmp_path: Path, monkeypatch, caps
 
     FakeGit(
         monkeypatch,
-        fail={("git", "submodule", "add"): (128, "", "fatal: unable to connect to github.com")},
+        fail={("git", "clone"): (128, "", "fatal: unable to connect to github.com")},
     )
     device = load_file(PACKS_DIR / "stm32f411re.yaml")
     with pytest.raises(VendorError, match="github.com"):
