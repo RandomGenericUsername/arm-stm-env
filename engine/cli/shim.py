@@ -264,12 +264,18 @@ def build_container_argv(
         raise ValueError("verb must be non-empty")
     image = (lookup or DefaultImageLookup()).image_for(request.lang)
     project_abs = Path(request.project_dir).resolve()
-    binding = resolve_probe_binding(
-        os_name=request.os_name,
-        device=request.device,
-        vid=request.vid,
-        pid=request.pid,
-        serial=request.serial,
+    # Probe resolution only for verbs that use the probe: build/create don't, and
+    # forwarding --device into `build` is an unrecognised arg (bug-010).
+    binding = (
+        resolve_probe_binding(
+            os_name=request.os_name,
+            device=request.device,
+            vid=request.vid,
+            pid=request.pid,
+            serial=request.serial,
+        )
+        if request.verb in ("flash", "debug", "dev")
+        else None
     )
     docker_devices: list[str] = []
     if binding is not None:
