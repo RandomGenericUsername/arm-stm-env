@@ -9,6 +9,7 @@ certified model ONLY (``Device.facets`` for fpu/linker/config-headers,
 
 from __future__ import annotations
 
+import json
 import re
 from pathlib import Path
 from string import Template
@@ -624,8 +625,107 @@ _GITIGNORE = (
     ".mu/\n"
 )
 
+_GCC_PROBLEM_MATCHER = {
+    "owner": "cpp",
+    "fileLocation": ["relative", "${workspaceFolder}"],
+    "pattern": {
+        "regexp": "^(.*):(\\d+):(\\d+):\\s+(warning|error):\\s+(.*)$",
+        "file": 1,
+        "line": 2,
+        "column": 3,
+        "severity": 4,
+        "message": 5,
+    },
+}
 
-def render(pack_model: Device, lang: str, out_dir: str | Path) -> list[Path]:
+
+def _vscode_files(device: Device) -> dict[str, str]:
+    """Generated ``.vscode/`` for the container-attached flow (req-016, C/C++).
+
+    Tool paths are the **in-container** locations (the window is attached to the
+    ``mu dev`` container). ``launch.json`` is per-core, with the pack's resolved
+    OpenOCD config files and each core's ELF. Built as JSON, never string-
+    templated, so the output is always valid.
+    """
+    oc = device.openocd
+    iface, target = (
+        oc.config_files() if oc else ("interface/stlink.cfg", "target/stm32f4x.cfg")
+    )
+    gdb = "/opt/arm-gnu-toolchain/bin/arm-none-eabi-gdb"
+    openocd = "/usr/local/bin/openocd"
+
+    configurations = []
+    for core in device.cores:
+        elf = f"build/{core.name}/{device.id}-{core.name}.elf"
+        configurations.append(
+            {
+                "name": f"Debug {core.name} (OpenOCD)",
+                "type": "cortex-debug",
+                "request": "launch",
+                "servertype": "openocd",
+                "cwd": "${workspaceFolder}",
+                "executable": "${workspaceFolder}/" + elf,
+                "runToEntryPoint": "main",
+                "configFiles": [iface, target],
+                "openocdPath": openocd,
+                "gdbPath": gdb,
+            }
+        )
+
+    tasks = [
+        {
+            "label": "Build",
+            "type": "process",
+            "command": "make",
+            "args": ["build"],
+            "group": {"kind": "build", "isDefault": True},
+            "problemMatcher": _GCC_PROBLEM_MATCHER,
+        },
+        {
+            "label": "Clean",
+            "type": "process",
+            "command": "make",
+            "args": ["clean"],
+            "problemMatcher": [],
+        },
+        {
+            "label": "Flash",
+            "type": "process",
+            "command": "make",
+            "args": ["flash"],
+            "dependsOrder": "sequence",
+            "dependsOn": ["Clean", "Build"],
+        },
+    ]
+    for core in device.cores:
+        tasks.append(
+            {
+                "label": f"Flash {core.name}",
+                "type": "process",
+                "command": "make",
+                "args": [f"flash-{core.name}"],
+                "problemMatcher": [],
+            }
+        )
+
+    def j(obj: object) -> str:
+        return json.dumps(obj, indent=2) + "\n"
+
+    return {
+        ".vscode/launch.json": j({"version": "0.2.0", "configurations": configurations}),
+        ".vscode/tasks.json": j({"version": "2.0.0", "tasks": tasks}),
+        ".vscode/settings.json": j(
+            {"cortex-debug.gdbPath": gdb, "cortex-debug.openocdPath": openocd}
+        ),
+        ".vscode/extensions.json": j(
+            {"recommendations": ["marus25.cortex-debug", "ms-vscode.cpptools"]}
+        ),
+    }
+
+
+def render(
+    pack_model: Device, lang: str, out_dir: str | Path, *, vscode: bool = False
+) -> list[Path]:
     """Render a project tree; return the list of files written (sorted)."""
     if lang not in SUPPORTED_LANGS:
         raise ValueError(f"unsupported lang {lang!r}; expected one of {SUPPORTED_LANGS}")
@@ -641,6 +741,9 @@ def render(pack_model: Device, lang: str, out_dir: str | Path) -> list[Path]:
 
     write(".gitignore", _GITIGNORE)
     write("probe/openocd.cfg", _render_openocd(pack_model))
+    if vscode and lang in ("c", "cpp"):
+        for rel, text in _vscode_files(pack_model).items():
+            write(rel, text)
     write("config/OVERRIDES.md", _OVERRIDES.substitute(cfg))
     write(f"config/{cfg['config_header']}", _CONFIG_H.substitute(cfg))
 
