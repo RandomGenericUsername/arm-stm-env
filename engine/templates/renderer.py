@@ -704,6 +704,17 @@ def fetch_svds(device: Device, out_dir: str | Path, *, opener=None) -> list[Path
     return written
 
 
+# Cortex-M Rust target triples. OpenOCD's ``cortex_m`` command group (used by
+# the bug-011 single-step workaround) only exists for Cortex-M targets, so the
+# workaround must not be emitted for other architectures (bug-012).
+_CORTEX_M_ARCH_PREFIXES = ("thumbv6m", "thumbv7m", "thumbv7em", "thumbv8m")
+
+
+def _is_cortex_m(arch: str) -> bool:
+    """True when ``arch`` is a Cortex-M Rust target triple."""
+    return arch.startswith(_CORTEX_M_ARCH_PREFIXES)
+
+
 def _vscode_files(device: Device) -> dict[str, str]:
     """Generated ``.vscode/`` for the container-attached flow (req-016/017).
 
@@ -731,16 +742,20 @@ def _vscode_files(device: Device) -> dict[str, str]:
             "executable": "${workspaceFolder}/" + elf,
             "runToEntryPoint": "main",
             "configFiles": [iface, target, "probe/resume-on-detach.cfg"],
+            "openocdPath": openocd,
+            "gdbPath": gdb,
+        }
+        if _is_cortex_m(core.arch):
             # bug-011: OpenOCD never advances the PC on a Cortex-M single-step
             # unless interrupts are masked for the duration of the step
             # (J-Link/ST-Link GDB servers do this by default; OpenOCD must be
             # told). `steponly` masks only during a step, so normal run keeps
             # interrupts enabled. These commands run after OpenOCD's
             # `reset halt` (target halted) and before `runToEntryPoint`.
-            "postLaunchCommands": ["monitor cortex_m maskisr steponly"],
-            "openocdPath": openocd,
-            "gdbPath": gdb,
-        }
+            # bug-012: gated to Cortex-M — the `cortex_m` command group does
+            # not exist on other architectures (e.g. RISC-V), where it would
+            # error and abort the launch.
+            config["postLaunchCommands"] = ["monitor cortex_m maskisr steponly"]
         svd = _svd_file_for(device, core.name)
         if svd is not None:
             config["svdFile"] = "${workspaceFolder}/" + svd

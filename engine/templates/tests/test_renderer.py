@@ -162,6 +162,28 @@ def test_render_vscode_per_core_dual(tmp_path) -> None:
     )
 
 
+def test_vscode_maskisr_gated_to_cortex_m() -> None:
+    """bug-012: the `cortex_m` workaround is only emitted for Cortex-M cores."""
+    import json
+    from dataclasses import replace
+
+    from engine.templates.renderer import _vscode_files
+
+    cm = _vscode_files(_synthetic_device())  # thumbv7em-none-eabihf
+    cfgs = json.loads(cm[".vscode/launch.json"])["configurations"]
+    assert all(
+        c.get("postLaunchCommands") == ["monitor cortex_m maskisr steponly"]
+        for c in cfgs
+    )
+
+    riscv = replace(
+        _synthetic_device(),
+        cores=[Core(name="M4", arch="riscv32imac-unknown-none-elf")],
+    )
+    rv = json.loads(_vscode_files(riscv)[".vscode/launch.json"])["configurations"]
+    assert all("postLaunchCommands" not in c for c in rv)
+
+
 def test_render_vscode_off_by_default(tmp_path) -> None:
     render(load_file(PACKS_DIR / "stm32f411re.yaml"), "c", tmp_path)
     assert not (tmp_path / ".vscode").exists()

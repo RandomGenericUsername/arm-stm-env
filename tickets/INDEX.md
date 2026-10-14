@@ -47,6 +47,7 @@
 - [bug-009-detach-targets](./bug-009-detach-targets/ticket.md) — resume-on-detach cfg breaks the H7 server (undefined _TARGETNAME) | `done` | S1
 - [bug-010-build-probe-gate](./bug-010-build-probe-gate/ticket.md) — mu build broken: probe auto-detect forwards --device to build | `done` | S1
 - [bug-011-h7-single-step](./bug-011-h7-single-step/ticket.md) — OpenOCD never single-steps the H755 (PC frozen): mask interrupts during step | `done` | S1, consumes spike-005
+- [bug-012-vscode-maskisr-gate](./bug-012-vscode-maskisr-gate/ticket.md) — Generated launch.json emits cortex_m maskisr for non-Cortex-M packs | `done` | S3, gates bug-011
 
 ## Ops tasks
 
