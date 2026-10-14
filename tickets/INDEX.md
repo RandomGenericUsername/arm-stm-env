@@ -63,7 +63,7 @@
 
 ## Spikes
 
-(none)
+- [spike-005-h755-single-step](./spike-005-h755-single-step/ticket.md) — H755 single-step doesn't advance (stlink-dap) | `reported` | boxed 3h — reproduced both cores, not our cfg
 
 ## Tasks
 
