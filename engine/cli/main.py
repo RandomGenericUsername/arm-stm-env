@@ -74,11 +74,15 @@ def _add_common(sub: argparse.ArgumentParser) -> None:
     sub.add_argument("--mcu", default=None, help="individual selector (XOR --mcu-config)")
 
 
-def _add_probe_flags(sub: argparse.ArgumentParser) -> None:
+def _add_probe_selectors(sub: argparse.ArgumentParser) -> None:
     sub.add_argument("--device", default=None, help="explicit probe device node")
     sub.add_argument("--vid", default=None, help="probe USB vendor id selector")
     sub.add_argument("--pid", default=None, help="probe USB product id selector")
     sub.add_argument("--serial", default=None, help="probe USB serial selector")
+
+
+def _add_probe_flags(sub: argparse.ArgumentParser) -> None:
+    _add_probe_selectors(sub)
     sub.add_argument(
         "--verbose",
         action="store_true",
@@ -126,6 +130,10 @@ def build_parser() -> argparse.ArgumentParser:
                 metavar="BACKEND",
                 help="probe backend: overrides the pack default",
             )
+        elif verb == "dev":
+            # Probe selectors so the dev container gets the probe's USB node
+            # (req-019) — same resolution flash/debug use.
+            _add_probe_selectors(sub)
         if verb == "flash":
             sub.add_argument(
                 "--files",

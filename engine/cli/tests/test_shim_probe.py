@@ -110,6 +110,15 @@ def test_shim_probe_linux_dry_run_carries_device(capsys, monkeypatch, tmp_path):
     assert "--device /dev/bus/usb/003/009:/dev/bus/usb/003/009" in out
 
 
+def test_dev_forwards_probe_device(capsys, monkeypatch):
+    """req-019: `mu dev` hands the probe's USB node to the dev container."""
+    monkeypatch.setattr("platform.system", lambda: "Linux")
+    assert main(["dev", "--device", "/dev/bus/usb/003/045", "--dry-run"]) == 0
+    out = capsys.readouterr().out
+    assert "--device /dev/bus/usb/003/045:/dev/bus/usb/003/045" in out
+    assert "/bin/bash" in out
+
+
 def test_shim_probe_xor_mcu_config_vs_individual_flags(capsys):
     code = main(["build", "--mcu-config", "cfg.yaml", "--mcu", "x", "--dry-run"])
     assert code == 2

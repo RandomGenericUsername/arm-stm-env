@@ -27,6 +27,7 @@
   - [req-016-vscode-integration](./req-016-vscode-integration/ticket.md) — Generated .vscode/ for the container-attached debug flow (C/C++ first) | `done` | openspec: req-016-vscode-integration
   - [req-017-svd-registers](./req-017-svd-registers/ticket.md) — Per-core SVD fetch -> Cortex-Debug peripheral register view | `done` | openspec: req-017-svd-registers
   - [req-018-detach-resume](./req-018-detach-resume/ticket.md) — Keep firmware running after debug: resume-on-detach config | `done` | openspec: req-018-detach-resume
+  - [req-019-dev-probe](./req-019-dev-probe/ticket.md) — mu dev accepts probe selectors (dev container gets the probe) | `done` | openspec: req-019-dev-probe
 
 ## Requirements
 
