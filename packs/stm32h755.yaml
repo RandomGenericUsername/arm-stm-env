@@ -11,12 +11,25 @@ memory:
   - name: flash_m7
     origin_hex: "0x08000000"
     size: 1048576 # 1024K
+    cores: [M7]
   - name: flash_m4
     origin_hex: "0x08100000"
     size: 1048576 # 1024K
-  - name: ram
-    origin_hex: "0x10000000"
+    cores: [M4]
+  # bug-014: per-core RAM. With one shared region both cores got the same
+  # `_estack` (0x10048000) and clobbered each other's frames at boot — the M7
+  # ended in HardFault and `make flash` never started the LED. Split by domain:
+  # M7 -> AXI SRAM (D1), M4 -> D2 SRAM1+2+3. Verified on NUCLEO-H755ZI-Q
+  # 2026-10-14 (shared map: GPIOE ODR 0xffffffff = never ran; split: ODR toggles,
+  # M7 PC in delay_half_period, M4 counter runs).
+  - name: ram_m7
+    origin_hex: "0x24000000" # AXI SRAM (D1)
+    size: 524288 # 512K
+    cores: [M7]
+  - name: ram_m4
+    origin_hex: "0x30000000" # D2 SRAM1+2+3
     size: 294912 # 288K
+    cores: [M4]
 probe:
   transport: stlink-dap
   address: openocd:stlink-dap

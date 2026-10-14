@@ -74,7 +74,11 @@ def test_pick_region_prefers_core_bank() -> None:
     device = load_file(PACKS_DIR / "stm32h755.yaml")
     assert pick_region(device.memory, "M4", "flash").name == "flash_m4"
     assert pick_region(device.memory, "M7", "flash").name == "flash_m7"
-    assert pick_region(device.memory, "M4", "ram").name == "ram"
+    # bug-014: RAM resolves per core too, and the two never coincide.
+    m7 = pick_region(device.memory, "M7", "ram")
+    m4 = pick_region(device.memory, "M4", "ram")
+    assert m7.name == "ram_m7" and m4.name == "ram_m4"
+    assert (m7.origin, m7.size) != (m4.origin, m4.size)
 
 
 def test_check_memory_x_ok(tmp_path: Path) -> None:
@@ -90,7 +94,7 @@ def test_check_memory_x_aliases_ok() -> None:
     tmp.mkdir(exist_ok=True)
     render(device, "rust", tmp)
     report = check_memory_x(device, (tmp / "memory.x").read_text())
-    assert len(report) == 3  # flash_m7 + flash_m4 + ram, aliases accepted
+    assert len(report) == 4  # flash_m7 + flash_m4 + ram_m7 + ram_m4, aliases accepted
 
 
 def test_check_memory_x_mismatch_negative(tmp_path: Path) -> None:

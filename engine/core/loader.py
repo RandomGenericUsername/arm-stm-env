@@ -48,7 +48,12 @@ def validate_frame(doc: dict) -> Device:
         raise FrameError(f"invalid 'cores' section: {exc}") from exc
     try:
         memory = tuple(
-            MemoryRegion(name=m["name"], origin_hex=m.get("origin_hex", m.get("origin")), size=m["size"])
+            MemoryRegion(
+                name=m["name"],
+                origin_hex=m.get("origin_hex", m.get("origin")),
+                size=m["size"],
+                cores=tuple(m.get("cores") or ()),
+            )
             for m in doc["memory"]
         )
     except (TypeError, KeyError, AttributeError) as exc:

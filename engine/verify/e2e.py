@@ -156,11 +156,12 @@ def parse_size_output(output: str) -> tuple[int, int, int]:
 
 def pick_region(memory: tuple[MemoryRegion, ...], core: str, want: str) -> MemoryRegion:
     """Map a core to its pack region: prefer a ``want`` region naming the core
-    (e.g. M4 -> flash_m4 on dual-bank packs), else the first ``want`` region
-    (single shared region packs)."""
-    cands = [m for m in memory if want in m.name.lower()]
+    (e.g. M4 -> flash_m4 on dual-bank packs), else the first ``want`` region the
+    core can see (single shared region packs). Honours per-core ``cores:``
+    tagging so two cores never share one region (bug-014)."""
+    cands = [m for m in memory if want in m.name.lower() and m.applies_to(core)]
     if not cands:
-        raise CellFailure(f"pack has no {want!r} region")
+        raise CellFailure(f"pack has no {want!r} region for core {core!r}")
     for region in cands:
         if core.lower() in region.name.lower():
             return region

@@ -594,16 +594,28 @@ def _render_openocd(device: Device) -> str:
     )
 
 
-def _ld_regions(device: Device) -> str:
+def _regions_for(device: Device, core_name: str | None = None) -> tuple[MemoryRegion, ...]:
+    """Memory regions visible to ``core_name`` (bug-014).
+
+    A region tagged ``cores:`` belongs only to those cores; untagged regions are
+    shared by every core, so single-core packs are unaffected. ``None`` returns
+    every region (used by the Rust single-tree ``memory.x``).
+    """
+    if core_name is None:
+        return tuple(device.memory)
+    return tuple(m for m in device.memory if m.applies_to(core_name))
+
+
+def _ld_regions(device: Device, core_name: str | None = None) -> str:
     lines = []
-    for m in device.memory:
+    for m in _regions_for(device, core_name):
         access = "rx" if "flash" in m.name.lower() else "rwx"
         lines.append(f"  {m.name.upper()} ({access}) : ORIGIN = 0x{m.origin:08X}, LENGTH = {m.size}")
     return "\n".join(lines)
 
 
-def _first_region(device: Device, want: str, fallback: str) -> str:
-    for m in device.memory:
+def _first_region(regions: tuple[MemoryRegion, ...], want: str, fallback: str) -> str:
+    for m in regions:
         if want in m.name.lower():
             return m.name.upper()
     return fallback
@@ -611,26 +623,28 @@ def _first_region(device: Device, want: str, fallback: str) -> str:
 
 def _core_region(device: Device, core_name: str, want: str, fallback: str) -> str:
     """Per-core region: prefer a ``want`` region naming the core (M4 ->
-    flash_m4 on dual-bank packs), else the first ``want`` region (shared
-    single-region packs). Mirrors ``engine.verify.e2e.pick_region``."""
-    for m in device.memory:
+    flash_m4 on dual-bank packs), else the first ``want`` region the core can
+    see (shared single-region packs). Mirrors ``engine.verify.e2e.pick_region``."""
+    regions = _regions_for(device, core_name)
+    for m in regions:
         if want in m.name.lower() and core_name.lower() in m.name.lower():
             return m.name.upper()
-    return _first_region(device, want, fallback)
+    return _first_region(regions, want, fallback)
 
 
 def _memoryx_regions(device: Device) -> str:
-    names = {m.name.upper() for m in device.memory}
+    regions = _regions_for(device)
+    names = {m.name.upper() for m in regions}
     lines = [_ld_regions(device)]
     # cortex-m-rt link.x requires FLASH + RAM: alias the first matching bank
     # when no region carries the exact name (e.g. dual-bank H755).
     if "FLASH" not in names:
-        first = _first_region(device, "flash", device.memory[0].name.upper())
-        src = next(m for m in device.memory if m.name.upper() == first)
+        first = _first_region(regions, "flash", regions[0].name.upper())
+        src = next(m for m in regions if m.name.upper() == first)
         lines.append(f"  FLASH (rx) : ORIGIN = 0x{src.origin:08X}, LENGTH = {src.size}")
     if "RAM" not in names:
-        first = _first_region(device, "ram", device.memory[0].name.upper())
-        src = next(m for m in device.memory if m.name.upper() == first)
+        first = _first_region(regions, "ram", regions[0].name.upper())
+        src = next(m for m in regions if m.name.upper() == first)
         lines.append(f"  RAM (rwx) : ORIGIN = 0x{src.origin:08X}, LENGTH = {src.size}")
     return "\n".join(lines)
 
@@ -929,7 +943,7 @@ def render(
                     project=ctx["project"],
                     core=ctx["core"],
                     arch=ctx["arch"],
-                    regions=_ld_regions(pack_model),
+                    regions=_ld_regions(pack_model, core.name),
                     flash_region=flash_region,
                     ram_region=ram_region,
                 ),

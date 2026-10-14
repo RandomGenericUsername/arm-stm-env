@@ -49,6 +49,7 @@
 - [bug-011-h7-single-step](./bug-011-h7-single-step/ticket.md) — OpenOCD never single-steps the H755 (PC frozen): mask interrupts during step | `done` | S1, consumes spike-005
 - [bug-012-vscode-maskisr-gate](./bug-012-vscode-maskisr-gate/ticket.md) — Generated launch.json emits cortex_m maskisr for non-Cortex-M packs | `done` | S3, gates bug-011
 - [bug-013-dual-core-debug](./bug-013-dual-core-debug/ticket.md) — Generated M4 launch config attaches to the M7 core (no per-core targeting) | `done` | S2, per-core targetProcessor + chained dual-core config
+- [bug-014-dual-core-ram](./bug-014-dual-core-ram/ticket.md) — Dual-core packs link both cores into one RAM region (same _estack) -> M7 hard-faults | `done` | S1, per-core memory regions
 
 ## Ops tasks
 
