@@ -76,6 +76,13 @@ def _validate_openocd(payload: Any) -> None:
             raise ValueError(f"openocd block {key!r} must be a non-empty string")
     if "dual_core" in payload and not isinstance(payload["dual_core"], bool):
         raise ValueError("openocd block 'dual_core' flag must be a bool")
+    if "targets" in payload:
+        targets = payload["targets"]
+        if not isinstance(targets, dict) or not targets:
+            raise ValueError("openocd block 'targets' must be a non-empty mapping core -> target name")
+        for core, name in targets.items():
+            if not isinstance(core, str) or not core or not isinstance(name, str) or not name:
+                raise ValueError("openocd 'targets' entries must be non-empty (core, name) strings")
 
 
 register("openocd", _validate_openocd, families=("stm32f4", "stm32h7", "stm32wl"))

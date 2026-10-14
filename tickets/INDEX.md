@@ -36,6 +36,7 @@
 - [bug-003-openocd-config-path-prefix](./bug-003-openocd-config-path-prefix/ticket.md) — OpenOCD adapter renders unprefixed config paths (Can't find stlink.cfg) | `done` | S1, openspec: req-012
 - [bug-004-probe-usb-passthrough](./bug-004-probe-usb-passthrough/ticket.md) — stm flash container receives serial tty, not the ST-Link USB device | `done` | S1, openspec: req-012
 - [bug-005-relative-path-vendor](./bug-005-relative-path-vendor/ticket.md) — create fails with a relative project dir (git -C doubles the path) | `done` | S1
+- [bug-006-multi-piece-flash](./bug-006-multi-piece-flash/ticket.md) — Multi-piece flash drops pieces / exits non-zero (dual-core) | `done` | S1
 
 ## Ops tasks
 

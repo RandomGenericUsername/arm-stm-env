@@ -172,6 +172,24 @@ def _serial_selector(address: str) -> str | None:
     return address
 
 
+def _piece_target(device: DeviceView, index: int, count: int) -> str | None:
+    """OpenOCD target name for piece ``index`` (dual-core multi-piece flash).
+
+    Selected only when the model is dual-core, the pack maps cores to target
+    names, and one piece is supplied per core (in core order). Otherwise the
+    tool's default target is used.
+    """
+    if not device.openocd_dual_core or not device.openocd_targets:
+        return None
+    if count != len(device.cores):
+        return None
+    core = device.cores[index].name
+    for name, target in device.openocd_targets:
+        if name == core:
+            return target
+    return None
+
+
 class OpenOCDAdapter(ProbeAdapter):
     """``ProbeAdapter`` via ``openocd -f <interface> -f <target>``."""
 
@@ -206,8 +224,16 @@ class OpenOCDAdapter(ProbeAdapter):
         serial = _serial_selector(endpoint.address)
         if serial is not None:
             argv += ["-c", f"adapter serial {serial}"]
-        for piece in pieces:
-            argv += ["-c", f"program {piece} verify reset exit"]
+        last = len(pieces) - 1
+        for index, piece in enumerate(pieces):
+            target = _piece_target(device, index, len(pieces))
+            if target is not None:
+                argv += ["-c", f"targets {target}"]
+            # Reset after each piece, but `exit` only on the last: a bare
+            # `reset exit` (or an early per-piece `exit`) makes OpenOCD return
+            # non-zero / drop later pieces (bug-006).
+            tail = "reset exit" if index == last else "reset"
+            argv += ["-c", f"program {piece} verify {tail}"]
         return argv
 
     def flash(

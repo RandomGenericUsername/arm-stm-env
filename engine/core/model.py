@@ -106,6 +106,8 @@ class OpenocdConfig:
     target: str
     dual_core: bool = False
     board: str | None = None
+    #: Optional core -> OpenOCD target name map (for per-core multi-piece flash).
+    targets: Tuple[Tuple[str, str], ...] = ()
 
     def __post_init__(self) -> None:
         if not self.interface:
@@ -116,6 +118,11 @@ class OpenocdConfig:
             raise ValueError("OpenocdConfig.dual_core must be a bool")
         if self.board is not None and not self.board:
             raise ValueError("OpenocdConfig.board must be a non-empty string or None")
+        pairs = tuple(sorted(self.targets.items())) if isinstance(self.targets, dict) else tuple(self.targets)
+        for core, name in pairs:
+            if not isinstance(core, str) or not core or not isinstance(name, str) or not name:
+                raise ValueError("OpenocdConfig.targets entries must be non-empty (core, name) strings")
+        object.__setattr__(self, "targets", pairs)
 
     def config_files(self) -> tuple[str, str]:
         """Resolved ``-f`` config paths: interface first, then board|target.
@@ -363,6 +370,7 @@ class DeviceView:
     openocd_target: str | None = None
     openocd_dual_core: bool = False
     openocd_config_files: Tuple[str, str] | None = None
+    openocd_targets: Tuple[Tuple[str, str], ...] = ()
     probe_settings: Tuple[Tuple[str, Tuple[Tuple[str, str], ...]], ...] = ()
     example_led: ExampleLed | None = None
 
@@ -389,6 +397,7 @@ class DeviceView:
             openocd_target=device.openocd.target if device.openocd else None,
             openocd_dual_core=device.openocd.dual_core if device.openocd else False,
             openocd_config_files=device.openocd.config_files() if device.openocd else None,
+            openocd_targets=device.openocd.targets if device.openocd else (),
             probe_settings=device.facets.probe_settings if device.facets else (),
             example_led=device.facets.example_led if device.facets else None,
         )

@@ -72,8 +72,22 @@ def test_openocd_argv_renders_from_model_fields_only():
     assert argv[:5] == ["openocd", "-f", "interface/iface.cfg", "-f", "board/board.cfg"]
     assert DUAL_CORE_TCL not in argv  # single-core: no session flag
     assert "set PROBE_ADDRESS" not in " ".join(argv)
-    assert "-c" in argv and "program alpha verify reset exit" in argv
-    assert "-c" in argv and "program beta verify reset exit" in argv
+    assert "program alpha verify reset" in argv
+    assert "program beta verify reset exit" in argv  # exit only on the last piece
+    assert " ".join(argv).count("reset exit") == 1
+
+
+def test_openocd_argv_dual_core_selects_target_per_piece():
+    """bug-006: two pieces → each core's target selected; exit only on the last."""
+    view = DeviceView.of(load_file(PACKS / "stm32h755.yaml"))
+    argv = OpenOCDAdapter(runner=_fake_runner("")).render_argv(
+        view, _endpoint(), ["build/M7/x.elf", "build/M4/y.elf"]
+    )
+    joined = " ".join(argv)
+    assert "targets stm32h7x.cpu0" in joined and "targets stm32h7x.cpu1" in joined
+    assert "program build/M7/x.elf verify reset" in joined
+    assert "program build/M4/y.elf verify reset exit" in joined
+    assert joined.count("reset exit") == 1
 
 
 def test_openocd_argv_target_only_pack_uses_target_prefix():
