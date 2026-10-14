@@ -43,7 +43,7 @@ def _device_view(**kw) -> DeviceView:
         memory=[MemoryRegion(name="prog", origin_hex="0x0", size=64 * 1024)],
         probe_ref=Endpoint(transport="generic-probe", address="usb:0"),
         proof_rung="frame",
-        openocd=OpenocdConfig(interface="iface.cfg", target="board.cfg"),
+        openocd=OpenocdConfig(interface="iface.cfg", target="board.cfg", board="board.cfg"),
     )
     base.update(kw)
     return DeviceView.of(Device(**base))
@@ -69,11 +69,33 @@ def test_openocd_adapter_satisfies_probe_port():
 def test_openocd_argv_renders_from_model_fields_only():
     adapter = OpenOCDAdapter(runner=_fake_runner(""))
     argv = adapter.render_argv(_device_view(), _endpoint(), ["alpha", "beta"])
-    assert argv[:5] == ["openocd", "-f", "iface.cfg", "-f", "board.cfg"]
+    assert argv[:5] == ["openocd", "-f", "interface/iface.cfg", "-f", "board/board.cfg"]
     assert DUAL_CORE_TCL not in argv  # single-core: no session flag
-    assert "-c" in argv and "set PROBE_ADDRESS /dev/node-0" in argv
+    assert "set PROBE_ADDRESS" not in " ".join(argv)
     assert "-c" in argv and "program alpha verify reset exit" in argv
     assert "-c" in argv and "program beta verify reset exit" in argv
+
+
+def test_openocd_argv_target_only_pack_uses_target_prefix():
+    view = _device_view(openocd=OpenocdConfig(interface="i.cfg", target="t.cfg"))
+    argv = OpenOCDAdapter(runner=_fake_runner("")).render_argv(view, _endpoint(), [])
+    assert "interface/i.cfg" in argv and "target/t.cfg" in argv
+
+
+def test_openocd_argv_bare_serial_selector_pins_probe():
+    view = _device_view()
+    argv = OpenOCDAdapter(runner=_fake_runner("")).render_argv(
+        view, _endpoint("STL-1"), []
+    )
+    assert "adapter serial STL-1" in argv
+
+
+def test_openocd_argv_path_address_is_not_a_selector():
+    view = _device_view()
+    argv = OpenOCDAdapter(runner=_fake_runner("")).render_argv(
+        view, _endpoint("/dev/ttyACM0"), []
+    )
+    assert all("adapter serial" not in a for a in argv)
 
 
 def test_openocd_argv_dual_core_adds_session_flag():
@@ -81,7 +103,7 @@ def test_openocd_argv_dual_core_adds_session_flag():
         openocd=OpenocdConfig(interface="i.cfg", target="t.cfg", dual_core=True)
     )
     argv = OpenOCDAdapter(runner=_fake_runner("")).render_argv(view, _endpoint(), [])
-    assert "-f" in argv and "i.cfg" in argv and "t.cfg" in argv
+    assert "interface/i.cfg" in argv and "target/t.cfg" in argv
     assert DUAL_CORE_TCL in argv
 
 
@@ -110,7 +132,7 @@ def test_openocd_flash_verify_ok_fixture_per_piece():
     assert [r.name for r in results] == ["app"]
     assert all(isinstance(r, PieceResult) and r.ok for r in results)
     sent = calls[0]
-    assert sent[:5] == ["openocd", "-f", "iface.cfg", "-f", "board.cfg"]
+    assert sent[:5] == ["openocd", "-f", "interface/iface.cfg", "-f", "board/board.cfg"]
 
 
 def test_openocd_flash_partial_and_failed_transcripts():
@@ -201,7 +223,7 @@ def test_proof_dual_session_vectors_fill_per_core_pieces():
     results = adapter.flash(view, endpoint, ["flash_m7", "flash_m4"])
     assert [r.ok for r in results] == [True, True]
     argv = calls[0]
-    assert "stlink-dap.cfg" in argv and DUAL_CORE_TCL in argv
+    assert "interface/stlink-dap.cfg" in argv and DUAL_CORE_TCL in argv
     proof = adapter.proof_for(
         view, results, Transcript(tuple(argv), 0, DUAL_CORE_FIXTURE)
     )

@@ -2,7 +2,7 @@
 id: bug-004
 title: "stm flash container receives serial tty, not the ST-Link USB device"
 kind: bug
-status: triage
+status: in-progress
 lane: direct
 severity: S1
 links:

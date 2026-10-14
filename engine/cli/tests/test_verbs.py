@@ -24,7 +24,9 @@ def test_verbs_dry_run_prints_container_argv_without_runtime(capsys, monkeypatch
     code = main([verb, "--dry-run"])
     assert code == 0
     out = capsys.readouterr().out
-    assert "docker" in out and "run" in out and verb in out
+    assert "docker" in out and "run" in out
+    # `dev` runs an interactive shell, not an engine verb word.
+    assert ("/bin/bash" if verb == "dev" else verb) in out
 
 
 def test_verbs_create_dry_run_renders_locally_without_runtime(capsys, monkeypatch, tmp_path):

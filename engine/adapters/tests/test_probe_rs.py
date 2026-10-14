@@ -213,3 +213,10 @@ def test_probe_rs_argv_prefers_pack_chip_setting():
     )
     argv = ProbeRsAdapter(runner=_fake_runner("")).render_argv(view, _endpoint(), ["a"])
     assert argv[3] == "PACK-CHIP-X"
+
+
+def test_probe_rs_argv_passes_selector_as_probe():
+    argv = ProbeRsAdapter(runner=_fake_runner("")).render_argv(
+        _device_view(), _endpoint("STL-1"), ["a"]
+    )
+    assert argv[argv.index("--probe") + 1] == "STL-1"

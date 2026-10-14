@@ -1,85 +1,113 @@
-"""Shim probe mapping + XOR tests (req-005, group 2.2)."""
+"""Shim probe binding + XOR tests (req-005 group 2.2; USB binding req-012)."""
 
 import pytest
 
 from engine.cli.main import main
 from engine.cli.shim import (
+    ProbeBinding,
     ShimRequest,
     build_container_argv,
-    probe_docker_args,
     probe_endpoint,
-    resolve_probe_device,
+    resolve_probe_binding,
 )
 
 
-def test_shim_probe_linux_device_passthrough():
-    node = resolve_probe_device(os_name="linux", device="/dev/ttyUSB0")
-    assert node == "/dev/ttyUSB0"
-    assert probe_docker_args(os_name="linux", device="/dev/ttyUSB0") == [
-        "--device",
-        "/dev/ttyUSB0:/dev/ttyUSB0",
-    ]
+def _fake_sysfs(tmp_path, *, vid="0483", pid="3752", serial="STL-1", bus="3", dev="9"):
+    """One sysfs USB device dir (``/sys/bus/usb/devices/3-9``)."""
+    root = tmp_path / "usb"
+    d = root / "3-9"
+    d.mkdir(parents=True)
+    (d / "idVendor").write_text(vid + "\n")
+    (d / "idProduct").write_text(pid + "\n")
+    if serial is not None:
+        (d / "serial").write_text(serial + "\n")
+    (d / "busnum").write_text(bus + "\n")
+    (d / "devnum").write_text(dev + "\n")
+    return root
 
 
-def test_shim_probe_linux_vid_pid_serial_pattern():
-    node = resolve_probe_device(os_name="linux", vid="1234", pid="5678")
-    assert node == "/dev/serial/by-id/usb-1234_5678"
-    node2 = resolve_probe_device(
-        os_name="linux", vid="1234", pid="5678", serial="ABC"
-    )
-    assert node2 == "/dev/serial/by-id/usb-1234_5678_ABC"
-    assert probe_docker_args(os_name="linux", vid="1234", pid="5678")[0] == "--device"
+def test_binding_explicit_device_linux():
+    b = resolve_probe_binding(os_name="linux", device="/dev/ttyUSB0")
+    assert b == ProbeBinding(selector="/dev/ttyUSB0", host_devices=("/dev/ttyUSB0",))
 
 
-def test_shim_probe_explicit_device_wins_over_selectors():
-    assert (
-        resolve_probe_device(
-            os_name="linux", device="/dev/ttyUSB1", vid="1", pid="2"
-        )
-        == "/dev/ttyUSB1"
-    )
+def test_binding_vid_pid_resolves_usb_node(tmp_path):
+    root = _fake_sysfs(tmp_path)
+    b = resolve_probe_binding(os_name="linux", vid="0483", pid="3752", sysfs_root=root)
+    assert b is not None
+    assert b.selector == "STL-1"  # serial preferred over VID:PID
+    assert b.host_devices == ("/dev/bus/usb/003/009",)
 
 
-def test_shim_probe_macos_documented_limits():
-    # macOS: serial maps to cu.* node but emits no --device (Docker Desktop limit).
-    node = resolve_probe_device(os_name="darwin", serial="ABC123")
-    assert node == "/dev/cu.usbserial-ABC123"
-    assert probe_docker_args(os_name="darwin", serial="ABC123") == []
-    assert probe_docker_args(os_name="darwin", device="/dev/cu.usbserial-X") == []
-    # macOS: bare VID/PID without serial is rejected with a documented hint.
-    with pytest.raises(ValueError, match="macOS probe limit"):
-        resolve_probe_device(os_name="darwin", vid="1234", pid="5678")
+def test_binding_vid_pid_without_serial_uses_vid_pid(tmp_path):
+    root = _fake_sysfs(tmp_path, serial=None)
+    b = resolve_probe_binding(os_name="linux", vid="0483", pid="3752", sysfs_root=root)
+    assert b is not None and b.selector == "0483:3752"
+    assert b.host_devices == ("/dev/bus/usb/003/009",)
 
 
-def test_shim_probe_no_selector_gives_no_device_flag():
-    assert resolve_probe_device(os_name="linux") is None
-    assert probe_docker_args(os_name="linux") == []
+def test_binding_unmatched_vid_pid_has_no_host_devices(tmp_path):
+    root = _fake_sysfs(tmp_path)
+    b = resolve_probe_binding(os_name="linux", vid="1234", pid="0000", sysfs_root=root)
+    assert b is not None and b.host_devices == ()
+
+
+def test_binding_no_selector_is_none():
+    assert resolve_probe_binding(os_name="linux") is None
     assert probe_endpoint(os_name="linux") is None
 
 
-def test_shim_probe_endpoint_struct_prepared_in_shim():
-    ep = probe_endpoint(os_name="linux", device="/dev/ttyUSB0")
-    assert ep is not None and ep.address == "/dev/ttyUSB0"
+def test_binding_macos_documented_limits():
+    # macOS: selector kept, but no docker USB passthrough (Desktop limit).
+    assert resolve_probe_binding(os_name="darwin", serial="ABC123") == ProbeBinding(
+        selector="ABC123", host_devices=()
+    )
+    assert resolve_probe_binding(
+        os_name="darwin", device="/dev/cu.usbserial-X"
+    ).host_devices == ()
+    # macOS: bare VID/PID without serial is rejected with a documented hint.
+    with pytest.raises(ValueError, match="macOS probe limit"):
+        resolve_probe_binding(os_name="darwin", vid="0483", pid="3752")
 
 
-def test_shim_probe_linux_dry_run_carries_device(capsys, monkeypatch):
-    monkeypatch.setattr("platform.system", lambda: "Linux")
-    assert main(["flash", "--device", "/dev/ttyUSB0", "--dry-run"]) == 0
-    assert "--device /dev/ttyUSB0:/dev/ttyUSB0" in capsys.readouterr().out
+def test_endpoint_address_is_selector_not_path(tmp_path):
+    root = _fake_sysfs(tmp_path)
+    ep = probe_endpoint(os_name="linux", vid="0483", pid="3752", sysfs_root=root)
+    assert ep is not None and ep.address == "STL-1"
 
 
-def test_shim_probe_dry_run_argv_embeds_probe_flag():
+def test_container_argv_forwards_usb_node(monkeypatch, tmp_path):
+    root = _fake_sysfs(tmp_path)
+    monkeypatch.setattr("engine.cli.shim._SYSFS_USB", root)
+    argv = build_container_argv(
+        ShimRequest(verb="flash", vid="0483", pid="3752", os_name="linux")
+    )
+    assert "/dev/bus/usb/003/009:/dev/bus/usb/003/009" in argv
+    assert "--device" in argv and "STL-1" in argv
+
+
+def test_container_argv_explicit_device(monkeypatch):
     argv = build_container_argv(
         ShimRequest(verb="flash", device="/dev/ttyUSB0", os_name="linux")
     )
-    assert "--device" in argv and "/dev/ttyUSB0:/dev/ttyUSB0" in argv
-    argv_mac = build_container_argv(
-        ShimRequest(verb="flash", device="/dev/cu.usbserial-X", os_name="darwin")
+    assert "/dev/ttyUSB0:/dev/ttyUSB0" in argv
+
+
+def test_container_argv_macos_no_usb_passthrough():
+    argv = build_container_argv(
+        ShimRequest(verb="flash", serial="ABC", os_name="darwin")
     )
-    # No docker-level device mapping on macOS (Desktop limit) ...
-    assert "/dev/cu.usbserial-X:/dev/cu.usbserial-X" not in argv_mac
-    # ... but the selector still forwards for in-container use:
-    assert "--device" in argv_mac and "/dev/cu.usbserial-X" in argv_mac
+    assert "/dev/bus/usb" not in " ".join(argv)
+    assert "ABC" in argv  # selector still forwarded for in-container use
+
+
+def test_shim_probe_linux_dry_run_carries_device(capsys, monkeypatch, tmp_path):
+    root = _fake_sysfs(tmp_path)
+    monkeypatch.setattr("engine.cli.shim._SYSFS_USB", root)
+    monkeypatch.setattr("platform.system", lambda: "Linux")
+    assert main(["flash", "--vid", "0483", "--pid", "3752", "--dry-run"]) == 0
+    out = capsys.readouterr().out
+    assert "--device /dev/bus/usb/003/009:/dev/bus/usb/003/009" in out
 
 
 def test_shim_probe_xor_mcu_config_vs_individual_flags(capsys):

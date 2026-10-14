@@ -2,7 +2,7 @@
 id: bug-003
 title: "OpenOCD adapter renders unprefixed config paths (Can't find stlink.cfg)"
 kind: bug
-status: triage
+status: in-progress
 lane: direct
 severity: S1
 links:

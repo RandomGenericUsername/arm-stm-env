@@ -14,6 +14,8 @@ sudo tee /etc/udev/rules.d/49-stlink.rules > /dev/null <<'EOF'
 SUBSYSTEMS=="usb", ATTRS{idVendor}=="0483", ATTRS{idProduct}=="3748", MODE="0666", GROUP="plugdev", TAG+="uaccess"
 # ST-Link V2-1 (Nucleo boards)
 SUBSYSTEMS=="usb", ATTRS{idVendor}=="0483", ATTRS{idProduct}=="374b", MODE="0666", GROUP="plugdev", TAG+="uaccess"
+# ST-Link V2-1 (Nucleo-F411RE and newer, observed 0483:3752)
+SUBSYSTEMS=="usb", ATTRS{idVendor}=="0483", ATTRS{idProduct}=="3752", MODE="0666", GROUP="plugdev", TAG+="uaccess"
 # ST-Link V3
 SUBSYSTEMS=="usb", ATTRS{idVendor}=="0483", ATTRS{idProduct}=="374e", MODE="0666", GROUP="plugdev", TAG+="uaccess"
 SUBSYSTEMS=="usb", ATTRS{idVendor}=="0483", ATTRS{idProduct}=="374f", MODE="0666", GROUP="plugdev", TAG+="uaccess"
@@ -47,11 +49,19 @@ ls -l /dev/ttyACM* 2>/dev/null       # Nucleo virtual COM port (RTT/UART)
 uv run stm create --mcu-config stm32f411re --lang c --name demo --out-dir .
 uv run stm build --project-dir ./demo
 uv run stm flash --mcu-config stm32f411re --project-dir ./demo \
-  --device /dev/ttyUSB0 --files demo.elf
+  --vid 0483 --pid 3752 --files stm32f411re-M4.elf
 ```
 
-(`--device` takes the ST-Link node; find yours with `lsusb`/`dmesg`.
-`--verbose` saves the full tool log under `./demo/.stm/logs/`.)
+Select the probe as a **USB device** (`--vid`/`--pid`, or `--serial`); the shim
+resolves the matching `/dev/bus/usb/<bus>/<dev>` node and forwards it into the
+container automatically. Do **not** pass a serial tty (`/dev/ttyACM0`) as the
+probe — that is the UART, not the debug interface, and OpenOCD reaches ST-Link
+over USB. An explicit `--device <usb-node>` still wins if you need it.
+`--verbose` saves the full tool log under `./demo/.stm/logs/`.
+
+Note (Arch/EndeavourOS): the serial group is `uucp`, not `dialout`, and
+`plugdev` may not exist — `MODE="0666"`+`uaccess` in the rules above is what
+grants access; create the group or drop `GROUP="plugdev"` if `udevadm` warns.
 
 ## 3. Raw OpenOCD commands (fallback / diagnosis)
 
@@ -88,7 +98,7 @@ Save everything and bring it back:
 
 ```sh
 uv run stm flash --mcu-config <pack> --project-dir <dir> \
-  --device <node> --files <elf> --verbose 2>&1 | tee flash-<board>-$(date +%F).log
+  --vid <vid> --pid <pid> --files <elf> --verbose 2>&1 | tee flash-<board>-$(date +%F).log
 ```
 
 Success → which board/core/file/versions. Failure → open a `bug` ticket

@@ -2,7 +2,7 @@
 id: req-012
 title: "OpenOCD config paths + USB probe binding so stm flash programs"
 kind: requirement
-status: proposed
+status: in-progress
 size: M
 lane: openspec-single
 links:
@@ -27,11 +27,11 @@ USB device node. Details in
 
 ## Acceptance
 
-- [ ] `OpenOCDAdapter.render_argv` emits `-f interface/…` and `-f board/…|target/…` (no bare filenames); test `engine/adapters/tests/test_openocd.py` updated. `Verify: pytest -k openocd`
-- [ ] Model exposes resolved OpenOCD config paths; renderer and adapter consume it (no duplicated prefix logic). `Verify: pytest -k "renderer or core"`
-- [ ] Shim resolves USB probes to a host binding carrying `/dev/bus/usb/<bus>/<dev>`. `Verify: pytest -k shim`
-- [ ] Live: `uv run stm flash --mcu-config stm32f411re --project-dir <demo> --device 0483:3752 --files stm32f411re-M4.elf` reaches `** Verified OK **`. `Verify: exit 0 + streamed log`
-- [ ] `openspec validate req-012-openocd-probe-wiring` and full `make test` green. `Verify: exit 0`
+- [x] `OpenOCDAdapter.render_argv` emits `-f interface/…` and `-f board/…|target/…` (no bare filenames); test `engine/adapters/tests/test_openocd.py` updated. `Verify: pytest -k openocd`
+- [x] Model exposes resolved OpenOCD config paths; renderer and adapter consume it (no duplicated prefix logic). `Verify: pytest -k "renderer or core"`
+- [x] Shim resolves USB probes to a host binding carrying `/dev/bus/usb/<bus>/<dev>`. `Verify: pytest -k shim`
+- [ ] Live: `uv run stm flash --mcu-config stm32f411re --project-dir <demo> --vid 0483 --pid 3752 --files stm32f411re-M4.elf` reaches `** Verified OK **`. `Verify: exit 0 + streamed log` (PENDING board)
+- [x] `openspec validate req-012-openocd-probe-wiring` and full `make test` green (235 passed). `Verify: exit 0`
 
 ## Evidence
 
