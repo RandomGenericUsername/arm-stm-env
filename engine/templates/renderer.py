@@ -148,6 +148,7 @@ _MAKEFILE_HEAD = Template(
 _MAKEFILE_CORE = Template(
     "# --- core $core ($arch) ---\n"
     "TARGET_$core = $project-$core\n"
+    "OUT_$core = build/$core/$$(TARGET_$core)\n"
     "CPU_FLAGS_$core = $cpu_flags\n"
     "FPU_FLAGS_$core = $fpu_flags\n"
     "CFLAGS_$core = $$(CPU_FLAGS_$core) $$(FPU_FLAGS_$core)$std_flags $define_flags "
@@ -173,24 +174,26 @@ _MAKEFILE_CORE = Template(
     "\t@mkdir -p $$(@D)\n"
     "\t$compiler $$(CFLAGS_$core) -c -o $$@ $$<\n"
     "\n"
-    "$$(TARGET_$core).elf: $$(OBJS_$core) $$(LDSCRIPT_$core)\n"
+    "# Final artifacts land under build/$core/ — nothing generated at the root.\n"
+    "$$(OUT_$core).elf: $$(OBJS_$core) $$(LDSCRIPT_$core)\n"
+    "\t@mkdir -p $$(@D)\n"
     "\t$compiler $$(CFLAGS_$core) -T$$(LDSCRIPT_$core) -Wl,--gc-sections "
-    "-Wl,-Map=build/$core/$$(TARGET_$core).map --specs=nano.specs -o $$@ $$(OBJS_$core)\n"
+    "-Wl,-Map=$$(@:.elf=.map) --specs=nano.specs -o $$@ $$(OBJS_$core)\n"
     "\n"
-    "$$(TARGET_$core).hex: $$(TARGET_$core).elf\n"
+    "$$(OUT_$core).hex: $$(OUT_$core).elf\n"
     "\t$$(OBJCOPY) -O ihex $$< $$@\n"
     "\n"
-    "$$(TARGET_$core).bin: $$(TARGET_$core).elf\n"
+    "$$(OUT_$core).bin: $$(OUT_$core).elf\n"
     "\t$$(OBJCOPY) -O binary $$< $$@\n"
     "\n"
-    "build-$core: $$(TARGET_$core).elf $$(TARGET_$core).hex $$(TARGET_$core).bin\n"
-    "\t$$(SIZE) $$(TARGET_$core).elf\n"
+    "build-$core: $$(OUT_$core).elf $$(OUT_$core).hex $$(OUT_$core).bin\n"
+    "\t$$(SIZE) $$(OUT_$core).elf\n"
     "\n"
     "flash-$core: build-$core\n"
-    "\t$$(OPENOCD) $oc_flash_args -c \"program $$(TARGET_$core).elf verify reset exit\"\n"
+    "\t$$(OPENOCD) $oc_flash_args -c \"program $$(OUT_$core).elf verify reset exit\"\n"
     "\n"
     "clean-$core:\n"
-    "\trm -rf build/$core $$(TARGET_$core).elf $$(TARGET_$core).hex $$(TARGET_$core).bin\n"
+    "\trm -rf build/$core\n"
     "\n"
 )
 
@@ -397,7 +400,7 @@ _CARGO = Template(
     "lto = true\n"
     "debug = true\n"
     "\n"
-    "# Flash via probe-rs (single-core) or OpenOCD (see openocd.cfg):\n"
+    "# Flash via probe-rs (single-core) or OpenOCD (see probe/openocd.cfg):\n"
     "#   probe-rs run --chip <exact-part> target/$arch/release/$project\n"
 )
 
@@ -462,7 +465,7 @@ _MAIN_RS = Template(
 )
 
 _OPENOCD = Template(
-    "# $project openocd.cfg — generated from pack openocd facts (spike-001).\n"
+    "# $project probe/openocd.cfg — generated from pack openocd facts (spike-001).\n"
     "# Probe: $probe_transport ($probe_address).\n"
     "# Flash helper: openocd $oc_flash_args -c \"program <elf> verify reset exit\"\n"
     "source [find $interface]\n"
@@ -566,7 +569,7 @@ def render(pack_model: Device, lang: str, out_dir: str | Path) -> list[Path]:
         path.write_text(text)
         written.append(path)
 
-    write("openocd.cfg", _render_openocd(pack_model))
+    write("probe/openocd.cfg", _render_openocd(pack_model))
     write("config/OVERRIDES.md", _OVERRIDES.substitute(cfg))
     write(f"config/{cfg['config_header']}", _CONFIG_H.substitute(cfg))
 

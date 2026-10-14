@@ -62,7 +62,7 @@ def expected_files(pack_id: str, lang: str) -> list[str]:
         files.append("Startup/NOTE.md")
     else:
         files = [*base, "memory.x", "build.rs", "src/main.rs"]
-    files += ["openocd.cfg", f"config/{header}", "config/OVERRIDES.md"]
+    files += ["probe/openocd.cfg", f"config/{header}", "config/OVERRIDES.md"]
     return sorted(files)
 
 
@@ -99,6 +99,7 @@ def test_cells(pack_id: str, lang: str, tmp_path: Path) -> None:
             assert f"SYSTEM_C_{core['name']}" in text, "system file ref missing"
             assert f"clean-{core['name']}" in text, "clean target missing"
             assert f"flash-{core['name']}" in text, "flash-helper target missing"
+            assert f"OUT_{core['name']} = build/{core['name']}/" in text, "artifact dir missing"
             main = (out / f"src/main-{core['name']}.c").read_text()
             assert "wfi" in main and header in main, "bring-up source incomplete"
             linker = (out / f"linker/{doc['blocks']['linker'][core['name']]}").read_text()
@@ -129,7 +130,7 @@ def test_cells(pack_id: str, lang: str, tmp_path: Path) -> None:
         assert "-Tlink.x" in build_rs and "rerun-if-changed" in build_rs
         main_rs = (out / "src/main.rs").read_text()
         assert "#[entry]" in main_rs and "wfi" in main_rs
-    oc_text = (out / "openocd.cfg").read_text()
+    oc_text = (out / "probe" / "openocd.cfg").read_text()
     iface, cfg_path, dual = EXPECTED_OC[pack_id]
     assert iface in oc_text and cfg_path in oc_text, "corrected openocd path missing"
     if dual and cfg_path.startswith("target/"):
