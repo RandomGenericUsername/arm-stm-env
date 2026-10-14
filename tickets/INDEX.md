@@ -26,6 +26,7 @@
   - [req-015-h755-example](./req-015-h755-example/ticket.md) — H755 blink example (LD2/PE1, family-correct registers, primary core) | `done` | openspec: req-015-h755-example
   - [req-016-vscode-integration](./req-016-vscode-integration/ticket.md) — Generated .vscode/ for the container-attached debug flow (C/C++ first) | `done` | openspec: req-016-vscode-integration
   - [req-017-svd-registers](./req-017-svd-registers/ticket.md) — Per-core SVD fetch -> Cortex-Debug peripheral register view | `done` | openspec: req-017-svd-registers
+  - [req-018-detach-resume](./req-018-detach-resume/ticket.md) — Keep firmware running after debug: resume-on-detach config | `done` | openspec: req-018-detach-resume
 
 ## Requirements
 
