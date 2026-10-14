@@ -15,13 +15,13 @@ ARG FLIP_LINK_VERSION=0.1.12
 ARG OPENOCD_REPO=https://github.com/STMicroelectronics/OpenOCD.git
 ARG OPENOCD_SHA=c8d973bdad9a6fddb51459eda109b3b95d23b57a
 
-LABEL org.arm-stm-env.rust.toolchain="1.99.0" \
-      org.arm-stm-env.probe-rs.version="v0.32.0" \
-      org.arm-stm-env.probe-rs.sha256="c2ccc46049e52a5d403ef212078cd637ecda55b662708327960558f83e851ff5" \
-      org.arm-stm-env.flip-link.version="0.1.12" \
-      org.arm-stm-env.openocd.repo="https://github.com/STMicroelectronics/OpenOCD.git" \
-      org.arm-stm-env.openocd.sha="c8d973bdad9a6fddb51459eda109b3b95d23b57a" \
-      org.arm-stm-env.base="debian:bookworm-slim@sha256:7c7b2c966bc9ee8cedfeef67e0e279108992c77681fa595db4a9d65c06ccc587"
+LABEL org.mu.rust.toolchain="1.99.0" \
+      org.mu.probe-rs.version="v0.32.0" \
+      org.mu.probe-rs.sha256="c2ccc46049e52a5d403ef212078cd637ecda55b662708327960558f83e851ff5" \
+      org.mu.flip-link.version="0.1.12" \
+      org.mu.openocd.repo="https://github.com/STMicroelectronics/OpenOCD.git" \
+      org.mu.openocd.sha="c8d973bdad9a6fddb51459eda109b3b95d23b57a" \
+      org.mu.base="debian:bookworm-slim@sha256:7c7b2c966bc9ee8cedfeef67e0e279108992c77681fa595db4a9d65c06ccc587"
 
 ENV DEBIAN_FRONTEND=noninteractive \
     RUSTUP_HOME=/usr/local/rustup \

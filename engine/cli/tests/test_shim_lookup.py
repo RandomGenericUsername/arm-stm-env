@@ -21,9 +21,9 @@ class _RecordingLookup(ImageLookup):
 
 def test_shim_lookup_maps_languages_via_core_interface():
     lookup = DefaultImageLookup()
-    assert lookup.image_for("c") == "ghcr.io/arm-stm-env/lang-cpp:15.3.rel2"
-    assert lookup.image_for("cpp") == "ghcr.io/arm-stm-env/lang-cpp:15.3.rel2"
-    assert lookup.image_for("rust") == "ghcr.io/arm-stm-env/lang-rust:1.99.0"
+    assert lookup.image_for("c") == "ghcr.io/randomgenericusername/lang-cpp:15.3.rel2"
+    assert lookup.image_for("cpp") == "ghcr.io/randomgenericusername/lang-cpp:15.3.rel2"
+    assert lookup.image_for("rust") == "ghcr.io/randomgenericusername/lang-rust:1.99.0"
     with pytest.raises(ValueError):
         lookup.image_for("nope")
 
@@ -77,9 +77,9 @@ def test_shim_container_argv_mounts_engine_and_project(tmp_path):
     assert "-v" in argv
     joined = " ".join(argv)
     assert f"{tmp_path.resolve()}:/project:rw" in joined
-    assert f"{engine_root()}:/opt/arm-stm-env/engine:ro" in argv
-    assert f"{packs_dir()}:/opt/arm-stm-env/packs:ro" in argv
-    assert "PYTHONPATH=/opt/arm-stm-env" in joined
+    assert f"{engine_root()}:/opt/mu/engine:ro" in argv
+    assert f"{packs_dir()}:/opt/mu/packs:ro" in argv
+    assert "PYTHONPATH=/opt/mu" in joined
     assert "-w" in argv and "/project" in argv
     assert "--project-dir" in argv and "/project" in argv
 

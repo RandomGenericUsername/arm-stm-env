@@ -19,10 +19,10 @@ digest, toolchain version + source URL + checksum, OpenOCD fork SHA.
 ## Build
 
 ```sh
-docker build --platform linux/amd64 -f images/cpp.Dockerfile  -t ghcr.io/arm-stm-env/lang-cpp:15.3.rel2 images/
-docker build --platform linux/amd64 -f images/rust.Dockerfile -t ghcr.io/arm-stm-env/lang-rust:1.99.0 images/
-docker inspect ghcr.io/arm-stm-env/lang-cpp:15.3.rel2  --format='{{.RepoDigests}}'
-docker inspect ghcr.io/arm-stm-env/lang-rust:1.99.0    --format='{{.RepoDigests}}'
+docker build --platform linux/amd64 -f images/cpp.Dockerfile  -t ghcr.io/randomgenericusername/lang-cpp:15.3.rel2 images/
+docker build --platform linux/amd64 -f images/rust.Dockerfile -t ghcr.io/randomgenericusername/lang-rust:1.99.0 images/
+docker inspect ghcr.io/randomgenericusername/lang-cpp:15.3.rel2  --format='{{.RepoDigests}}'
+docker inspect ghcr.io/randomgenericusername/lang-rust:1.99.0    --format='{{.RepoDigests}}'
 ```
 (Prefer `make images` / `make digests` — same commands, parameterized.)
 
@@ -30,8 +30,8 @@ Record the resulting digests here after each build (base-image updates change
 them; re-record, do not silently float).
 
 Built digests (2026-10-09, `FROM --platform=linux/amd64`, Docker 29.8.2):
-- cpp: `arm-stm-env/lang-cpp:15.3.rel2 @ sha256:27d29e05159fc71ddb6a2218de653ad401786cd81163cfcba86948642fa3a50d` (2.02GB, amd64).
-- rust: `arm-stm-env-lang-rust:1.99.0 @ sha256:814093c2800a7ab6db48e52af71146ae09189d1bc7a810b7ac4416cb15c60c56` (amd64). Smoke: rustc 1.99.0 (b940084d7), probe-rs 0.32.0, both thumbv7em targets, OpenOCD c8d973bda.
+- cpp: `randomgenericusername/lang-cpp:15.3.rel2 @ sha256:27d29e05159fc71ddb6a2218de653ad401786cd81163cfcba86948642fa3a50d` (2.02GB, amd64).
+- rust: `randomgenericusername/lang-rust:1.99.0 @ sha256:814093c2800a7ab6db48e52af71146ae09189d1bc7a810b7ac4416cb15c60c56` (amd64). Smoke: rustc 1.99.0 (b940084d7), probe-rs 0.32.0, both thumbv7em targets, OpenOCD c8d973bda.
   Smoke: `rustc 1.99.0 (b940084d7)`, both thumbv7em targets, `probe-rs 0.32.0`,
   flip-link in cargo bin, OpenOCD `0.12.0+dev-00664-gc8d973bda`.
 

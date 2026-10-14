@@ -1,4 +1,4 @@
-# AGENTS.md — arm-stm-env operating contract
+# AGENTS.md — mu operating contract
 
 Canonical agent instructions for this repo. Claude (`CLAUDE.md` symlinks here), OpenCode, and all BMAD/OpenSpec skills must follow this.
 

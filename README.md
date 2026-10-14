@@ -1,4 +1,4 @@
-# arm-stm-env
+# mu
 
 One CLI from zero to a running program on supported MCUs: scaffold projects
 from prebuilt hardware packs (or your own config), hack in a containerized
@@ -10,8 +10,8 @@ Rust. Linux/macOS hosts. Windows: deferred lane.
 ## Install (host prerequisites: Git, Docker, `python3 >= 3.11`, `uv`)
 
 ```sh
-git clone https://github.com/RandomGenericUsername/arm-stm-env.git
-cd arm-stm-env
+git clone https://github.com/RandomGenericUsername/mu.git
+cd mu
 make sync      # Python env (uv, locked)
 make test      # engine suite, no Docker needed
 make images    # build cpp + rust toolchain images (needs Docker + network)

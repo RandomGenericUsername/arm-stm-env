@@ -1,4 +1,4 @@
-# Handoff — arm-stm-env (2026-10-13)
+# Handoff — mu (2026-10-13)
 
 Continue here with another agent. Read this whole file first, then
 `AGENTS.md` (repo contract), then `tickets/INDEX.md` (work board).
