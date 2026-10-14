@@ -395,6 +395,10 @@ def _run_verb(args: argparse.Namespace) -> int:
     extra: list[str] = []
     if args.verb == "flash" and getattr(args, "files", None):
         extra = ["--files", *args.files]
+    if args.verb in ("flash", "debug") and getattr(args, "verbose", False):
+        # Forward --verbose so the in-container run writes <project>/.mu/logs/
+        # (bug-007: auto mode silently ignored it).
+        extra.append("--verbose")
     request = ShimRequest(
         verb=args.verb,
         lang=args.lang,
