@@ -2,7 +2,7 @@
 id: ops-012
 title: "create: rename output flag to --path"
 kind: ops-task
-status: in-progress
+status: done
 lane: direct
 links:
   openspec: none
