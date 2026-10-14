@@ -46,7 +46,7 @@ ls -l /dev/ttyACM* 2>/dev/null       # Nucleo virtual COM port (RTT/UART)
 ## 2. Flash via the tool (preferred — OpenOCD comes from the image)
 
 ```sh
-uv run mu create --mcu-config stm32f411re --lang c --name demo --out-dir .
+uv run mu create --mcu-config stm32f411re --lang c --name demo --path .
 uv run mu build --project-dir ./demo
 uv run mu flash --mcu-config stm32f411re --project-dir ./demo \
   --vid 0483 --pid 3752 --files stm32f411re-M4.elf

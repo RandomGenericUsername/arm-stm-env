@@ -34,7 +34,7 @@ def _rendered_texts(root: Path) -> list[str]:
 def test_create_renders_c_project(tmp_path, capsys):
     pack_id, _ = _first_pack()
     code = main(
-        ["create", "--mcu-config", pack_id, "--lang", "c", "--name", "demo", "--out-dir", str(tmp_path)]
+        ["create", "--mcu-config", pack_id, "--lang", "c", "--name", "demo", "--path", str(tmp_path)]
     )
     assert code == 0
     out = capsys.readouterr().out
@@ -49,7 +49,7 @@ def test_create_renders_c_project(tmp_path, capsys):
 
 def test_create_accepts_pack_file_path(tmp_path, capsys):
     _, pack_path = _first_pack()
-    assert main(["create", "--mcu-config", str(pack_path), "--name", "bypath", "--out-dir", str(tmp_path)]) == 0
+    assert main(["create", "--mcu-config", str(pack_path), "--name", "bypath", "--path", str(tmp_path)]) == 0
     assert (tmp_path / "bypath" / "Makefile").is_file()
     capsys.readouterr()
 
@@ -57,7 +57,7 @@ def test_create_accepts_pack_file_path(tmp_path, capsys):
 def test_create_dry_run_writes_nothing(tmp_path, capsys):
     pack_id, _ = _first_pack()
     code = main(
-        ["create", "--mcu-config", pack_id, "--name", "demo", "--out-dir", str(tmp_path), "--dry-run"]
+        ["create", "--mcu-config", pack_id, "--name", "demo", "--path", str(tmp_path), "--dry-run"]
     )
     assert code == 0
     assert not (tmp_path / "demo").exists()
@@ -67,17 +67,17 @@ def test_create_dry_run_writes_nothing(tmp_path, capsys):
 
 def test_create_flags_only_invocation_exits_2(tmp_path, capsys):
     pack_id, _ = _first_pack()
-    assert main(["create", "--name", "demo", "--mcu", pack_id, "--out-dir", str(tmp_path)]) == 2
+    assert main(["create", "--name", "demo", "--mcu", pack_id, "--path", str(tmp_path)]) == 2
     assert "--mcu-config" in capsys.readouterr().err
 
 
 def test_create_missing_config_exits_2(tmp_path, capsys):
-    assert main(["create", "--name", "demo", "--out-dir", str(tmp_path)]) == 2
+    assert main(["create", "--name", "demo", "--path", str(tmp_path)]) == 2
     assert "--mcu-config" in capsys.readouterr().err
 
 
 def test_create_invalid_pack_id_names_candidates(tmp_path, capsys):
     pack_id, _ = _first_pack()
-    code = main(["create", "--mcu-config", "no-such-pack", "--name", "demo", "--out-dir", str(tmp_path)])
+    code = main(["create", "--mcu-config", "no-such-pack", "--name", "demo", "--path", str(tmp_path)])
     assert code != 0
     assert pack_id in capsys.readouterr().err
