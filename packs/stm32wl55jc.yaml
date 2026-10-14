@@ -65,3 +65,17 @@ blocks:
   probe_settings:
     probe-rs:
       chip: STM32WL55JC
+  # On-board user LED LD1 (blue) = PB15, active HIGH (ops-017 example). UM2592
+  # (Nucleo-64 MB1389): "LED1 blue LED (USER) ... connected to STM32WL I/O PB15
+  # ... HIGH logic state". WL clocks GPIOs on AHB2ENR: GPIOB @0x48000400,
+  # RCC_AHB2ENR @0x5800004C, GPIOBEN bit 1 (vendored cmsis-device-stm32wl55jc).
+  # Default core clock MSI = 4 MHz. Blink runs on the primary core (M4).
+  example:
+    led:
+      port: B
+      pin: 15
+      active: high
+      gpio_base: 0x48000400
+      rcc_en_addr: 0x5800004C
+      rcc_en_bit: 1
+      clock_hz: 4000000
