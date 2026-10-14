@@ -2,7 +2,7 @@
 id: ops-009
 title: "Installable stm CLI (make install / uninstall)"
 kind: ops-task
-status: in-progress
+status: done
 lane: direct
 links:
   openspec: none
