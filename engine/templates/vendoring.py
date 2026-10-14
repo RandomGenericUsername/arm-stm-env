@@ -2,7 +2,10 @@
 
 ``vendor(pack_id, project_dir)`` registers two pinned submodules in an
 already-rendered C/C++ project tree: CMSIS core at ``vendor/CMSIS`` and the
-family device repo at ``vendor/cmsis-device-<pack-id>``.
+family device repo at ``vendor/cmsis-device-<pack-id>``. If the project dir is
+not already inside a git work tree, ``git init`` runs there first (so `create`
+works in a fresh/empty directory); a dir already inside a work tree (e.g. a
+monorepo) is left alone.
 
 Mechanism (design.md): ``git submodule add <url> <path>`` then a detached
 ``git -C <path> checkout <tag>`` inside each submodule. Tags are immutable
@@ -96,12 +99,30 @@ def _add_pin(url: str, tag: str, dest: str, project_dir: Path) -> None:
         )
 
 
+def _ensure_repo(out: Path) -> None:
+    """Make ``out`` a git work tree so submodule vendoring can run.
+
+    Idempotent: a path already inside a work tree (e.g. a monorepo) is left
+    untouched; otherwise ``git init`` runs in ``out``. Failure is loud.
+    """
+    probe = _run_git(["git", "-C", str(out), "rev-parse", "--is-inside-work-tree"], out)
+    if probe.returncode == 0 and probe.stdout.strip() == "true":
+        return
+    init = _run_git(["git", "init"], out)
+    if init.returncode != 0:
+        raise VendorError(
+            f"vendoring: `git init` failed in {out} (cannot create the project "
+            f"repo that `git submodule add` needs): {init.stderr.strip()}"
+        )
+
+
 def vendor(pack_id: str, project_dir: str | Path) -> list[Path]:
     """Register pinned CMSIS submodules; return the submodule dirs.
 
-    Raises :class:`VendorError` (non-zero create path) when git is missing,
-    the out-dir is not in a repo, the family is unknown, or any git step
-    fails (e.g. offline: unreachable remote URL named in the message).
+    Runs ``git init`` in a project dir that is not already inside a work tree.
+    Raises :class:`VendorError` (non-zero create path) when git is missing, the
+    project dir does not exist, the family is unknown, or any git step fails
+    (e.g. offline: unreachable remote URL named in the message).
     """
     out = Path(project_dir)
     if not out.is_dir():
@@ -113,13 +134,7 @@ def vendor(pack_id: str, project_dir: str | Path) -> list[Path]:
             "vendoring: `git` not found on PATH; install git and re-run create "
             "(submodule init requires the git CLI on the host)"
         )
-    inside = _run_git(["git", "-C", str(out), "rev-parse", "--is-inside-work-tree"], out)
-    if inside.returncode != 0 or inside.stdout.strip() != "true":
-        raise VendorError(
-            f"vendoring: out-dir {out} is not inside a git work tree; "
-            f"`git submodule add` needs a repo — `git init` the project dir first "
-            f"(stderr: {inside.stderr.strip()})"
-        )
+    _ensure_repo(out)
     _add_pin(CMSIS_CORE_URL, CMSIS_CORE_TAG, VENDOR_CORE_PATH, out)
     url, tag, dest = family_repo(pack_id)
     _add_pin(url, tag, dest, out)
