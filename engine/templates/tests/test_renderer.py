@@ -105,7 +105,7 @@ def test_renderer_consumes_model_only(lang: str, tmp_path) -> None:
         text = (tmp_path / "Makefile").read_text()
         assert "-mfpu=fpv4-sp-d16 -mfloat-abi=hard" in text
         assert "linker/SYNTH_FLASH.ld" in text
-        assert "board/synth.cfg" in (tmp_path / "openocd.cfg").read_text()
+        assert "board/synth.cfg" in (tmp_path / "probe" / "openocd.cfg").read_text()
         assert (tmp_path / "config/synth_config.h").is_file()
     else:
         assert "0x08000000" in (tmp_path / "memory.x").read_text()

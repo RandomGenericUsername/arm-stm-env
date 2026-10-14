@@ -49,7 +49,7 @@ ls -l /dev/ttyACM* 2>/dev/null       # Nucleo virtual COM port (RTT/UART)
 uv run mu create --mcu-config stm32f411re --lang c --name demo --path .
 uv run mu build --project-dir ./demo
 uv run mu flash --mcu-config stm32f411re --project-dir ./demo \
-  --vid 0483 --pid 3752 --files stm32f411re-M4.elf
+  --vid 0483 --pid 3752 --files build/M4/stm32f411re-M4.elf
 ```
 
 Select the probe as a **USB device** (`--vid`/`--pid`, or `--serial`); the shim
@@ -68,13 +68,13 @@ grants access; create the group or drop `GROUP="plugdev"` if `udevadm` warns.
 ```sh
 # F411RE (single M4)
 openocd -f interface/stlink.cfg -f board/st_nucleo_f4.cfg \
-  -c "program demo.elf verify reset exit"
+  -c "program build/M4/stm32f411re-M4.elf verify reset exit"
 # H755 (dual M7+M4 — MUST be stlink-dap + DUAL_CORE; HLA falls back to one core)
 openocd -f interface/stlink-dap.cfg -f board/st_nucleo_h745zi.cfg \
-  -c "program demo_m7.elf verify reset exit"
+  -c "program build/M7/stm32h755-M7.elf verify reset exit"
 # WL55JC (no board file in fork; direct target + DUAL_CORE for both cores)
 openocd -f interface/stlink.cfg -f target/stm32wlx.cfg \
-  -c "set DUAL_CORE 1" -c "program demo.elf verify reset exit"
+  -c "set DUAL_CORE 1" -c "program build/M4/stm32wl55jc-M4.elf verify reset exit"
 # Probe-only sanity check (no flash):
 openocd -f interface/stlink.cfg -f board/st_nucleo_f4.cfg -c "init; targets; exit"
 ```
@@ -94,11 +94,11 @@ openocd -f interface/stlink.cfg -f board/st_nucleo_f4.cfg -c "init; targets; exi
 
 ## 5. Record evidence (both outcomes matter)
 
-Save everything and bring it back:
+Save everything and bring it back (the ELF is `build/<core>/<device>-<core>.elf`):
 
 ```sh
 uv run mu flash --mcu-config <pack> --project-dir <dir> \
-  --vid <vid> --pid <pid> --files <elf> --verbose 2>&1 | tee flash-<board>-$(date +%F).log
+  --vid <vid> --pid <pid> --files build/<core>/<elf> --verbose 2>&1 | tee flash-<board>-$(date +%F).log
 ```
 
 Success → which board/core/file/versions. Failure → open a `bug` ticket

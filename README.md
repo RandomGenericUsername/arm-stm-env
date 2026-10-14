@@ -45,10 +45,10 @@ device files (one source per invocation: `--mcu-config` XOR `--mcu`).
 
 ```sh
 uv run mu flash --mcu-config stm32f411re --project-dir ./demo \
-  --device /dev/ttyUSB0 --files demo.elf
+  --vid 0483 --pid 3752 --files build/M4/stm32f411re-M4.elf
 ```
 
-Per-board OpenOCD configs ship in each generated project (`openocd.cfg`,
+Per-board OpenOCD configs ship in each generated project (`probe/openocd.cfg`,
 verified against the ST OpenOCD fork). Live flash/run is the one path not
 yet proven without hardware — see `tickets/` for status.
 

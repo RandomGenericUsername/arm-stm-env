@@ -183,7 +183,7 @@ def assert_fits(device: Device, core: str, text: int, data: int, bss: int) -> El
             f"available {ram.size} ({ram.name})"
         )
     return ElfInfo(
-        path=f"{device.id}-{core}.elf",
+        path=f"build/{core}/{device.id}-{core}.elf",
         text=text,
         data=data,
         bss=bss,
@@ -290,7 +290,7 @@ def build_cpp_cell(device: Device, out: Path, image: str) -> CellResult:
         res.note += f"; BUILD FAILED:\n{combined.strip()[-3000:]}"
         return res
     for core in device.cores:
-        elf = f"{device.id}-{core.name}.elf"
+        elf = f"build/{core.name}/{device.id}-{core.name}.elf"
         size_proc = docker_run(image, out, ["arm-none-eabi-size", "-B", elf])
         res.commands.append(f"arm-none-eabi-size -B {elf}")
         res.exits.append(size_proc.returncode)
