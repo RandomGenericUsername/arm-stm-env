@@ -2,7 +2,7 @@
 id: bug-004
 title: "stm flash container receives serial tty, not the ST-Link USB device"
 kind: bug
-status: in-progress
+status: done
 lane: direct
 severity: S1
 links:
@@ -58,3 +58,9 @@ enumerating sysfs and forward the USB node (D3/D4 in the linked change).
 Regression: shim unit test with a fixture sysfs root asserting a
 `/dev/bus/usb/...` host device. Live repro needs hardware, so the unit test is
 the durable regression.
+
+Fixed in req-012 (commit `4feb3bd`); regression in
+`engine/cli/tests/test_shim_probe.py`. Live 2026-10-14:
+`uv run stm flash --mcu-config stm32f411re --vid 0483 --pid 3752 …` →
+`** Verified OK **`, verdict `1/1 OK` (board `0483:3752` →
+`/dev/bus/usb/003/007`).

@@ -2,7 +2,7 @@
 id: bug-003
 title: "OpenOCD adapter renders unprefixed config paths (Can't find stlink.cfg)"
 kind: bug
-status: in-progress
+status: done
 lane: direct
 severity: S1
 links:
@@ -59,3 +59,8 @@ filenames. Fix: make the resolved config paths a model fact consumed by both
 paths (the current `engine/adapters/tests/test_openocd.py:72` encodes the bug).
 Not an image issue — `openocd -c "echo [find interface/stlink.cfg]"` resolves
 without `OPENOCD_SCRIPTS`.
+
+Fixed in req-012 (commit `4feb3bd`); regression in
+`engine/adapters/tests/test_openocd.py` (asserts `interface/…`/`board/…`).
+Live 2026-10-14: adapter argv for `packs/stm32f411re.yaml` is now
+`['openocd','-f','interface/stlink.cfg','-f','board/st_nucleo_f4.cfg',…]`.

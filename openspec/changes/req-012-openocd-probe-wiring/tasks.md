@@ -22,6 +22,6 @@
 
 ## 5. Live acceptance + close-out
 
-- [ ] 5.1 Live flash: `uv run stm flash --mcu-config stm32f411re --project-dir <demo> --vid 0483 --pid 3752 --files stm32f411re-M4.elf`. Verify: exit 0 and `** Verified OK **` in the streamed log (save log as evidence). **PENDING: board not attached at implementation time.**
+- [x] Live flash: `uv run stm flash --mcu-config stm32f411re --project-dir <demo> --vid 0483 --pid 3752 --files stm32f411re-M4.elf`. Verify: exit 0 and `** Verified OK **` in the streamed log (save log as evidence). **DONE 2026-10-14**: `** Verified OK **`, verdict `1/1 OK (1 pieces) + proof rung 'readback'`.
 - [x] 5.2 Correct `docs/flash-stm32-linux.md` (USB node / selector, not tty). Verify: doc no longer instructs `/dev/ttyUSB0` as the probe node.
 - [x] 5.3 Update `tickets/req-012…` + INDEX + bug-003/bug-004 statuses. Verify: INDEX line matches ticket status.
