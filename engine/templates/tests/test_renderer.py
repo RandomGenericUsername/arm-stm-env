@@ -130,6 +130,8 @@ def test_render_vscode_generates_valid_configs(tmp_path) -> None:
         "probe/resume-on-detach.cfg",
     ]
     assert (tmp_path / "probe/resume-on-detach.cfg").is_file()
+    resume = (tmp_path / "probe/resume-on-detach.cfg").read_text()
+    assert "gdb-detach" in resume and "info exists _TARGETNAME" in resume
     assert cfg["gdbPath"].startswith("/opt/arm-gnu-toolchain")
     assert cfg["svdFile"].endswith("probe/STM32F411.svd")
     ext = json.loads((tmp_path / ".vscode/extensions.json").read_text())
@@ -148,6 +150,9 @@ def test_render_vscode_per_core_dual(tmp_path) -> None:
         "Debug M7 (OpenOCD)",
         "Debug M4 (OpenOCD)",
     ]
+    resume = (tmp_path / "probe/resume-on-detach.cfg").read_text()
+    assert "stm32h7x.cpu0 configure -event gdb-detach" in resume
+    assert "stm32h7x.cpu1 configure -event gdb-detach" in resume
 
 
 def test_render_vscode_off_by_default(tmp_path) -> None:
