@@ -33,8 +33,10 @@ def test_pack_h755_accepts_dual_bank():
 def test_pack_wl55jc_accepts_dual_core():
     dev = load_file(FIX / "stm32wl55jc.yaml")
     assert [c.name for c in dev.cores] == ["M4", "M0+"]
-    flash = next(m for m in dev.memory if m.name == "flash")
-    assert (flash.origin, flash.size) == (0x08000000, 1024 * 1024)
+    mem = {m.name: (m.origin, m.size) for m in dev.memory}
+    # bug-008: real STM32WL55JC = 256K flash, 64K SRAM (SRAM1 32K + SRAM2 32K).
+    assert mem["flash"] == (0x08000000, 256 * 1024)
+    assert mem["ram"] == (0x20000000, 64 * 1024)
 
 
 def test_pack_unknown_block_rejects_naming_block():

@@ -45,8 +45,8 @@ def test_packs_accept_wl55jc_conservative_map():
         ("M0+", "thumbv7em-none-eabi"),
     ]
     origins = {m.name: (m.origin, m.size) for m in dev.memory}
-    assert origins["flash"] == (0x08000000, 1024 * 1024)
-    assert origins["ram"] == (0x20000000, 128 * 1024)
+    assert origins["flash"] == (0x08000000, 256 * 1024)  # bug-008: 256K, not 1M
+    assert origins["ram"] == (0x20000000, 64 * 1024)  # bug-008: 64K, not 128K
 
 
 def test_packs_accept_openocd_corrected_targets():

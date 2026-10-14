@@ -38,6 +38,7 @@
 - [bug-005-relative-path-vendor](./bug-005-relative-path-vendor/ticket.md) — create fails with a relative project dir (git -C doubles the path) | `done` | S1
 - [bug-006-multi-piece-flash](./bug-006-multi-piece-flash/ticket.md) — Multi-piece flash drops pieces / exits non-zero (dual-core) | `done` | S1
 - [bug-007-verbose-forward](./bug-007-verbose-forward/ticket.md) — --verbose ignored in auto mode (no log file) | `done` | S2
+- [bug-008-wl55-memory](./bug-008-wl55-memory/ticket.md) — WL55JC pack memory map wrong (RAM 128K vs real 64K) -> HardFault | `done` | S1
 
 ## Ops tasks
 
