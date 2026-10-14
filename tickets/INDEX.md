@@ -21,6 +21,7 @@
   - [spike-002-cpp-deps](./spike-002-cpp-deps/ticket.md) — C/C++ dependency mechanism | `done` | boxed 4h — findings filed, pick vendoring; consumes into req-007/post-V1
   - [spike-003-toolchain-recon](./spike-003-toolchain-recon/ticket.md) — 2026 toolchain recon | `done` | boxed 3h — findings filed, vanilla-GCC verdict; CubeCLT gated on license proof
   - [spike-004-config-headers](./spike-004-config-headers/ticket.md) — Per-project config-header flow | `done` | boxed 2h — findings filed, pack-defaults + project-config-dir; consumes into req-004
+  - [req-012-openocd-probe-wiring](./req-012-openocd-probe-wiring/ticket.md) — OpenOCD config paths + USB probe binding so stm flash programs | `done` | openspec: req-012-openocd-probe-wiring
 
 ## Requirements
 
@@ -30,6 +31,8 @@
 
 - [bug-001-xor-probe-selectors](./bug-001-xor-probe-selectors/ticket.md) — XOR rejects probe selectors combined with --mcu-config | `done` | S1, INDIVIDUAL_FLAGS narrowed
 - [bug-002-rust-panic-abort](./bug-002-rust-panic-abort/ticket.md) — Rendered Rust projects fail to compile | `done` | S1, panic=abort, ARM ELFs proven
+- [bug-003-openocd-config-path-prefix](./bug-003-openocd-config-path-prefix/ticket.md) — OpenOCD adapter renders unprefixed config paths (Can't find stlink.cfg) | `done` | S1, openspec: req-012
+- [bug-004-probe-usb-passthrough](./bug-004-probe-usb-passthrough/ticket.md) — stm flash container receives serial tty, not the ST-Link USB device | `done` | S1, openspec: req-012
 
 ## Ops tasks
 

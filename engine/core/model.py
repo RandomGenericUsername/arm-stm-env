@@ -116,6 +116,19 @@ class OpenocdConfig:
         if self.board is not None and not self.board:
             raise ValueError("OpenocdConfig.board must be a non-empty string or None")
 
+    def config_files(self) -> tuple[str, str]:
+        """Resolved ``-f`` config paths: interface first, then board|target.
+
+        Single source of truth for the ``interface/`` + ``board/``|``target/``
+        prefix decision (bug-003): renderers and adapters both consume this and
+        must not re-derive it. A value already containing ``/`` is left as-is.
+        """
+        interface = self.interface if "/" in self.interface else f"interface/{self.interface}"
+        raw = self.board if self.board else self.target
+        folder = "board" if self.board else "target"
+        target = raw if "/" in raw else f"{folder}/{raw}"
+        return (interface, target)
+
 
 @dataclass(frozen=True)
 class ProofResult:
@@ -314,6 +327,7 @@ class DeviceView:
     openocd_interface: str | None = None
     openocd_target: str | None = None
     openocd_dual_core: bool = False
+    openocd_config_files: Tuple[str, str] | None = None
     probe_settings: Tuple[Tuple[str, Tuple[Tuple[str, str], ...]], ...] = ()
 
     def probe_setting(self, backend: str, key: str) -> str | None:
@@ -338,6 +352,7 @@ class DeviceView:
             openocd_interface=device.openocd.interface if device.openocd else None,
             openocd_target=device.openocd.target if device.openocd else None,
             openocd_dual_core=device.openocd.dual_core if device.openocd else False,
+            openocd_config_files=device.openocd.config_files() if device.openocd else None,
             probe_settings=device.facets.probe_settings if device.facets else (),
         )
 

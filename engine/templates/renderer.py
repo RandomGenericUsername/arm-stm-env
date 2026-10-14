@@ -63,15 +63,11 @@ def _define_flags(macros: str | None) -> str:
 
 
 def _oc_cfg_path(device: Device) -> str:
-    """Board-vs-target config path from model facts (spike-001)."""
+    """Board-vs-target config path, resolved by the model (bug-003)."""
     oc = device.openocd
     if oc is None:
         return "target/stm32f4x.cfg"
-    if oc.board:
-        return f"board/{oc.board}"
-    if "/" in oc.target:
-        return oc.target
-    return f"target/{oc.target}"
+    return oc.config_files()[1]
 
 
 def _oc_flash_args(device: Device) -> str:
@@ -79,7 +75,8 @@ def _oc_flash_args(device: Device) -> str:
     oc = device.openocd
     if oc is None:
         return "-f interface/stlink.cfg -f target/stm32f4x.cfg"
-    args = f"-f interface/{oc.interface} -f {_oc_cfg_path(device)}"
+    interface, target = oc.config_files()
+    args = f"-f {interface} -f {target}"
     if oc.dual_core and not oc.board:
         # Target-direct dual sessions (WL55JC) need the flag on the command
         # line; board cfgs (F4/H7) set DUAL_CORE themselves (spike-001).
@@ -468,23 +465,18 @@ _OPENOCD = Template(
     "# $project openocd.cfg — generated from pack openocd facts (spike-001).\n"
     "# Probe: $probe_transport ($probe_address).\n"
     "# Flash helper: openocd $oc_flash_args -c \"program <elf> verify reset exit\"\n"
-    "source [find interface/$interface]\n"
+    "source [find $interface]\n"
     "$dual_line$target_line\n"
 )
 
 
 def _render_openocd(device: Device) -> str:
     oc = device.openocd
-    interface = oc.interface if oc else "stlink.cfg"
-    dual = bool(oc and oc.dual_core)
-    if oc and oc.board:
-        target_line = f"source [find board/{oc.board}]"
-    elif oc and "/" in oc.target:
-        target_line = f"source [find {oc.target}]"
-    elif oc:
-        target_line = f"source [find target/{oc.target}]"
+    if oc is None:
+        interface, target = "interface/stlink.cfg", "target/stm32f4x.cfg"
     else:
-        target_line = "source [find target/stm32f4x.cfg]"
+        interface, target = oc.config_files()
+    dual = bool(oc and oc.dual_core)
     if dual and not (oc and oc.board):
         # Target-direct dual sessions (WL55JC): the target file only creates
         # the second core when DUAL_CORE is set (spike-001 finding 3).
@@ -500,7 +492,7 @@ def _render_openocd(device: Device) -> str:
         interface=interface,
         oc_flash_args=_oc_flash_args(device),
         dual_line=dual_line,
-        target_line=target_line,
+        target_line=f"source [find {target}]",
     )
 
 

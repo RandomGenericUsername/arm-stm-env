@@ -12,8 +12,21 @@ from engine.core.model import (
     Endpoint,
     MemoryRegion,
     MemoryRegionView,
+    OpenocdConfig,
     ProofResult,
 )
+
+
+def test_openocd_config_files_prefixes_and_board_vs_target():
+    board = OpenocdConfig(
+        interface="stlink.cfg", target="st_nucleo_f4.cfg", board="st_nucleo_f4.cfg"
+    )
+    assert board.config_files() == ("interface/stlink.cfg", "board/st_nucleo_f4.cfg")
+    target = OpenocdConfig(interface="stlink.cfg", target="stm32wlx.cfg")
+    assert target.config_files() == ("interface/stlink.cfg", "target/stm32wlx.cfg")
+    # A value already carrying a folder is left untouched.
+    prefixed = OpenocdConfig(interface="interface/stlink.cfg", target="target/x.cfg")
+    assert prefixed.config_files() == ("interface/stlink.cfg", "target/x.cfg")
 
 
 def _device(**kw) -> Device:

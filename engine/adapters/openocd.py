@@ -160,6 +160,18 @@ def parse_transcript(
     return tuple(results)
 
 
+def _serial_selector(address: str) -> str | None:
+    """Return a bare adapter-serial selector, or ``None``.
+
+    OpenOCD pins a probe via ``adapter serial <serial>``. A filesystem path or
+    a ``VID:PID`` pair is not a serial, so those fall through to the tool's
+    default discovery (single attached probe).
+    """
+    if not address or address.startswith("/") or ":" in address:
+        return None
+    return address
+
+
 class OpenOCDAdapter(ProbeAdapter):
     """``ProbeAdapter`` via ``openocd -f <interface> -f <target>``."""
 
@@ -179,25 +191,21 @@ class OpenOCDAdapter(ProbeAdapter):
     ) -> list[str]:
         """Build argv strictly from model fields + shim endpoint.
 
-        ``-f`` files come from the certified openocd block; the endpoint
-        address rides a ``-c set`` pass-through; each piece adds a
-        ``program <piece> verify reset exit`` step; DUAL_CORE models add
-        the session-listing command. Missing openocd facts raise.
+        ``-f`` files come from the model's resolved config-file paths
+        (``interface/…`` + ``board/…|target/…``, bug-003); each piece adds a
+        ``program <piece> verify reset exit`` step; DUAL_CORE models add the
+        session-listing command. Probe selection is emitted only when the
+        endpoint carries a bare serial selector. Missing facts raise.
         """
-        if not device.openocd_interface:
-            raise ValueError("device model carries no openocd 'interface' fact")
-        if not device.openocd_target:
-            raise ValueError("device model carries no openocd board/target fact")
-        argv = [
-            "openocd",
-            "-f",
-            device.openocd_interface,
-            "-f",
-            device.openocd_target,
-        ]
+        config_files = device.openocd_config_files
+        if not config_files:
+            raise ValueError("device model carries no openocd config-file facts")
+        argv = ["openocd", "-f", config_files[0], "-f", config_files[1]]
         if device.openocd_dual_core:
             argv += ["-c", DUAL_CORE_TCL]
-        argv += ["-c", f"set PROBE_ADDRESS {endpoint.address}"]
+        serial = _serial_selector(endpoint.address)
+        if serial is not None:
+            argv += ["-c", f"adapter serial {serial}"]
         for piece in pieces:
             argv += ["-c", f"program {piece} verify reset exit"]
         return argv
