@@ -213,6 +213,8 @@ class DeviceFacets:
     probe_settings: Tuple[Tuple[str, Tuple[Tuple[str, str], ...]], ...] = ()
     #: Optional on-board LED example fact (req-014/req-015) or None.
     example_led: ExampleLed | None = None
+    #: Per-core SVD source paths for the register view (req-017): (core, path).
+    svd: Tuple[Tuple[str, str], ...] = ()
 
     def linker_for(self, core_name: str, device_id: str) -> str:
         # No invented fallback (startup lesson): an undeclared core is a loud
@@ -373,6 +375,7 @@ class DeviceView:
     openocd_targets: Tuple[Tuple[str, str], ...] = ()
     probe_settings: Tuple[Tuple[str, Tuple[Tuple[str, str], ...]], ...] = ()
     example_led: ExampleLed | None = None
+    svd: Tuple[Tuple[str, str], ...] = ()
 
     def probe_setting(self, backend: str, key: str) -> str | None:
         for name, settings in self.probe_settings:
@@ -400,6 +403,7 @@ class DeviceView:
             openocd_targets=device.openocd.targets if device.openocd else (),
             probe_settings=device.facets.probe_settings if device.facets else (),
             example_led=device.facets.example_led if device.facets else None,
+            svd=device.facets.svd if device.facets else (),
         )
 
     def __iter__(self) -> Iterator[str]:

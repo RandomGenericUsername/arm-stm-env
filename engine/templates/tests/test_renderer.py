@@ -7,15 +7,19 @@ import pytest
 from engine.core.loader import load_file
 from engine.core.model import Core, Device, DeviceFacets, Endpoint, MemoryRegion, OpenocdConfig
 from engine.templates.renderer import SUPPORTED_LANGS, core_context, render
+from engine.templates.renderer import fetch_svds as _real_fetch_svds
 
 from .test_cells import PACK_IDS, PACKS_DIR
 
 
 @pytest.fixture(autouse=True)
 def _stub_vendoring(monkeypatch) -> None:
-    """req-011: render() strictly vendors C/C++ via git; unit renders stub it
-    (tmp dirs are non-repos, no network). Wiring is covered in test_vendoring."""
+    """req-011/017: render() vendors C/C++ via git and fetches SVDs; unit
+    renders stub both (tmp dirs are non-repos, no network)."""
     monkeypatch.setattr("engine.templates.renderer.vendor", lambda _pack_id, _out: [])
+    monkeypatch.setattr(
+        "engine.templates.renderer.fetch_svds", lambda _device, _out, **k: []
+    )
 
 
 def test_renderer_bad_lang(tmp_path) -> None:
@@ -122,6 +126,7 @@ def test_render_vscode_generates_valid_configs(tmp_path) -> None:
     assert cfg["executable"].endswith("build/M4/stm32f411re-M4.elf")
     assert cfg["configFiles"] == ["interface/stlink.cfg", "board/st_nucleo_f4.cfg"]
     assert cfg["gdbPath"].startswith("/opt/arm-gnu-toolchain")
+    assert cfg["svdFile"].endswith("probe/STM32F411.svd")
     ext = json.loads((tmp_path / ".vscode/extensions.json").read_text())
     assert "marus25.cortex-debug" in ext["recommendations"]
     tasks = json.loads((tmp_path / ".vscode/tasks.json").read_text())
@@ -143,3 +148,29 @@ def test_render_vscode_per_core_dual(tmp_path) -> None:
 def test_render_vscode_off_by_default(tmp_path) -> None:
     render(load_file(PACKS_DIR / "stm32f411re.yaml"), "c", tmp_path)
     assert not (tmp_path / ".vscode").exists()
+
+
+def test_fetch_svds_uses_pinned_url(tmp_path) -> None:
+    from engine.templates import renderer
+
+    device = load_file(PACKS_DIR / "stm32f411re.yaml")
+    seen: dict = {}
+
+    class _Resp:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *a):
+            return False
+
+        def read(self):
+            return b"<device/>"
+
+    def opener(url):
+        seen["url"] = url
+        return _Resp()
+
+    paths = _real_fetch_svds(device, tmp_path, opener=opener)
+    assert paths == [tmp_path / "probe" / "STM32F411.svd"]
+    assert "modm-io/cmsis-svd-stm32" in seen["url"] and renderer.SVD_SHA in seen["url"]
+    assert (tmp_path / "probe" / "STM32F411.svd").read_bytes() == b"<device/>"

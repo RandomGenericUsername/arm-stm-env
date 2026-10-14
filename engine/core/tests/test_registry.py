@@ -63,6 +63,14 @@ def test_example_block_rejects_bad(payload, match):
         registry.validate_block("example", payload)
 
 
+def test_svd_block_validates():
+    registry.validate_block("svd", {"M4": "stm32f4/STM32F411.svd"})
+    with pytest.raises(ValueError, match="path"):
+        registry.validate_block("svd", {"M4": ""})
+    with pytest.raises(ValueError, match="non-empty"):
+        registry.validate_block("svd", {})
+
+
 def test_register_rejects_empty_name_and_non_callable():
     with pytest.raises(ValueError, match="non-empty"):
         registry.register("", lambda p: None)
