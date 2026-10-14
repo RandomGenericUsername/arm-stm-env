@@ -183,3 +183,29 @@ def _validate_probe_settings(payload: Any) -> None:
 
 
 register("probe_settings", _validate_probe_settings, families=_STM32_FAMILIES)
+
+
+_EXAMPLE_ACTIVE = ("high", "low")
+
+
+def _validate_example(payload: Any) -> None:
+    """Optional on-board LED example fact (req-014): ``{led: {port,pin,active}}``."""
+    if not isinstance(payload, dict) or not payload:
+        raise ValueError("example block must be a non-empty mapping")
+    led = payload.get("led")
+    if not isinstance(led, dict):
+        raise ValueError("example block must declare a 'led' mapping")
+    port = led.get("port")
+    if not isinstance(port, str) or len(port) != 1 or not port.isalpha():
+        raise ValueError("example.led.port must be a single letter A-Z")
+    pin = led.get("pin")
+    if not isinstance(pin, int) or isinstance(pin, bool) or not 0 <= pin <= 15:
+        raise ValueError("example.led.pin must be an int 0..15")
+    active = led.get("active", "high")
+    if active not in _EXAMPLE_ACTIVE:
+        raise ValueError(
+            f"example.led.active must be one of {_EXAMPLE_ACTIVE}, got {active!r}"
+        )
+
+
+register("example", _validate_example, families=_STM32_FAMILIES)

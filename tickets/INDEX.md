@@ -22,6 +22,7 @@
   - [spike-003-toolchain-recon](./spike-003-toolchain-recon/ticket.md) — 2026 toolchain recon | `done` | boxed 3h — findings filed, vanilla-GCC verdict; CubeCLT gated on license proof
   - [spike-004-config-headers](./spike-004-config-headers/ticket.md) — Per-project config-header flow | `done` | boxed 2h — findings filed, pack-defaults + project-config-dir; consumes into req-004
   - [req-012-openocd-probe-wiring](./req-012-openocd-probe-wiring/ticket.md) — OpenOCD config paths + USB probe binding so stm flash programs | `done` | openspec: req-012-openocd-probe-wiring
+  - [req-014-mcu-example](./req-014-mcu-example/ticket.md) — Per-MCU example: generated blink (F411RE implemented, others stub) | `done` | openspec: req-014-mcu-example
 
 ## Requirements
 

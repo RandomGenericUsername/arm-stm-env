@@ -171,6 +171,8 @@ class DeviceFacets:
     config_header: str = "stm32_config.h"
     config_defaults_source: str = "pack/defaults.h"
     probe_settings: Tuple[Tuple[str, Tuple[Tuple[str, str], ...]], ...] = ()
+    #: Optional on-board LED example fact: (port letter, pin, active) or None.
+    example_led: Tuple[str, int, str] | None = None
 
     def linker_for(self, core_name: str, device_id: str) -> str:
         # No invented fallback (startup lesson): an undeclared core is a loud
@@ -329,6 +331,7 @@ class DeviceView:
     openocd_dual_core: bool = False
     openocd_config_files: Tuple[str, str] | None = None
     probe_settings: Tuple[Tuple[str, Tuple[Tuple[str, str], ...]], ...] = ()
+    example_led: Tuple[str, int, str] | None = None
 
     def probe_setting(self, backend: str, key: str) -> str | None:
         for name, settings in self.probe_settings:
@@ -354,6 +357,7 @@ class DeviceView:
             openocd_dual_core=device.openocd.dual_core if device.openocd else False,
             openocd_config_files=device.openocd.config_files() if device.openocd else None,
             probe_settings=device.facets.probe_settings if device.facets else (),
+            example_led=device.facets.example_led if device.facets else None,
         )
 
     def __iter__(self) -> Iterator[str]:

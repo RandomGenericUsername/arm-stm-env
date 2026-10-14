@@ -29,6 +29,18 @@ def test_openocd_config_files_prefixes_and_board_vs_target():
     assert prefixed.config_files() == ("interface/stlink.cfg", "target/x.cfg")
 
 
+def test_loader_attaches_example_led_from_pack():
+    from pathlib import Path
+
+    from engine.core.loader import load_file
+
+    packs = Path(__file__).resolve().parents[3] / "packs"
+    f411 = load_file(packs / "stm32f411re.yaml")
+    assert f411.facets.example_led == ("A", 5, "high")
+    assert DeviceView.of(f411).example_led == ("A", 5, "high")
+    assert load_file(packs / "stm32h755.yaml").facets.example_led is None
+
+
 def _device(**kw) -> Device:
     base = dict(
         id="stm32f411re",

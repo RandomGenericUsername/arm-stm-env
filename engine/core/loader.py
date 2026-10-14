@@ -80,6 +80,11 @@ def validate_frame(doc: dict) -> Device:
     system_block = blocks.get("system", {})
     defines_block = blocks.get("defines", {})
     probe_settings_block = blocks.get("probe_settings", {})
+    example_block = blocks.get("example", {})
+    led = example_block.get("led") if isinstance(example_block, dict) else None
+    example_led = (
+        (led["port"], int(led["pin"]), led.get("active", "high")) if led else None
+    )
     facets = DeviceFacets(
         fpu_mode=fpu_block.get("mode", "soft"),
         fpu_variant=fpu_block.get("variant", "none"),
@@ -96,6 +101,7 @@ def validate_frame(doc: dict) -> Device:
                 for backend, settings in probe_settings_block.items()
             )
         ),
+        example_led=example_led,
     )
     return Device(
         id=doc["id"],

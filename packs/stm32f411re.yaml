@@ -55,3 +55,8 @@ blocks:
   probe_settings:
     probe-rs:
       chip: STM32F411RE
+  # On-board user LED LD2 = PA5, active HIGH (req-014 example). ST UM1724
+  # (Nucleo-64 MB1136): "User LD2 ... PA5 ... when the I/O is HIGH value, the
+  # LED is on". Makes the generated main blink instead of idling in wfi.
+  example:
+    led: {port: A, pin: 5, active: high}
