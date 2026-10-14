@@ -110,3 +110,36 @@ def test_renderer_consumes_model_only(lang: str, tmp_path) -> None:
     else:
         assert "0x08000000" in (tmp_path / "memory.x").read_text()
         assert 'name = "synthetic"' in (tmp_path / "Cargo.toml").read_text()
+
+
+def test_render_vscode_generates_valid_configs(tmp_path) -> None:
+    import json
+
+    device = load_file(PACKS_DIR / "stm32f411re.yaml")
+    render(device, "c", tmp_path, vscode=True)
+    cfg = json.loads((tmp_path / ".vscode/launch.json").read_text())["configurations"][0]
+    assert cfg["type"] == "cortex-debug"
+    assert cfg["executable"].endswith("build/M4/stm32f411re-M4.elf")
+    assert cfg["configFiles"] == ["interface/stlink.cfg", "board/st_nucleo_f4.cfg"]
+    assert cfg["gdbPath"].startswith("/opt/arm-gnu-toolchain")
+    ext = json.loads((tmp_path / ".vscode/extensions.json").read_text())
+    assert "marus25.cortex-debug" in ext["recommendations"]
+    tasks = json.loads((tmp_path / ".vscode/tasks.json").read_text())
+    assert {"Build", "Clean", "Flash"} <= {t["label"] for t in tasks["tasks"]}
+
+
+def test_render_vscode_per_core_dual(tmp_path) -> None:
+    import json
+
+    device = load_file(PACKS_DIR / "stm32h755.yaml")
+    render(device, "c", tmp_path, vscode=True)
+    launch = json.loads((tmp_path / ".vscode/launch.json").read_text())
+    assert [c["name"] for c in launch["configurations"]] == [
+        "Debug M7 (OpenOCD)",
+        "Debug M4 (OpenOCD)",
+    ]
+
+
+def test_render_vscode_off_by_default(tmp_path) -> None:
+    render(load_file(PACKS_DIR / "stm32f411re.yaml"), "c", tmp_path)
+    assert not (tmp_path / ".vscode").exists()

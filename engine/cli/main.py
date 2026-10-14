@@ -104,6 +104,11 @@ def build_parser() -> argparse.ArgumentParser:
     create = subs.add_parser("create", help="scaffold a project tree skeleton")
     create.add_argument("--name", required=True, help="project name")
     create.add_argument("--path", default=".", help="parent dir; project renders to <path>/<name>")
+    create.add_argument(
+        "--vscode",
+        action="store_true",
+        help="also generate .vscode/ (tasks, launch, settings, extensions)",
+    )
     _add_common(create)
     for verb, help_text in (
         ("dev", "containerized interactive dev env"),
@@ -182,7 +187,7 @@ def _run_create(args: argparse.Namespace) -> int:
         print("next: mu build --project-dir " + str(out))
         return 0
     try:
-        written = render(device, args.lang, out)
+        written = render(device, args.lang, out, vscode=getattr(args, "vscode", False))
     except VendorError as exc:
         print(f"mu: error: {exc}", file=sys.stderr)
         return 1
