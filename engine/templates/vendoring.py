@@ -7,10 +7,14 @@ not already inside a git work tree, ``git init`` runs there first (so `create`
 works in a fresh/empty directory); a dir already inside a work tree (e.g. a
 monorepo) is left alone.
 
-Mechanism (design.md): ``git submodule add <url> <path>`` then a detached
-``git -C <path> checkout <tag>`` inside each submodule. Tags are immutable
-so pins are reproducible. Every failure raises :class:`VendorError`
-naming the missing capability/path/URL — never a half-vendored tree.
+Mechanism (req-011, ops-014): each pin is a partial (blob-filtered) + sparse
+shallow clone at the tag — ``git clone --filter=blob:none --sparse --depth 1
+--branch <tag>`` + ``git sparse-checkout set <subtree>`` — then registered in
+``.gitmodules`` + the index and made a native submodule via ``submodule
+absorbgitdirs``/``init``. Only the referenced subtree is downloaded (CMSIS_5 is
+~133 MB full, ~3 MB for CMSIS/Core). Tags are immutable so pins are
+reproducible. Every failure raises :class:`VendorError` naming the missing
+capability/path/URL — never a half-vendored tree.
 """
 
 from __future__ import annotations
@@ -74,29 +78,72 @@ def _run_git(args: list[str], cwd: Path) -> subprocess.CompletedProcess[str]:
     return subprocess.run(args, cwd=cwd, capture_output=True, text=True)
 
 
-def _add_pin(url: str, tag: str, dest: str, project_dir: Path) -> None:
-    added = _run_git(["git", "submodule", "add", url, dest], project_dir)
-    if added.returncode != 0:
+#: Subtrees each pinned repo actually contributes, so a partial+sparse clone
+#: fetches only what the build references (ops-014).
+CMSIS_SPARSE = ("CMSIS/Core",)
+FAMILY_SPARSE = ("Include", "Source")
+
+
+def _git_ok(args: list[str], cwd: Path, what: str) -> None:
+    done = _run_git(args, cwd)
+    if done.returncode != 0:
         raise VendorError(
-            f"vendoring: `git submodule add {url} {dest}` failed in {project_dir} "
-            f"(network required at create time; unreachable remote → no partial tree): "
-            f"{added.stderr.strip()}"
+            f"vendoring: `{' '.join(args)}` failed in {cwd} ({what}): "
+            f"{done.stderr.strip()}"
         )
-    checked = _run_git(["git", "-C", dest, "checkout", tag], project_dir)
-    if checked.returncode != 0:
+
+
+def _add_pin(
+    url: str, tag: str, dest: str, project_dir: Path, sparse: tuple[str, ...]
+) -> None:
+    """Vendor one pinned repo as a submodule, downloading only ``sparse`` paths.
+
+    Partial (blob-filtered) + sparse shallow clone at ``tag``, registered in
+    ``.gitmodules`` + the index, then migrated into ``.git/modules`` and marked
+    initialized — the native ``git submodule add`` state, minus the full tree.
+    """
+    done = _run_git(
+        [
+            "git", "clone", "--filter=blob:none", "--sparse", "--depth", "1",
+            "--branch", tag, url, dest,
+        ],
+        project_dir,
+    )
+    if done.returncode != 0:
         raise VendorError(
-            f"vendoring: `git -C {dest} checkout {tag}` failed in {project_dir} "
-            f"(upstream moved the tag? pin {url}@{tag} no longer resolves): "
-            f"{checked.stderr.strip()}"
+            f"vendoring: `git clone` of {url}@{tag} failed in {project_dir} "
+            f"(network required at create time; unreachable remote or moved tag "
+            f"→ no partial tree): {done.stderr.strip()}"
         )
-    # Re-stage: `add` recorded the branch-tip gitlink; without this, a later
-    # `submodule update --init` silently resets the worktree to the tip.
-    staged = _run_git(["git", "-C", str(project_dir), "add", dest], project_dir)
-    if staged.returncode != 0:
-        raise VendorError(
-            f"vendoring: `git add {dest}` failed in {project_dir} "
-            f"(cannot record the pinned gitlink): {staged.stderr.strip()}"
+    _git_ok(
+        ["git", "-C", dest, "sparse-checkout", "set", *sparse],
+        project_dir,
+        f"cannot select the {sparse} subtree of {url}@{tag}",
+    )
+    gitmodules = str(project_dir / ".gitmodules")
+    for key, value in (("path", dest), ("url", url)):
+        _git_ok(
+            ["git", "-C", str(project_dir), "config", "-f", gitmodules,
+             f"submodule.{dest}.{key}", value],
+            project_dir,
+            "cannot record the pin",
         )
+    _git_ok(
+        ["git", "-C", str(project_dir), "-c", "advice.addEmbeddedRepo=false",
+         "add", ".gitmodules", dest],
+        project_dir,
+        "cannot record the pinned gitlink",
+    )
+    _git_ok(
+        ["git", "-C", str(project_dir), "submodule", "absorbgitdirs", dest],
+        project_dir,
+        "cannot migrate the submodule git dir",
+    )
+    _git_ok(
+        ["git", "-C", str(project_dir), "submodule", "init", dest],
+        project_dir,
+        "cannot initialize the submodule",
+    )
 
 
 def _ensure_repo(out: Path) -> None:
@@ -135,7 +182,7 @@ def vendor(pack_id: str, project_dir: str | Path) -> list[Path]:
             "(submodule init requires the git CLI on the host)"
         )
     _ensure_repo(out)
-    _add_pin(CMSIS_CORE_URL, CMSIS_CORE_TAG, VENDOR_CORE_PATH, out)
+    _add_pin(CMSIS_CORE_URL, CMSIS_CORE_TAG, VENDOR_CORE_PATH, out, CMSIS_SPARSE)
     url, tag, dest = family_repo(pack_id)
-    _add_pin(url, tag, dest, out)
+    _add_pin(url, tag, dest, out, FAMILY_SPARSE)
     return [out / VENDOR_CORE_PATH, out / dest]
