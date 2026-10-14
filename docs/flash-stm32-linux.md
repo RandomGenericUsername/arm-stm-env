@@ -1,7 +1,7 @@
 # Flashing STM32 on Linux (ST-Link) — no relogin needed
 
 Target boards: Nucleo-F411RE, Nucleo-H755ZI-Q, Nucleo-WL55JC.
-Tool path: `stm flash` (auto mode runs OpenOCD from the pinned image;
+Tool path: `mu flash` (auto mode runs OpenOCD from the pinned image;
 USB passthrough is automatic on Linux when you pass `--device`).
 
 ## 1. One-time USB access (udev, no relogin)
@@ -46,9 +46,9 @@ ls -l /dev/ttyACM* 2>/dev/null       # Nucleo virtual COM port (RTT/UART)
 ## 2. Flash via the tool (preferred — OpenOCD comes from the image)
 
 ```sh
-uv run stm create --mcu-config stm32f411re --lang c --name demo --out-dir .
-uv run stm build --project-dir ./demo
-uv run stm flash --mcu-config stm32f411re --project-dir ./demo \
+uv run mu create --mcu-config stm32f411re --lang c --name demo --out-dir .
+uv run mu build --project-dir ./demo
+uv run mu flash --mcu-config stm32f411re --project-dir ./demo \
   --vid 0483 --pid 3752 --files stm32f411re-M4.elf
 ```
 
@@ -57,7 +57,7 @@ resolves the matching `/dev/bus/usb/<bus>/<dev>` node and forwards it into the
 container automatically. Do **not** pass a serial tty (`/dev/ttyACM0`) as the
 probe — that is the UART, not the debug interface, and OpenOCD reaches ST-Link
 over USB. An explicit `--device <usb-node>` still wins if you need it.
-`--verbose` saves the full tool log under `./demo/.stm/logs/`.
+`--verbose` saves the full tool log under `./demo/.mu/logs/`.
 
 Note (Arch/EndeavourOS): the serial group is `uucp`, not `dialout`, and
 `plugdev` may not exist — `MODE="0666"`+`uaccess` in the rules above is what
@@ -97,7 +97,7 @@ openocd -f interface/stlink.cfg -f board/st_nucleo_f4.cfg -c "init; targets; exi
 Save everything and bring it back:
 
 ```sh
-uv run stm flash --mcu-config <pack> --project-dir <dir> \
+uv run mu flash --mcu-config <pack> --project-dir <dir> \
   --vid <vid> --pid <pid> --files <elf> --verbose 2>&1 | tee flash-<board>-$(date +%F).log
 ```
 

@@ -43,8 +43,8 @@ def test_shim_lookup_identical_resolution_both_modes(lang, tmp_path):
         lookup=lookup,
     )
     assert lookup.image_for(lang) in auto  # same image host-side ...
-    # ... and the container side runs the engine, never bare ``stm``:
-    assert "stm" not in auto
+    # ... and the container side runs the engine, never the bare CLI:
+    assert "mu" not in auto
     assert "python3" in auto and "-m" in auto and "engine" in auto
     assert "--mode" in auto and "local" in auto
     with pytest.raises(ValueError):

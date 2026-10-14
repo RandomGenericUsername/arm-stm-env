@@ -9,7 +9,7 @@ Greenfield unified STM32 dev environment (C/C++/Rust), replacing two stale
 2023–2024 sibling repos (`../ArmDevelopmentEnvironment`,
 `../rust-embedded-environment` — lessons only, never copy blindly).
 Hexagonal Python engine (`engine/`), YAML hardware packs (`packs/`),
-thin CLI verbs (`stm`), probe adapters, per-toolchain OCI images
+thin CLI verbs (`mu`), probe adapters, per-toolchain OCI images
 (`images/`), Jinja-free templates. Specs: `openspec/specs/`
 (ticket-system, task-router, worktree-discipline). Design: brief + spec +
 spine under `_bmad-output/initiative-universal-mcu-env/`.
@@ -37,7 +37,7 @@ spine under `_bmad-output/initiative-universal-mcu-env/`.
   flash/run proof per matrix cell) is unverified: no probe has ever
   touched silicon. Everything below is proven only to compilation.
 - 191→228 tests green. Images built+smoked (cpp:15.3.rel2, rust:1.99.0).
-- `stm create/build` proven live to ELF (F411RE C; Rust F411RE+H755 to ARM
+- `mu create/build` proven live to ELF (F411RE C; Rust F411RE+H755 to ARM
   ELF32). 9/9 cells compile; 5/5 C ELFs from real vendor trees.
 - Open threads: HW flash/run (tonight's mission); registry push (needs
   `write:packages` re-auth); CubeCLT verdict (st.com unreachable);

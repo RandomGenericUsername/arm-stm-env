@@ -8,7 +8,7 @@ dependencies = [
 ]
 
 [project.scripts]
-stm = "engine.cli.main:main"
+mu = "engine.cli.main:main"
 
 [dependency-groups]
 dev = [

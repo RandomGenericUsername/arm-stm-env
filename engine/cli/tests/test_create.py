@@ -44,7 +44,7 @@ def test_create_renders_c_project(tmp_path, capsys):
     assert any(p.name == "Makefile" for p in files)
     for text in _rendered_texts(proj):
         assert not PLACEHOLDER.search(text), f"unsubstituted placeholder in:\n{text[:200]}"
-    assert "created" in out and "next steps" in out and "stm build" in out
+    assert "created" in out and "next steps" in out and "mu build" in out
 
 
 def test_create_accepts_pack_file_path(tmp_path, capsys):
