@@ -131,6 +131,8 @@ def test_render_vscode_generates_valid_configs(tmp_path) -> None:
     ]
     # bug-011: mask interrupts during single-step so stepping advances (H7/M7).
     assert cfg["postLaunchCommands"] == ["monitor cortex_m maskisr steponly"]
+    # bug-013: single-core configs need no processor targeting.
+    assert "numberOfProcessors" not in cfg and "targetProcessor" not in cfg
     assert (tmp_path / "probe/resume-on-detach.cfg").is_file()
     resume = (tmp_path / "probe/resume-on-detach.cfg").read_text()
     assert "gdb-detach" in resume and "info exists _TARGETNAME" in resume
@@ -148,9 +150,11 @@ def test_render_vscode_per_core_dual(tmp_path) -> None:
     device = load_file(PACKS_DIR / "stm32h755.yaml")
     render(device, "c", tmp_path, vscode=True)
     launch = json.loads((tmp_path / ".vscode/launch.json").read_text())
-    assert [c["name"] for c in launch["configurations"]] == [
+    cfgs = launch["configurations"]
+    assert [c["name"] for c in cfgs] == [
         "Debug M7 (OpenOCD)",
         "Debug M4 (OpenOCD)",
+        "Debug M7+M4 (OpenOCD)",
     ]
     resume = (tmp_path / "probe/resume-on-detach.cfg").read_text()
     assert "stm32h7x.cpu0 configure -event gdb-detach" in resume
@@ -158,8 +162,19 @@ def test_render_vscode_per_core_dual(tmp_path) -> None:
     # bug-011: every per-core config gets the single-step workaround.
     assert all(
         c["postLaunchCommands"] == ["monitor cortex_m maskisr steponly"]
-        for c in launch["configurations"]
+        for c in cfgs
     )
+    # bug-013: each per-core config targets its own OpenOCD processor (cpu0/cpu1)
+    m7, m4 = cfgs[0], cfgs[1]
+    assert (m7["numberOfProcessors"], m7["targetProcessor"]) == (2, 0)  # M7 -> cpu0
+    assert (m4["numberOfProcessors"], m4["targetProcessor"]) == (2, 1)  # M4 -> cpu1
+    # ...and a compound config chains the second core off the boot core.
+    compound = cfgs[2]
+    assert compound["targetProcessor"] == 0
+    assert compound["executable"].endswith("build/M7/stm32h755-M7.elf")
+    chained = compound["chainedConfigurations"]
+    assert chained["detached"] is False
+    assert chained["launches"] == [{"name": "Debug M4 (OpenOCD)"}]
 
 
 def test_vscode_maskisr_gated_to_cortex_m() -> None:
