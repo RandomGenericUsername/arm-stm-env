@@ -35,7 +35,12 @@ def test_packs_accept_h755_dual_bank():
     origins = {m.name: (m.origin, m.size) for m in dev.memory}
     assert origins["flash_m7"] == (0x08000000, 1024 * 1024)
     assert origins["flash_m4"] == (0x08100000, 1024 * 1024)
-    assert origins["ram"] == (0x10000000, 288 * 1024)
+    # bug-014: RAM is per core (M7 -> AXI/D1, M4 -> D2), never shared.
+    assert origins["ram_m7"] == (0x24000000, 512 * 1024)
+    assert origins["ram_m4"] == (0x30000000, 288 * 1024)
+    tags = {m.name: m.cores for m in dev.memory}
+    assert tags["ram_m7"] == ("M7",) and tags["ram_m4"] == ("M4",)
+    assert tags["ram_m7"] != tags["ram_m4"]
 
 
 def test_packs_accept_wl55jc_conservative_map():
@@ -46,7 +51,10 @@ def test_packs_accept_wl55jc_conservative_map():
     ]
     origins = {m.name: (m.origin, m.size) for m in dev.memory}
     assert origins["flash"] == (0x08000000, 256 * 1024)  # bug-008: 256K, not 1M
-    assert origins["ram"] == (0x20000000, 64 * 1024)  # bug-008: 64K, not 128K
+    # bug-008: 64K total (not 128K); bug-014: split per core.
+    assert origins["ram_m4"] == (0x20000000, 48 * 1024)
+    assert origins["ram_m0plus"] == (0x2000C000, 16 * 1024)
+    assert origins["ram_m4"][1] + origins["ram_m0plus"][1] == 64 * 1024
 
 
 def test_packs_accept_openocd_corrected_targets():

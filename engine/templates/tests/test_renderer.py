@@ -54,6 +54,33 @@ def test_renderer_dual_bank_cores_link_own_flash(tmp_path) -> None:
     m4 = (tmp_path / f"linker/{device.facets.linker_for('M4', device.id)}").read_text()
     assert ">FLASH_M7" in m7 and ">FLASH_M4" not in m7
     assert ">FLASH_M4" in m4 and ">FLASH_M7" not in m4
+    # bug-014: each core also gets its own RAM region and stack top.
+    assert ">RAM_M7" in m7 and ">RAM_M4" not in m7
+    assert ">RAM_M4" in m4 and ">RAM_M7" not in m4
+    assert "_estack = ORIGIN(RAM_M7)" in m7
+    assert "_estack = ORIGIN(RAM_M4)" in m4
+
+
+def test_renderer_dual_core_ram_does_not_overlap(tmp_path) -> None:
+    """bug-014: two cores sharing one RAM region (same _estack) collided at
+    boot and the M7 hard-faulted. The regions must be disjoint."""
+    import re
+
+    device = load_file(PACKS_DIR / "stm32h755.yaml")
+    render(device, "c", tmp_path)
+
+    def ram_span(text: str) -> tuple[int, int]:
+        region = re.search(r"_estack = ORIGIN\((\w+)\)", text).group(1)
+        match = re.search(
+            rf"{region} \(rwx\) : ORIGIN = (0x[0-9A-Fa-f]+), LENGTH = (\d+)", text
+        )
+        return int(match.group(1), 16), int(match.group(2))
+
+    m7 = (tmp_path / f"linker/{device.facets.linker_for('M7', device.id)}").read_text()
+    m4 = (tmp_path / f"linker/{device.facets.linker_for('M4', device.id)}").read_text()
+    (o7, l7), (o4, l4) = ram_span(m7), ram_span(m4)
+    assert (o7, l7) != (o4, l4), "cores share the same RAM region"
+    assert o7 + l7 <= o4 or o4 + l4 <= o7, "core RAM regions overlap"
 
 
 def test_renderer_supported_langs() -> None:

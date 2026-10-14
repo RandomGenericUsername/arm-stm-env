@@ -67,13 +67,24 @@ class MemoryRegion:
     origin_hex: str | int
     size: int
     origin: int = field(init=False)
+    #: Core names this region belongs to; empty = shared by every core (bug-014).
+    cores: Tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
         if not self.name:
             raise ValueError("MemoryRegion.name must be non-empty")
         if not isinstance(self.size, int) or isinstance(self.size, bool) or self.size <= 0:
             raise ValueError(f"MemoryRegion.size must be a positive int, got {self.size!r}")
+        declared = tuple(self.cores)
+        for core in declared:
+            if not isinstance(core, str) or not core:
+                raise ValueError("MemoryRegion.cores entries must be non-empty strings")
+        object.__setattr__(self, "cores", declared)
         object.__setattr__(self, "origin", _coerce_origin(self.origin_hex))
+
+    def applies_to(self, core_name: str) -> bool:
+        """True when this region is visible to ``core_name`` (bug-014)."""
+        return not self.cores or core_name in self.cores
 
 
 @dataclass(frozen=True)
@@ -350,10 +361,16 @@ class MemoryRegionView:
     name: str
     origin: int
     size: int
+    cores: Tuple[str, ...] = ()
 
     @classmethod
     def of(cls, region: MemoryRegion) -> MemoryRegionView:
-        return cls(name=region.name, origin=region.origin, size=region.size)
+        return cls(
+            name=region.name,
+            origin=region.origin,
+            size=region.size,
+            cores=region.cores,
+        )
 
 
 @dataclass(frozen=True)
