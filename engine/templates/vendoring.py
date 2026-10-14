@@ -171,7 +171,9 @@ def vendor(pack_id: str, project_dir: str | Path) -> list[Path]:
     project dir does not exist, the family is unknown, or any git step fails
     (e.g. offline: unreachable remote URL named in the message).
     """
-    out = Path(project_dir)
+    # Absolute so `git -C <out>` (combined with cwd=<out>) never doubles a
+    # relative path like "project" into "project/project" (bug-005).
+    out = Path(project_dir).resolve()
     if not out.is_dir():
         raise VendorError(
             f"vendoring: out-dir {out} does not exist; render the project first"
