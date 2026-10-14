@@ -39,6 +39,7 @@
 - [ops-007-make-commands](./ops-007-make-commands/ticket.md) — Make commands for fresh-clone rebuild | `done` | exec: direct
 - [ops-008-closeouts-fallback-docs](./ops-008-closeouts-fallback-docs/ticket.md) — Spike close-outs, linker fallback removal, user README | `done`
 - [ops-009-install-cli](./ops-009-install-cli/ticket.md) — Installable stm CLI (make install / uninstall) | `done`
+- [ops-010-rename-cli-mu](./ops-010-rename-cli-mu/ticket.md) — Rename CLI command stm -> mu (device-agnostic) | `in-progress`
 
 ## Spikes
 

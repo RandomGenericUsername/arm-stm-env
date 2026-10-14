@@ -16,35 +16,35 @@ make sync      # Python env (uv, locked)
 make test      # engine suite, no Docker needed
 make images    # build cpp + rust toolchain images (needs Docker + network)
 make smoke     # version probes inside both images
-make install   # install the `stm` CLI globally (editable uv tool → ~/.local/bin/stm)
+make install   # install the `mu` CLI globally (editable uv tool → ~/.local/bin/mu)
 ```
 
-`make install` runs `uv tool install --editable .`, so `stm` is on your PATH
+`make install` runs `uv tool install --editable .`, so `mu` is on your PATH
 (`~/.local/bin`) with no venv activation — and it tracks your checkout live.
-Remove it with `make uninstall`. Without it, use `uv run stm …` from this
+Remove it with `make uninstall`. Without it, use `uv run mu …` from this
 checkout instead.
 
 ## Quickstart
 
 ```sh
 # Scaffold (works offline after clone; needs git + network for CMSIS submodules)
-uv run stm create --mcu-config stm32f411re --lang c --name demo --out-dir .
+uv run mu create --mcu-config stm32f411re --lang c --name demo --out-dir .
 # Build transparently in the pinned toolchain image (no host toolchain needed)
-uv run stm build --project-dir ./demo
+uv run mu build --project-dir ./demo
 # Inspect what any command will do without running it
-uv run stm build --project-dir ./demo --dry-run
+uv run mu build --project-dir ./demo --dry-run
 # Interactive dev shell in the same image
-uv run stm dev
+uv run mu dev
 ```
 
-`stm create --help` lists packs (`stm32f411re`, `stm32h755`, `stm32wl55jc`),
+`mu create --help` lists packs (`stm32f411re`, `stm32h755`, `stm32wl55jc`),
 languages (`c`, `cpp`, `rust`), and the `--config` escape hatch for your own
 device files (one source per invocation: `--mcu-config` XOR `--mcu`).
 
 ## Flashing (needs a probe + board)
 
 ```sh
-uv run stm flash --mcu-config stm32f411re --project-dir ./demo \
+uv run mu flash --mcu-config stm32f411re --project-dir ./demo \
   --device /dev/ttyUSB0 --files demo.elf
 ```
 

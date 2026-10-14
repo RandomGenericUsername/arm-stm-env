@@ -5,7 +5,7 @@
 #   2. `make test`        (engine suite, no Docker needed)
 #   3. `make images`      (builds cpp+rust images; needs Docker, slow first time)
 #   4. `make smoke`       (runs version probes inside both images)
-#   5. `make install`     (installs the `stm` CLI as an editable uv tool)
+#   5. `make install`     (installs the `mu` CLI as an editable uv tool)
 #   6. `make push`        (publishes to $REGISTRY; needs `docker login`)
 #
 # Knobs: PLATFORM (default linux/amd64 — toolchain URLs are x86_64;
@@ -23,8 +23,8 @@ IMG_RUST   := $(REGISTRY)/lang-rust:$(TAG_RUST)
 
 help:
 	@echo "sync         Install Python env (uv sync --frozen)"
-	@echo "install      Install the stm CLI as an editable uv tool (~/.local/bin/stm)"
-	@echo "uninstall    Remove the stm CLI from uv tools"
+	@echo "install      Install the mu CLI as an editable uv tool (~/.local/bin/mu)"
+	@echo "uninstall    Remove the mu CLI from uv tools"
 	@echo "test         Run engine test suite"
 	@echo "images       Build cpp + rust images (needs Docker)"
 	@echo "image-cpp    Build cpp image only"
@@ -37,7 +37,7 @@ help:
 sync:
 	uv sync --frozen
 
-# Install the `stm` CLI globally as an EDITABLE uv tool. Editable is required:
+# Install the `mu` CLI globally as an EDITABLE uv tool. Editable is required:
 # the CLI resolves packs/ + engine/ relative to the checkout (engine/cli/shim.py),
 # so a non-editable install would lose packs/. Editable also tracks local edits.
 install:

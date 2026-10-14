@@ -220,6 +220,6 @@ def test_verbs_verbose_creates_log_dir(monkeypatch, tmp_path, capsys):
                  "--files", "a.elf", "--mode", "local", "--verbose",
                  "--project-dir", str(proj)])
     assert code == 0
-    assert (proj / ".stm" / "logs").is_dir()
+    assert (proj / ".mu" / "logs").is_dir()
     assert seen and seen[0].get("stream") is True
-    assert str(seen[0].get("log_path", "")).startswith(str(proj / ".stm" / "logs"))
+    assert str(seen[0].get("log_path", "")).startswith(str(proj / ".mu" / "logs"))

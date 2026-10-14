@@ -5,7 +5,7 @@ image, container argv, per-OS probe mapping.
 into the exact container command. ``--dry-run`` prints it without touching
 the container runtime, so it works with no runtime installed.
 
-Container contract (task-003, narrowed task-004): images ship toolchains only — no ``stm``,
+Container contract (task-003, narrowed task-004): images ship toolchains only — no ``mu``,
 no engine. So the container side runs ``python3 -m engine`` with exactly two
 read-only mounts — the ``engine`` package and ``packs/`` — plus the project
 read-write at ``/project`` (working dir). Container paths mirror the checkout

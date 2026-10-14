@@ -1,4 +1,4 @@
-"""``stm`` entry point (req-005, groups 1-2; task-003 verb wiring): five thin
+"""``mu`` entry point (req-005, groups 1-2; task-003 verb wiring): five thin
 verbs over argparse.
 
 ``create`` renders a project tree locally from a pack (loader + renderer).
@@ -6,7 +6,7 @@ verbs over argparse.
 ``flash``/``debug`` resolve the pack + probe endpoint and drive the default
 probe backend; ``dev`` spawns an interactive shell. ``--mode auto`` wraps
 the same invocation for a container (engine mounted read-only, project
-read-write); ``--mode local`` executes in-process — never re-execs ``stm``.
+read-write); ``--mode local`` executes in-process — never re-execs ``mu``.
 ``--dry-run`` prints the exact command without executing (container argv in
 ``auto``, local toolchain command in ``local``) and needs no runtime.
 Verbs carry no device knowledge.
@@ -82,7 +82,7 @@ def _add_probe_flags(sub: argparse.ArgumentParser) -> None:
     sub.add_argument(
         "--verbose",
         action="store_true",
-        help="preserve the complete raw tool log under <project>/.stm/logs/",
+        help="preserve the complete raw tool log under <project>/.mu/logs/",
     )
 
 
@@ -99,7 +99,7 @@ def _one_source_violation(args: argparse.Namespace) -> str | None:
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(prog="stm", description="device-agnostic MCU verbs")
+    parser = argparse.ArgumentParser(prog="mu", description="device-agnostic MCU verbs")
     subs = parser.add_subparsers(dest="verb", required=True, metavar="verb")
     create = subs.add_parser("create", help="scaffold a project tree skeleton")
     create.add_argument("--name", required=True, help="project name")
@@ -157,43 +157,43 @@ def _run_create(args: argparse.Namespace) -> int:
         individual = [f"--{name}" for name in INDIVIDUAL_FLAGS if getattr(args, name, None)]
         if individual:
             print(
-                "stm: error: the individual-flags path "
+                "mu: error: the individual-flags path "
                 f"({', '.join(individual)}) is not wired yet (follow-up); "
                 "pass a single source via --mcu-config <pack-id-or-file>",
                 file=sys.stderr,
             )
         else:
-            print("stm: error: create requires --mcu-config <pack-id-or-file>", file=sys.stderr)
+            print("mu: error: create requires --mcu-config <pack-id-or-file>", file=sys.stderr)
         return 2
     if args.lang not in SUPPORTED_LANGS:
-        print(f"stm: error: unsupported lang {args.lang!r}; expected one of {SUPPORTED_LANGS}", file=sys.stderr)
+        print(f"mu: error: unsupported lang {args.lang!r}; expected one of {SUPPORTED_LANGS}", file=sys.stderr)
         return 2
     try:
         device = _resolve_pack(args.mcu_config)
     except FileNotFoundError as exc:
-        print(f"stm: error: {exc}", file=sys.stderr)
+        print(f"mu: error: {exc}", file=sys.stderr)
         return 2
     except (FrameError, ValueError, OSError) as exc:
-        print(f"stm: error: invalid pack {args.mcu_config!r}: {exc}", file=sys.stderr)
+        print(f"mu: error: invalid pack {args.mcu_config!r}: {exc}", file=sys.stderr)
         return 1
     out = Path(args.out_dir) / args.name
     if args.dry_run:
         print(f"would render {device.id} ({args.lang}) to {out}/")
-        print("next: stm build --project-dir " + str(out))
+        print("next: mu build --project-dir " + str(out))
         return 0
     try:
         written = render(device, args.lang, out)
     except VendorError as exc:
-        print(f"stm: error: {exc}", file=sys.stderr)
+        print(f"mu: error: {exc}", file=sys.stderr)
         return 1
     except ValueError as exc:
-        print(f"stm: error: {exc}", file=sys.stderr)
+        print(f"mu: error: {exc}", file=sys.stderr)
         return 2
     print(f"created {len(written)} files in {out}/")
     for path in written:
         print(f"  {path}")
     print("next steps:")
-    print(f"  cd {out} && stm build --project-dir .")
+    print(f"  cd {out} && mu build --project-dir .")
     return 0
 
 
@@ -210,7 +210,7 @@ def _run_tool(cmd: list[str], cwd: str) -> int:
         completed = subprocess.run(cmd, cwd=cwd)
     except FileNotFoundError:
         print(
-            f"stm: error: build tool not found: {cmd[0]} "
+            f"mu: error: build tool not found: {cmd[0]} "
             f"(run inside the toolchain image or install it)",
             file=sys.stderr,
         )
@@ -231,17 +231,17 @@ def _load_pack_or_exit(ref: str) -> Device | None:
     try:
         return _resolve_pack(ref)
     except FileNotFoundError as exc:
-        print(f"stm: error: {exc}", file=sys.stderr)
+        print(f"mu: error: {exc}", file=sys.stderr)
         return None
     except (FrameError, ValueError, OSError) as exc:
-        print(f"stm: error: invalid pack {ref!r}: {exc}", file=sys.stderr)
+        print(f"mu: error: invalid pack {ref!r}: {exc}", file=sys.stderr)
         return None
 
 
 def _prepare_flash(args: argparse.Namespace) -> tuple[Device, Endpoint, ProbeAdapter] | None:
     """Resolve pack + endpoint for flash/debug; None means already reported."""
     if args.mcu_config is None:
-        print("stm: error: this verb requires --mcu-config <pack-id-or-file>", file=sys.stderr)
+        print("mu: error: this verb requires --mcu-config <pack-id-or-file>", file=sys.stderr)
         return None
     device = _load_pack_or_exit(args.mcu_config)
     if device is None:
@@ -255,11 +255,11 @@ def _prepare_flash(args: argparse.Namespace) -> tuple[Device, Endpoint, ProbeAda
             serial=getattr(args, "serial", None),
         )
     except ValueError as exc:
-        print(f"stm: error: {exc}", file=sys.stderr)
+        print(f"mu: error: {exc}", file=sys.stderr)
         return None
     if endpoint is None:
         print(
-            "stm: error: no probe selector given; pass --device, --vid/--pid, or --serial",
+            "mu: error: no probe selector given; pass --device, --vid/--pid, or --serial",
             file=sys.stderr,
         )
         return None
@@ -270,7 +270,7 @@ def _prepare_flash(args: argparse.Namespace) -> tuple[Device, Endpoint, ProbeAda
             log_path=_verbose_log_path(args) if getattr(args, "verbose", False) else None,
         )
     except ValueError as exc:
-        print(f"stm: error: {exc}", file=sys.stderr)
+        print(f"mu: error: {exc}", file=sys.stderr)
         return None
     return device, endpoint, adapter
 
@@ -280,7 +280,7 @@ def _verbose_log_path(args: argparse.Namespace) -> str:
     import time
 
     stamp = time.strftime("%Y%m%d-%H%M%S")
-    logdir = Path(args.project_dir).resolve() / ".stm" / "logs"
+    logdir = Path(args.project_dir).resolve() / ".mu" / "logs"
     logdir.mkdir(parents=True, exist_ok=True)
     return str(logdir / f"{args.verb}-{stamp}.log")
 
@@ -291,7 +291,7 @@ def _run_flash_local(args: argparse.Namespace) -> int:
         return 2
     device, endpoint, adapter = prepared
     if not args.files:
-        print("stm: error: flash requires --files <elf...>", file=sys.stderr)
+        print("mu: error: flash requires --files <elf...>", file=sys.stderr)
         return 2
     view = DeviceView.of(device)
     if args.dry_run:
@@ -300,7 +300,7 @@ def _run_flash_local(args: argparse.Namespace) -> int:
     try:
         results = adapter.flash(view, endpoint, args.files)
     except FileNotFoundError:
-        print("stm: error: probe tool not found (run inside the toolchain image)", file=sys.stderr)
+        print("mu: error: probe tool not found (run inside the toolchain image)", file=sys.stderr)
         return 1
     transcript = adapter.last_transcript
     proof = adapter.proof_for(view, results, transcript) if transcript is not None else None
@@ -331,13 +331,13 @@ def _run_dev_local(args: argparse.Namespace) -> int:
     try:
         completed = subprocess.run([shell])
     except FileNotFoundError:
-        print(f"stm: error: shell not found: {shell}", file=sys.stderr)
+        print(f"mu: error: shell not found: {shell}", file=sys.stderr)
         return 1
     return completed.returncode
 
 
 def _run_local(args: argparse.Namespace) -> int:
-    """Execute the verb in-process (never re-execs ``stm``)."""
+    """Execute the verb in-process (never re-execs ``mu``)."""
     if args.verb == "build":
         return _run_build_local(args)
     if args.verb == "flash":
@@ -377,12 +377,12 @@ def _run_verb(args: argparse.Namespace) -> int:
     try:
         DefaultImageLookup().image_for(args.lang)
     except ValueError as exc:
-        print(f"stm: error: {exc}", file=sys.stderr)
+        print(f"mu: error: {exc}", file=sys.stderr)
         return 2
     violation = _one_source_violation(args)
     if violation is not None:
         build_parser().print_usage(sys.stderr)
-        print(f"stm: error: {violation}", file=sys.stderr)
+        print(f"mu: error: {violation}", file=sys.stderr)
         return 2
     if args.verb == "create":
         return _run_create(args)
@@ -390,7 +390,7 @@ def _run_verb(args: argparse.Namespace) -> int:
         return _run_local(args)
     outside = _mcu_config_outside_project(args)
     if outside is not None:
-        print(f"stm: error: {outside}", file=sys.stderr)
+        print(f"mu: error: {outside}", file=sys.stderr)
         return 2
     extra: list[str] = []
     if args.verb == "flash" and getattr(args, "files", None):
@@ -412,14 +412,14 @@ def _run_verb(args: argparse.Namespace) -> int:
     try:
         argv = build_container_argv(request, lookup=DefaultImageLookup())
     except ValueError as exc:
-        print(f"stm: error: {exc}", file=sys.stderr)
+        print(f"mu: error: {exc}", file=sys.stderr)
         return 2
     if args.dry_run:
         print(format_argv(argv))
         return 0
     if args.mode != "local" and shutil.which("docker") is None:
         print(
-            "stm: error: container runtime 'docker' not found; "
+            "mu: error: container runtime 'docker' not found; "
             "install it or re-run with --dry-run to review the command",
             file=sys.stderr,
         )
@@ -431,7 +431,7 @@ def _run_verb(args: argparse.Namespace) -> int:
     )
     if inspected.returncode != 0:
         print(
-            f"stm: error: image {image} not present locally; "
+            f"mu: error: image {image} not present locally; "
             f"run `make images` or `docker pull {image}` first",
             file=sys.stderr,
         )
@@ -439,7 +439,7 @@ def _run_verb(args: argparse.Namespace) -> int:
     try:
         completed = subprocess.run(argv)
     except FileNotFoundError:
-        print(f"stm: error: executable not found: {argv[0]}", file=sys.stderr)
+        print(f"mu: error: executable not found: {argv[0]}", file=sys.stderr)
         return 1
     return completed.returncode
 
