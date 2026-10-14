@@ -68,3 +68,18 @@ blocks:
   probe_settings:
     probe-rs:
       chip: STM32H755ZI
+  # On-board yellow user LED LD2 = PE1, active HIGH (req-015 example). UM2408
+  # (Nucleo-144 MB1363): "User LD2: A yellow user LED is connected to PE1".
+  # LD1 (green) is PB0-or-PA5 via solder bridge SB54/SB65, so PE1 avoids the
+  # ambiguity. H7 clocks GPIOs on AHB4ENR: GPIOE @0x58021000, RCC_AHB4ENR
+  # @0x580244E0, GPIOEEN bit 4 (verified in the vendored cmsis-device-stm32h755
+  # header). Default core clock HSI = 64 MHz. Blink runs on the primary core (M7).
+  example:
+    led:
+      port: E
+      pin: 1
+      active: high
+      gpio_base: 0x58021000
+      rcc_en_addr: 0x580244E0
+      rcc_en_bit: 4
+      clock_hz: 64000000

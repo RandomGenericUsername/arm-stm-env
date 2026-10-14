@@ -90,7 +90,7 @@ def test_cells(pack_id: str, lang: str, tmp_path: Path) -> None:
     header = doc["blocks"]["config_headers"]["header"]
     if lang in ("c", "cpp"):
         text = (out / "Makefile").read_text()
-        for core in doc["cores"]:
+        for index, core in enumerate(doc["cores"]):
             assert core["arch"] in text, f"arch {core['arch']} missing"
             assert doc["blocks"]["linker"][core["name"]] in text, "linker ref missing"
             assert f"build-{core['name']}" in text, "build target missing"
@@ -102,10 +102,10 @@ def test_cells(pack_id: str, lang: str, tmp_path: Path) -> None:
             assert f"OUT_{core['name']} = build/{core['name']}/" in text, "artifact dir missing"
             main = (out / f"src/main-{core['name']}.c").read_text()
             assert header in main, "config header include missing"
-            if "example" in doc.get("blocks", {}):
+            if "example" in doc.get("blocks", {}) and index == 0:
                 assert (
                     "GPIO_BSRR" in main and "delay_half_period" in main and "LED_PIN" in main
-                ), "example blink missing"
+                ), "example blink missing on primary core"
             else:
                 assert "wfi" in main, "stub main missing"
             linker = (out / f"linker/{doc['blocks']['linker'][core['name']]}").read_text()

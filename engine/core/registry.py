@@ -188,8 +188,20 @@ register("probe_settings", _validate_probe_settings, families=_STM32_FAMILIES)
 _EXAMPLE_ACTIVE = ("high", "low")
 
 
+def _is_addr(value: Any) -> bool:
+    if isinstance(value, int) and not isinstance(value, bool):
+        return value > 0
+    if isinstance(value, str):
+        try:
+            return int(value, 0) > 0
+        except ValueError:
+            return False
+    return False
+
+
 def _validate_example(payload: Any) -> None:
-    """Optional on-board LED example fact (req-014): ``{led: {port,pin,active}}``."""
+    """On-board LED example fact (req-014/req-015): ``{led: {port,pin,active,
+    gpio_base,rcc_en_addr,rcc_en_bit}}``."""
     if not isinstance(payload, dict) or not payload:
         raise ValueError("example block must be a non-empty mapping")
     led = payload.get("led")
@@ -206,6 +218,14 @@ def _validate_example(payload: Any) -> None:
         raise ValueError(
             f"example.led.active must be one of {_EXAMPLE_ACTIVE}, got {active!r}"
         )
+    for key in ("gpio_base", "rcc_en_addr"):
+        if not _is_addr(led.get(key)):
+            raise ValueError(f"example.led.{key} must be a positive int address")
+    if not _is_addr(led.get("clock_hz")):
+        raise ValueError("example.led.clock_hz must be a positive int (Hz)")
+    bit = led.get("rcc_en_bit")
+    if not isinstance(bit, int) or isinstance(bit, bool) or not 0 <= bit <= 31:
+        raise ValueError("example.led.rcc_en_bit must be an int 0..31")
 
 
 register("example", _validate_example, families=_STM32_FAMILIES)

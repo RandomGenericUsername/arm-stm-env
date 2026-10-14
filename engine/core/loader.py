@@ -13,7 +13,7 @@ from pathlib import Path
 
 import yaml
 
-from engine.core.model import Core, Device, DeviceFacets, Endpoint, MemoryRegion, OpenocdConfig
+from engine.core.model import Core, Device, DeviceFacets, Endpoint, ExampleLed, MemoryRegion, OpenocdConfig
 from engine.core.registry import UnknownBlockError, validate_block
 
 __all__ = ["FRAME_KEYS", "FrameError", "load_file", "load_text", "validate_frame"]
@@ -27,6 +27,13 @@ class FrameError(ValueError):
 
 def _source_hash(raw: bytes) -> str:
     return hashlib.sha256(raw).hexdigest()
+
+
+def _as_int(value: object) -> int:
+    """Coerce a YAML int or ``0x``/decimal string to int (address facts)."""
+    if isinstance(value, int) and not isinstance(value, bool):
+        return value
+    return int(str(value), 0)
 
 
 def validate_frame(doc: dict) -> Device:
@@ -83,7 +90,17 @@ def validate_frame(doc: dict) -> Device:
     example_block = blocks.get("example", {})
     led = example_block.get("led") if isinstance(example_block, dict) else None
     example_led = (
-        (led["port"], int(led["pin"]), led.get("active", "high")) if led else None
+        ExampleLed(
+            port=led["port"],
+            pin=_as_int(led["pin"]),
+            active=led.get("active", "high"),
+            gpio_base=_as_int(led["gpio_base"]),
+            rcc_en_addr=_as_int(led["rcc_en_addr"]),
+            rcc_en_bit=_as_int(led["rcc_en_bit"]),
+            clock_hz=_as_int(led["clock_hz"]),
+        )
+        if led
+        else None
     )
     facets = DeviceFacets(
         fpu_mode=fpu_block.get("mode", "soft"),

@@ -57,6 +57,14 @@ blocks:
       chip: STM32F411RE
   # On-board user LED LD2 = PA5, active HIGH (req-014 example). ST UM1724
   # (Nucleo-64 MB1136): "User LD2 ... PA5 ... when the I/O is HIGH value, the
-  # LED is on". Makes the generated main blink instead of idling in wfi.
+  # LED is on". F4 clocks GPIOs on AHB1ENR: GPIOA @0x40020000, RCC_AHB1ENR
+  # @0x40023830, GPIOAEN bit 0. Default core clock HSI = 16 MHz.
   example:
-    led: {port: A, pin: 5, active: high}
+    led:
+      port: A
+      pin: 5
+      active: high
+      gpio_base: 0x40020000
+      rcc_en_addr: 0x40023830
+      rcc_en_bit: 0
+      clock_hz: 16000000

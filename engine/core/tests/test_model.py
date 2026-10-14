@@ -36,9 +36,13 @@ def test_loader_attaches_example_led_from_pack():
 
     packs = Path(__file__).resolve().parents[3] / "packs"
     f411 = load_file(packs / "stm32f411re.yaml")
-    assert f411.facets.example_led == ("A", 5, "high")
-    assert DeviceView.of(f411).example_led == ("A", 5, "high")
-    assert load_file(packs / "stm32h755.yaml").facets.example_led is None
+    led = f411.facets.example_led
+    assert led is not None
+    assert (led.port, led.pin, led.active) == ("A", 5, "high")
+    assert (led.gpio_base, led.rcc_en_addr, led.rcc_en_bit) == (0x40020000, 0x40023830, 0)
+    assert led.clock_hz == 16000000
+    assert DeviceView.of(f411).example_led == led
+    assert load_file(packs / "stm32h755.yaml").facets.example_led.port == "E"
 
 
 def _device(**kw) -> Device:

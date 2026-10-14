@@ -28,19 +28,34 @@ def test_validate_block_runs_registered_validator():
     assert seen == [{"x": 1}]
 
 
+def _led(**over):
+    base = {
+        "port": "A", "pin": 5, "active": "high",
+        "gpio_base": 0x40020000, "rcc_en_addr": 0x40023830, "rcc_en_bit": 0,
+        "clock_hz": 16000000,
+    }
+    base.update(over)
+    return {"led": base}
+
+
 def test_example_block_accepts_led_fact():
-    registry.validate_block("example", {"led": {"port": "A", "pin": 5, "active": "high"}})
-    registry.validate_block("example", {"led": {"port": "B", "pin": 13}})  # active defaults high
+    registry.validate_block("example", _led())
+    registry.validate_block("example", _led(active="low"))  # active optional/varied
 
 
 @pytest.mark.parametrize(
     "payload, match",
     [
-        ({"led": {"port": "AA", "pin": 5}}, "port"),
-        ({"led": {"port": "A", "pin": 20}}, "pin"),
-        ({"led": {"port": "A", "pin": 5, "active": "yes"}}, "active"),
-        ({"led": {"port": "A", "pin": True}}, "pin"),
+        (_led(port="AA"), "port"),
+        (_led(pin=20), "pin"),
+        (_led(pin=True), "pin"),
+        (_led(active="yes"), "active"),
+        (_led(gpio_base=0), "gpio_base"),
+        (_led(rcc_en_addr=0), "rcc_en_addr"),
+        (_led(rcc_en_bit=99), "rcc_en_bit"),
+        (_led(clock_hz=0), "clock_hz"),
         ({}, "non-empty"),
+        ({"led": {}}, "port"),
     ],
 )
 def test_example_block_rejects_bad(payload, match):

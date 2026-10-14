@@ -84,14 +84,15 @@ def _oc_flash_args(device: Device) -> str:
     return args
 
 
-def _main_sections(facets: DeviceFacets) -> tuple[str, str]:
-    """(extra includes, main body) for ``src/main-<core>.c`` (req-014).
+def _main_sections(facets: DeviceFacets, primary: bool) -> tuple[str, str]:
+    """(extra includes, main body) for ``src/main-<core>.c`` (req-014/req-015).
 
     A pack that declares ``example.led`` gets a self-contained blink of that
-    on-board LED (raw registers + NOP half-period delay, no HAL); otherwise the
-    ``wfi`` stub.
+    on-board LED (raw registers + NOP half-period delay, no HAL) on the
+    **primary** (first) core only — dual-core siblings stay a ``wfi`` stub so
+    they don't fight over the same pin. Otherwise the stub.
     """
-    led = facets.example_led
+    led = facets.example_led if primary else None
     if led is None:
         return (
             "",
@@ -100,22 +101,24 @@ def _main_sections(facets: DeviceFacets) -> tuple[str, str]:
             '        __asm volatile ("wfi");\n'
             "    }\n",
         )
-    port, pin, active = led
-    pidx = ord(port.upper()) - ord("A")
-    gpio = 0x40020000 + pidx * 0x400
-    on_shift, off_shift = (pin, pin + 16) if active == "high" else (pin + 16, pin)
+    gpio, rcc = led.gpio_base, led.rcc_en_addr
+    on_shift, off_shift = (
+        (led.pin, led.pin + 16) if led.active == "high" else (led.pin + 16, led.pin)
+    )
+    # ~10 Hz: half-period ≈ 0.05 s; loop ≈ 16 cycles/iter at -O (approximate).
+    iters = round(0.05 * led.clock_hz / 16)
     includes = (
         "#include <stdint.h>\n"
         "\n"
         "#define REG32(a)     (*(volatile uint32_t *)(a))\n"
-        "#define RCC_AHB1ENR  REG32(0x40023830UL)\n"
+        f"#define RCC_EN       REG32(0x{rcc:08X}UL)\n"
         f"#define GPIO_MODER   REG32(0x{gpio:08X}UL)\n"
         f"#define GPIO_BSRR    REG32(0x{gpio + 0x18:08X}UL)\n"
         "\n"
-        f"#define LED_PIN      {pin}u\n"
+        f"#define LED_PIN      {led.pin}u\n"
         f"#define BSRR_ON      (1u << {on_shift})\n"
         f"#define BSRR_OFF     (1u << {off_shift})\n"
-        "#define DELAY_ITERS  50000UL  /* ~0.05 s @16 MHz, ~10 Hz; tune */\n"
+        f"#define DELAY_ITERS  {iters}UL  /* ~0.05 s @{led.clock_hz} Hz, ~10 Hz; tune */\n"
         "\n"
         "static void delay_half_period(void)\n"
         "{\n"
@@ -126,8 +129,8 @@ def _main_sections(facets: DeviceFacets) -> tuple[str, str]:
     )
     body = (
         f"    /* Example for this pack: blink the on-board LED "
-        f"(P{port.upper()}{pin}, {active} active). */\n"
-        f"    RCC_AHB1ENR |= (1u << {pidx});\n"
+        f"(P{led.port.upper()}{led.pin}, {led.active} active). */\n"
+        f"    RCC_EN |= (1u << {led.rcc_en_bit});\n"
         "    GPIO_MODER &= ~(3u << (LED_PIN * 2));\n"
         "    GPIO_MODER |=  (1u << (LED_PIN * 2));\n"
         "\n"
@@ -147,7 +150,9 @@ def core_context(device: Device, core: Core, lang: str) -> dict:
     cpu = CPU_BY_CORE.get(core.name, core.name.lower())
     header = facets.config_header
     guard = re.sub(r"\W", "_", header).upper()
-    example_includes, main_body = _main_sections(facets)
+    example_includes, main_body = _main_sections(
+        facets, device.cores[0].name == core.name
+    )
     return {
         "project": device.id,
         "device_id": device.id,
