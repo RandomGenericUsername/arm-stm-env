@@ -16,7 +16,13 @@ make sync      # Python env (uv, locked)
 make test      # engine suite, no Docker needed
 make images    # build cpp + rust toolchain images (needs Docker + network)
 make smoke     # version probes inside both images
+make install   # install the `stm` CLI globally (editable uv tool → ~/.local/bin/stm)
 ```
+
+`make install` runs `uv tool install --editable .`, so `stm` is on your PATH
+(`~/.local/bin`) with no venv activation — and it tracks your checkout live.
+Remove it with `make uninstall`. Without it, use `uv run stm …` from this
+checkout instead.
 
 ## Quickstart
 
