@@ -50,6 +50,7 @@
 - [ops-013-create-git-init](./ops-013-create-git-init/ticket.md) — create: git-init a fresh project dir before vendoring | `done`
 - [ops-014-sparse-vendor](./ops-014-sparse-vendor/ticket.md) — Vendoring: partial+sparse clone (create in seconds, not minutes) | `done`
 - [ops-015-organized-tree](./ops-015-organized-tree/ticket.md) — Organize generated project tree (probe/ + build/<core>/) | `done`
+- [ops-016-project-gitignore](./ops-016-project-gitignore/ticket.md) — Generated projects ship a .gitignore (build/, .mu/) | `done`
 
 ## Spikes
 
