@@ -2,7 +2,7 @@
 id: ops-010
 title: "Rename the CLI command stm -> mu (device-agnostic)"
 kind: ops-task
-status: in-progress
+status: done
 lane: direct
 links:
   openspec: none
