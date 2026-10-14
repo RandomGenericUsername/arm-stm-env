@@ -138,6 +138,21 @@ def test_dev_forwards_probe_device(capsys, monkeypatch):
     assert "/bin/bash" in out
 
 
+def test_build_verb_carries_no_probe_device(monkeypatch, tmp_path):
+    """bug-010: build must not resolve/forward a probe (--device is rejected)."""
+    root = _fake_sysfs(tmp_path)
+    monkeypatch.setattr("engine.cli.shim._SYSFS_USB", root)
+    argv = build_container_argv(ShimRequest(verb="build", os_name="linux"))
+    assert "--device" not in argv
+
+
+def test_flash_verb_autodetects_probe_device(monkeypatch, tmp_path):
+    root = _fake_sysfs(tmp_path)
+    monkeypatch.setattr("engine.cli.shim._SYSFS_USB", root)
+    argv = build_container_argv(ShimRequest(verb="flash", os_name="linux"))
+    assert "/dev/bus/usb/003/009:/dev/bus/usb/003/009" in argv
+
+
 def test_shim_probe_xor_mcu_config_vs_individual_flags(capsys):
     code = main(["build", "--mcu-config", "cfg.yaml", "--mcu", "x", "--dry-run"])
     assert code == 2
