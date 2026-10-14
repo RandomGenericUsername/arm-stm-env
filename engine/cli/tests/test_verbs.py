@@ -169,6 +169,16 @@ def test_verbs_probe_defaults_to_pack_backend(monkeypatch, tmp_path, capsys):
     assert "2" not in capsys.readouterr().err
 
 
+def test_verbs_verbose_forwarded_into_container(capsys, tmp_path):
+    proj = tmp_path / "proj"
+    proj.mkdir()
+    assert main(
+        ["flash", "--project-dir", str(proj), "--files", "a.elf", "--verbose", "--dry-run"]
+    ) == 0
+    out = capsys.readouterr().out
+    assert "--verbose" in out and "--files a.elf" in out
+
+
 def test_verbs_missing_image_names_make_images(capsys, monkeypatch):
     import subprocess
 
