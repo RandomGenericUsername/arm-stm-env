@@ -88,6 +88,7 @@ def validate_frame(doc: dict) -> Device:
     system_block = blocks.get("system", {})
     defines_block = blocks.get("defines", {})
     probe_settings_block = blocks.get("probe_settings", {})
+    svd_block = blocks.get("svd", {})
     example_block = blocks.get("example", {})
     led = example_block.get("led") if isinstance(example_block, dict) else None
     example_led = (
@@ -120,6 +121,7 @@ def validate_frame(doc: dict) -> Device:
             )
         ),
         example_led=example_led,
+        svd=tuple(sorted(svd_block.items())),
     )
     return Device(
         id=doc["id"],

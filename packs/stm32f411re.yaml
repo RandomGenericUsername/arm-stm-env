@@ -68,3 +68,7 @@ blocks:
       rcc_en_addr: 0x40023830
       rcc_en_bit: 0
       clock_hz: 16000000
+  # Cortex-Debug register view (req-017): pinned SVD per core. Source
+  # modm-io/cmsis-svd-stm32 (Apache-2.0), fetched at create --vscode.
+  svd:
+    M4: stm32f4/STM32F411.svd

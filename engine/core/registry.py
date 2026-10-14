@@ -236,3 +236,17 @@ def _validate_example(payload: Any) -> None:
 
 
 register("example", _validate_example, families=_STM32_FAMILIES)
+
+
+def _validate_svd(payload: Any) -> None:
+    """Per-core SVD file paths for the Cortex-Debug register view (req-017)."""
+    if not isinstance(payload, dict) or not payload:
+        raise ValueError("svd block must be a non-empty mapping of core -> svd path")
+    for core, path in payload.items():
+        if not isinstance(core, str) or not core:
+            raise ValueError(f"svd block core name must be a non-empty string, got {core!r}")
+        if not isinstance(path, str) or not path:
+            raise ValueError(f"svd block path for core {core!r} must be a non-empty string")
+
+
+register("svd", _validate_svd, families=_STM32_FAMILIES)

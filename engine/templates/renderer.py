@@ -11,11 +11,12 @@ from __future__ import annotations
 
 import json
 import re
+import urllib.request
 from pathlib import Path
 from string import Template
 
 from engine.core.model import Core, Device
-from engine.templates.vendoring import vendor
+from engine.templates.vendoring import VendorError, vendor
 
 __all__ = [
     "CPU_BY_CORE",
@@ -639,13 +640,47 @@ _GCC_PROBLEM_MATCHER = {
 }
 
 
+#: Pinned SVD source (Apache-2.0), commit-pinned for reproducibility (req-017).
+SVD_REPO = "modm-io/cmsis-svd-stm32"
+SVD_SHA = "e79021accd49bf19bd0b16065f5471fb073ff3ac"
+
+
+def _svd_local_name(path: str) -> str:
+    return Path(path).name
+
+
+def _svd_file_for(device: Device, core_name: str) -> str | None:
+    for name, path in device.facets.svd:
+        if name == core_name:
+            return f"probe/{_svd_local_name(path)}"
+    return None
+
+
+def fetch_svds(device: Device, out_dir: str | Path, *, opener=None) -> list[Path]:
+    """Download the pack's pinned SVD files into ``probe/`` (req-017)."""
+    opener = opener or urllib.request.urlopen
+    out = Path(out_dir)
+    written: list[Path] = []
+    for _core, path in device.facets.svd:
+        dest = out / "probe" / _svd_local_name(path)
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        url = f"https://raw.githubusercontent.com/{SVD_REPO}/{SVD_SHA}/{path}"
+        try:
+            with opener(url) as resp:
+                dest.write_bytes(resp.read())
+        except Exception as exc:
+            raise VendorError(f"svd: failed to fetch {path} ({url}): {exc}") from exc
+        written.append(dest)
+    return written
+
+
 def _vscode_files(device: Device) -> dict[str, str]:
-    """Generated ``.vscode/`` for the container-attached flow (req-016, C/C++).
+    """Generated ``.vscode/`` for the container-attached flow (req-016/017).
 
     Tool paths are the **in-container** locations (the window is attached to the
     ``mu dev`` container). ``launch.json`` is per-core, with the pack's resolved
-    OpenOCD config files and each core's ELF. Built as JSON, never string-
-    templated, so the output is always valid.
+    OpenOCD config files, each core's ELF, and its SVD for the register view.
+    Built as JSON, never string-templated, so the output is always valid.
     """
     oc = device.openocd
     iface, target = (
@@ -657,20 +692,22 @@ def _vscode_files(device: Device) -> dict[str, str]:
     configurations = []
     for core in device.cores:
         elf = f"build/{core.name}/{device.id}-{core.name}.elf"
-        configurations.append(
-            {
-                "name": f"Debug {core.name} (OpenOCD)",
-                "type": "cortex-debug",
-                "request": "launch",
-                "servertype": "openocd",
-                "cwd": "${workspaceFolder}",
-                "executable": "${workspaceFolder}/" + elf,
-                "runToEntryPoint": "main",
-                "configFiles": [iface, target],
-                "openocdPath": openocd,
-                "gdbPath": gdb,
-            }
-        )
+        config = {
+            "name": f"Debug {core.name} (OpenOCD)",
+            "type": "cortex-debug",
+            "request": "launch",
+            "servertype": "openocd",
+            "cwd": "${workspaceFolder}",
+            "executable": "${workspaceFolder}/" + elf,
+            "runToEntryPoint": "main",
+            "configFiles": [iface, target],
+            "openocdPath": openocd,
+            "gdbPath": gdb,
+        }
+        svd = _svd_file_for(device, core.name)
+        if svd is not None:
+            config["svdFile"] = "${workspaceFolder}/" + svd
+        configurations.append(config)
 
     tasks = [
         {
@@ -742,6 +779,7 @@ def render(
     write(".gitignore", _GITIGNORE)
     write("probe/openocd.cfg", _render_openocd(pack_model))
     if vscode and lang in ("c", "cpp"):
+        written.extend(fetch_svds(pack_model, out))
         for rel, text in _vscode_files(pack_model).items():
             write(rel, text)
     write("config/OVERRIDES.md", _OVERRIDES.substitute(cfg))

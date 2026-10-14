@@ -88,3 +88,7 @@ blocks:
       rcc_en_addr: 0x580244E0
       rcc_en_bit: 4
       clock_hz: 64000000
+  # Cortex-Debug register view (req-017): pinned SVD per core (H755 CM7/CM4).
+  svd:
+    M7: stm32h7/STM32H755_CM7.svd
+    M4: stm32h7/STM32H755_CM4.svd
