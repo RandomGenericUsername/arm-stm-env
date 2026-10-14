@@ -124,7 +124,12 @@ def test_render_vscode_generates_valid_configs(tmp_path) -> None:
     cfg = json.loads((tmp_path / ".vscode/launch.json").read_text())["configurations"][0]
     assert cfg["type"] == "cortex-debug"
     assert cfg["executable"].endswith("build/M4/stm32f411re-M4.elf")
-    assert cfg["configFiles"] == ["interface/stlink.cfg", "board/st_nucleo_f4.cfg"]
+    assert cfg["configFiles"] == [
+        "interface/stlink.cfg",
+        "board/st_nucleo_f4.cfg",
+        "probe/resume-on-detach.cfg",
+    ]
+    assert (tmp_path / "probe/resume-on-detach.cfg").is_file()
     assert cfg["gdbPath"].startswith("/opt/arm-gnu-toolchain")
     assert cfg["svdFile"].endswith("probe/STM32F411.svd")
     ext = json.loads((tmp_path / ".vscode/extensions.json").read_text())
