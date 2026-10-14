@@ -10,11 +10,11 @@ ARG ARM_GCC_URL=https://gitlab.arm.com/api/v4/projects/tooling%2Fgnu-toolchains-
 ARG OPENOCD_REPO=https://github.com/STMicroelectronics/OpenOCD.git
 ARG OPENOCD_SHA=c8d973bdad9a6fddb51459eda109b3b95d23b57a
 
-LABEL org.arm-stm-env.arm-gcc.version="15.3.rel2" \
-      org.arm-stm-env.arm-gcc.sha256="0662b2f01e0cd8b951fd110911d339c35b05998c68a12b3530bbbb4bf6c7874e" \
-      org.arm-stm-env.openocd.repo="https://github.com/STMicroelectronics/OpenOCD.git" \
-      org.arm-stm-env.openocd.sha="c8d973bdad9a6fddb51459eda109b3b95d23b57a" \
-      org.arm-stm-env.base="debian:bookworm-slim@sha256:7c7b2c966bc9ee8cedfeef67e0e279108992c77681fa595db4a9d65c06ccc587"
+LABEL org.mu.arm-gcc.version="15.3.rel2" \
+      org.mu.arm-gcc.sha256="0662b2f01e0cd8b951fd110911d339c35b05998c68a12b3530bbbb4bf6c7874e" \
+      org.mu.openocd.repo="https://github.com/STMicroelectronics/OpenOCD.git" \
+      org.mu.openocd.sha="c8d973bdad9a6fddb51459eda109b3b95d23b57a" \
+      org.mu.base="debian:bookworm-slim@sha256:7c7b2c966bc9ee8cedfeef67e0e279108992c77681fa595db4a9d65c06ccc587"
 
 ENV DEBIAN_FRONTEND=noninteractive \
     PATH=/opt/arm-gnu-toolchain/bin:/usr/local/bin:${PATH}

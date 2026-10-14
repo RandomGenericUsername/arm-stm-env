@@ -1,6 +1,6 @@
 """Cache keys owned by core (req-003, group 2.3).
 
-Key = ``arm-stm-env:v1:<image_digest>:<project_hash>``. Digest change flips
+Key = ``mu:v1:<image_digest>:<project_hash>``. Digest change flips
 the key so stale entries are never reused. Adapters request keys, never
 invent them.
 """
@@ -17,4 +17,4 @@ def cache_key(*, image_digest: str, project_hash: str) -> str:
         raise ValueError("image_digest must be non-empty")
     if not project_hash:
         raise ValueError("project_hash must be non-empty")
-    return f"arm-stm-env:{KEY_VERSION}:{image_digest}:{project_hash}"
+    return f"mu:{KEY_VERSION}:{image_digest}:{project_hash}"

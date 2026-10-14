@@ -1,4 +1,4 @@
-# arm-stm-env — fresh-clone rebuild with make.
+# mu — fresh-clone rebuild with make.
 #
 # Fresh machine path:
 #   1. `make sync`        (uv-managed Python env)
@@ -10,10 +10,10 @@
 #
 # Knobs: PLATFORM (default linux/amd64 — toolchain URLs are x86_64;
 #          native arm64 images need arch-aware Dockerfiles, not yet supported),
-#        REGISTRY (default ghcr.io/arm-stm-env), TAG_CPP, TAG_RUST.
+#        REGISTRY (default ghcr.io/randomgenericusername), TAG_CPP, TAG_RUST.
 
 PLATFORM   ?= linux/amd64
-REGISTRY   ?= ghcr.io/arm-stm-env
+REGISTRY   ?= ghcr.io/randomgenericusername
 TAG_CPP    ?= 15.3.rel2
 TAG_RUST   ?= 1.99.0
 IMG_CPP    := $(REGISTRY)/lang-cpp:$(TAG_CPP)
@@ -32,7 +32,7 @@ help:
 	@echo "smoke        Version probes inside both images"
 	@echo "digests      Print image digests for README recording"
 	@echo "push         Push both images to \$$(REGISTRY) (needs docker login)"
-	@echo "clean        Remove local arm-stm-env images"
+	@echo "clean        Remove local mu images"
 
 sync:
 	uv sync --frozen
@@ -44,7 +44,7 @@ install:
 	uv tool install --editable . --force
 
 uninstall:
-	uv tool uninstall arm-stm-env-engine 2>/dev/null || true
+	uv tool uninstall mu 2>/dev/null || true
 
 test:
 	uv run python -m pytest engine/ -q

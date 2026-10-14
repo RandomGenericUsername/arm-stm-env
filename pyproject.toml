@@ -1,7 +1,7 @@
 [project]
-name = "arm-stm-env-engine"
+name = "mu"
 version = "0.1.0"
-description = "Certified device-model core for arm-stm-env (req-003)"
+description = "Certified device-model core for mu (req-003)"
 requires-python = ">=3.11"
 dependencies = [
     "pyyaml>=6.0.3",

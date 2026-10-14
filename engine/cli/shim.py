@@ -9,7 +9,7 @@ Container contract (task-003, narrowed task-004): images ship toolchains only �
 no engine. So the container side runs ``python3 -m engine`` with exactly two
 read-only mounts — the ``engine`` package and ``packs/`` — plus the project
 read-write at ``/project`` (working dir). Container paths mirror the checkout
-layout (``/opt/arm-stm-env/{engine,packs}``) so ``__file__``-derived resolution
+layout (``/opt/mu/{engine,packs}``) so ``__file__``-derived resolution
 works unchanged. The project mount uses an absolute host path (relative paths
 are invalid for the runtime).
 
@@ -45,7 +45,7 @@ __all__ = [
 MODES = ("auto", "local")
 
 #: Container path of the read-only repo mount (engine + packs resolve under it).
-CONTAINER_REPO = "/opt/arm-stm-env"
+CONTAINER_REPO = "/opt/mu"
 
 #: Container path of the read-write project mount (also the working dir).
 CONTAINER_PROJECT = "/project"
@@ -260,7 +260,7 @@ def build_container_argv(
         "-v",
         f"{packs_dir()}:{CONTAINER_REPO}/packs:ro",
         "-e",
-        "PYTHONPATH=/opt/arm-stm-env",
+        "PYTHONPATH=/opt/mu",
         "-w",
         CONTAINER_PROJECT,
         image,
