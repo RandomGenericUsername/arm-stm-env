@@ -103,7 +103,7 @@ def build_parser() -> argparse.ArgumentParser:
     subs = parser.add_subparsers(dest="verb", required=True, metavar="verb")
     create = subs.add_parser("create", help="scaffold a project tree skeleton")
     create.add_argument("--name", required=True, help="project name")
-    create.add_argument("--out-dir", default=".", help="parent dir; project renders to <out-dir>/<name>")
+    create.add_argument("--path", default=".", help="parent dir; project renders to <path>/<name>")
     _add_common(create)
     for verb, help_text in (
         ("dev", "containerized interactive dev env"),
@@ -176,7 +176,7 @@ def _run_create(args: argparse.Namespace) -> int:
     except (FrameError, ValueError, OSError) as exc:
         print(f"mu: error: invalid pack {args.mcu_config!r}: {exc}", file=sys.stderr)
         return 1
-    out = Path(args.out_dir) / args.name
+    out = Path(args.path) / args.name
     if args.dry_run:
         print(f"would render {device.id} ({args.lang}) to {out}/")
         print("next: mu build --project-dir " + str(out))

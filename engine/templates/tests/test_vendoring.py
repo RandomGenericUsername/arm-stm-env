@@ -177,7 +177,7 @@ def test_render_vendor_failure_propagates_loud(tmp_path: Path, monkeypatch, caps
         render(device, "c", tmp_path)
     code = main(
         ["create", "--mcu-config", "stm32f411re", "--lang", "c",
-         "--name", "demo", "--out-dir", str(tmp_path)]
+         "--name", "demo", "--path", str(tmp_path)]
     )
     assert code != 0
     assert "github.com" in capsys.readouterr().err
@@ -189,7 +189,7 @@ def test_create_missing_git_exits_nonzero_naming_git(tmp_path: Path, monkeypatch
     monkeypatch.setattr(shutil, "which", lambda _cmd: None)
     code = main(
         ["create", "--mcu-config", "stm32f411re", "--lang", "c",
-         "--name", "demo", "--out-dir", str(tmp_path)]
+         "--name", "demo", "--path", str(tmp_path)]
     )
     assert code != 0
     assert "git" in capsys.readouterr().err

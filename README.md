@@ -28,7 +28,7 @@ checkout instead.
 
 ```sh
 # Scaffold (works offline after clone; needs git + network for CMSIS submodules)
-uv run mu create --mcu-config stm32f411re --lang c --name demo --out-dir .
+uv run mu create --mcu-config stm32f411re --lang c --name demo --path .
 # Build transparently in the pinned toolchain image (no host toolchain needed)
 uv run mu build --project-dir ./demo
 # Inspect what any command will do without running it

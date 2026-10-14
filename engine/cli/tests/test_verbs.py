@@ -37,7 +37,7 @@ def test_verbs_create_dry_run_renders_locally_without_runtime(capsys, monkeypatc
     pack = sorted(Path(PACKS_DIR).glob("*.yaml"))[0]
     monkeypatch.setattr("shutil.which", lambda _: None)
     assert (
-        main(["create", "--name", "demo", "--mcu-config", str(pack), "--out-dir", str(tmp_path), "--dry-run"])
+        main(["create", "--name", "demo", "--mcu-config", str(pack), "--path", str(tmp_path), "--dry-run"])
         == 0
     )
     out = capsys.readouterr().out
