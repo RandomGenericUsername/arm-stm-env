@@ -15,7 +15,7 @@ from engine.cli.shim import (
 def _fake_sysfs(tmp_path, *, vid="0483", pid="3752", serial="STL-1", bus="3", dev="9"):
     """One sysfs USB device dir (``/sys/bus/usb/devices/3-9``)."""
     root = tmp_path / "usb"
-    d = root / "3-9"
+    d = root / f"{bus}-{dev}"
     d.mkdir(parents=True)
     (d / "idVendor").write_text(vid + "\n")
     (d / "idProduct").write_text(pid + "\n")
@@ -52,9 +52,28 @@ def test_binding_unmatched_vid_pid_has_no_host_devices(tmp_path):
     assert b is not None and b.host_devices == ()
 
 
-def test_binding_no_selector_is_none():
-    assert resolve_probe_binding(os_name="linux") is None
-    assert probe_endpoint(os_name="linux") is None
+def test_binding_no_selector_is_none(tmp_path):
+    # No probe attached (fixture sysfs empty) -> None.
+    empty = tmp_path / "empty"
+    empty.mkdir()
+    assert resolve_probe_binding(os_name="linux", sysfs_root=empty) is None
+    assert probe_endpoint(os_name="linux", sysfs_root=empty) is None
+
+
+def test_binding_autodetects_single_probe(tmp_path):
+    """req-020: no selector + one attached probe -> use it."""
+    root = _fake_sysfs(tmp_path)
+    b = resolve_probe_binding(os_name="linux", sysfs_root=root)
+    assert b is not None
+    assert b.selector == "STL-1"
+    assert b.host_devices == ("/dev/bus/usb/003/009",)
+
+
+def test_binding_autodetect_ambiguous_raises(tmp_path):
+    root = _fake_sysfs(tmp_path)
+    _fake_sysfs(tmp_path, serial="STL-2", bus="3", dev="10")  # second probe
+    with pytest.raises(ValueError, match="probes attached"):
+        resolve_probe_binding(os_name="linux", sysfs_root=root)
 
 
 def test_binding_macos_documented_limits():
