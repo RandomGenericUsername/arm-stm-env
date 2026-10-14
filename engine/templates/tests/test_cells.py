@@ -101,7 +101,13 @@ def test_cells(pack_id: str, lang: str, tmp_path: Path) -> None:
             assert f"flash-{core['name']}" in text, "flash-helper target missing"
             assert f"OUT_{core['name']} = build/{core['name']}/" in text, "artifact dir missing"
             main = (out / f"src/main-{core['name']}.c").read_text()
-            assert "wfi" in main and header in main, "bring-up source incomplete"
+            assert header in main, "config header include missing"
+            if "example" in doc.get("blocks", {}):
+                assert (
+                    "GPIO_BSRR" in main and "delay_half_period" in main and "LED_PIN" in main
+                ), "example blink missing"
+            else:
+                assert "wfi" in main, "stub main missing"
             linker = (out / f"linker/{doc['blocks']['linker'][core['name']]}").read_text()
             assert "ENTRY(Reset_Handler)" in linker and "MEMORY" in linker
             for sym in ("_estack", "_sdata", "_edata", "_sbss", "_ebss", "_sidata"):

@@ -84,12 +84,70 @@ def _oc_flash_args(device: Device) -> str:
     return args
 
 
+def _main_sections(facets: DeviceFacets) -> tuple[str, str]:
+    """(extra includes, main body) for ``src/main-<core>.c`` (req-014).
+
+    A pack that declares ``example.led`` gets a self-contained blink of that
+    on-board LED (raw registers + NOP half-period delay, no HAL); otherwise the
+    ``wfi`` stub.
+    """
+    led = facets.example_led
+    if led is None:
+        return (
+            "",
+            f"    /* TODO: clock + peripheral init (defaults in config/{facets.config_header}). */\n"
+            "    for (;;) {\n"
+            '        __asm volatile ("wfi");\n'
+            "    }\n",
+        )
+    port, pin, active = led
+    pidx = ord(port.upper()) - ord("A")
+    gpio = 0x40020000 + pidx * 0x400
+    on_shift, off_shift = (pin, pin + 16) if active == "high" else (pin + 16, pin)
+    includes = (
+        "#include <stdint.h>\n"
+        "\n"
+        "#define REG32(a)     (*(volatile uint32_t *)(a))\n"
+        "#define RCC_AHB1ENR  REG32(0x40023830UL)\n"
+        f"#define GPIO_MODER   REG32(0x{gpio:08X}UL)\n"
+        f"#define GPIO_BSRR    REG32(0x{gpio + 0x18:08X}UL)\n"
+        "\n"
+        f"#define LED_PIN      {pin}u\n"
+        f"#define BSRR_ON      (1u << {on_shift})\n"
+        f"#define BSRR_OFF     (1u << {off_shift})\n"
+        "#define DELAY_ITERS  50000UL  /* ~0.05 s @16 MHz, ~10 Hz; tune */\n"
+        "\n"
+        "static void delay_half_period(void)\n"
+        "{\n"
+        "    for (volatile uint32_t i = 0; i < DELAY_ITERS; ++i) {\n"
+        '        __asm volatile ("nop");\n'
+        "    }\n"
+        "}\n"
+    )
+    body = (
+        f"    /* Example for this pack: blink the on-board LED "
+        f"(P{port.upper()}{pin}, {active} active). */\n"
+        f"    RCC_AHB1ENR |= (1u << {pidx});\n"
+        "    GPIO_MODER &= ~(3u << (LED_PIN * 2));\n"
+        "    GPIO_MODER |=  (1u << (LED_PIN * 2));\n"
+        "\n"
+        "    for (;;) {\n"
+        "        GPIO_BSRR = BSRR_ON;\n"
+        "        delay_half_period();\n"
+        "        GPIO_BSRR = BSRR_OFF;\n"
+        "        delay_half_period();\n"
+        "    }\n"
+    )
+    return includes, body
+
+
 def core_context(device: Device, core: Core, lang: str) -> dict:
     """Per-core substitution context (renderer-computed, template renders)."""
     facets = device.facets
     cpu = CPU_BY_CORE.get(core.name, core.name.lower())
     header = facets.config_header
     guard = re.sub(r"\W", "_", header).upper()
+    example_includes, main_body = _main_sections(facets)
     return {
         "project": device.id,
         "device_id": device.id,
@@ -125,6 +183,8 @@ def core_context(device: Device, core: Core, lang: str) -> dict:
         "probe_transport": device.probe_ref.transport,
         "probe_address": device.probe_ref.address,
         "lang": lang,
+        "example_includes": example_includes,
+        "main_body": main_body,
     }
 
 
@@ -220,6 +280,7 @@ _MAIN_C = Template(
     "   SystemInit and then calls main() below. This file owns application\n"
     "   init only. */\n"
     '#include "$config_header"\n'
+    "$example_includes"
     "\n"
     "#ifndef USE_$config_guard\n"
     '#error "pack config header missing: build with -Iconfig (see config/OVERRIDES.md)"\n'
@@ -227,10 +288,7 @@ _MAIN_C = Template(
     "\n"
     "int main(void)\n"
     "{\n"
-    "    /* TODO: clock + peripheral init (defaults in config/$config_header). */\n"
-    "    for (;;) {\n"
-    '        __asm volatile ("wfi");\n'
-    "    }\n"
+    "$main_body"
     "}\n"
 )
 
