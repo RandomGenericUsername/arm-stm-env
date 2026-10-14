@@ -2,7 +2,7 @@
 id: ops-011
 title: "Full rename to mu (repo, package, paths, image namespace)"
 kind: ops-task
-status: in-progress
+status: done
 lane: direct
 links:
   openspec: none
