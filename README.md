@@ -49,8 +49,17 @@ uv run mu flash --mcu-config stm32f411re --project-dir ./demo \
 ```
 
 Per-board OpenOCD configs ship in each generated project (`probe/openocd.cfg`,
-verified against the ST OpenOCD fork). Live flash/run is the one path not
-yet proven without hardware — see `tickets/` for status.
+verified against the ST OpenOCD fork). Flash/run is proven live on
+NUCLEO-F411RE and NUCLEO-H755ZI-Q (dual core) — see `tickets/` for the per-item
+evidence.
+
+## Debugging in VS Code
+
+`mu create --vscode` + `mu dev` + *Dev Containers: Attach to Running Container*
+gives tasks (build/flash) and launch configs (per-core, plus a compound
+dual-core one), a peripheral register view from the pinned SVD, and probe
+selection by serial. Full walkthrough, expected behaviour, and troubleshooting:
+[`docs/vscode-debug.md`](docs/vscode-debug.md).
 
 ## Repo map
 
@@ -58,6 +67,7 @@ yet proven without hardware — see `tickets/` for status.
   adapters, templates, verify harness. `make test` runs the suite.
 - `packs/` — the three STM32 device packs (validated YAML).
 - `images/` — pinned toolchain Dockerfiles + build/smoke/push commands.
+- `docs/` — user-facing how-tos (`vscode-debug.md`, `flash-stm32-linux.md`).
 - `tickets/` — the work index (`INDEX.md` board, per-kind lifecycles).
 - `openspec/` + `_bmad-output/` — specs, proposals, brief, spec, architecture.
 
