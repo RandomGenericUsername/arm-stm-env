@@ -86,6 +86,15 @@ def _oc_flash_args(device: Device) -> str:
     return args
 
 
+# Delay-loop calibration for the generated examples (bug-015). The NOP loop
+# runs at ~5 cycles/iteration on the H755 M7 at -Os; the old divisor of 16
+# overestimated it 3x, so the "10 Hz" blink actually ran at ~29 Hz — too fast
+# to read as a blink (measured: 17 ms half-period). Target a ~0.25 s
+# half-period (~2 Hz), which the eye clearly sees as a blink.
+_DELAY_CYCLES_PER_ITER = 5
+_DELAY_HALF_PERIOD_S = 0.25
+
+
 def _sibling_sections(facets: DeviceFacets) -> tuple[str, str]:
     """(extra includes, main body) for a core with no LED example (ops-018).
 
@@ -94,12 +103,11 @@ def _sibling_sections(facets: DeviceFacets) -> tuple[str, str]:
     touched, so a sibling core can't fight the primary core's LED example.
     """
     clock = facets.example_led.clock_hz if facets.example_led else 16_000_000
-    # ~0.05 s half-period; loop ≈ 16 cycles/iter at -O (approximate).
-    iters = round(0.05 * clock / 16)
+    iters = round(_DELAY_HALF_PERIOD_S * clock / _DELAY_CYCLES_PER_ITER)
     includes = (
         "#include <stdint.h>\n"
         "\n"
-        f"#define DELAY_ITERS  {iters}UL  /* ~0.05 s @{clock} Hz; tune */\n"
+        f"#define DELAY_ITERS  {iters}UL  /* ~{_DELAY_HALF_PERIOD_S:g} s @{clock} Hz; tune */\n"
         "\n"
         "/* Volatile so it survives -O and is watchable in a debug session. */\n"
         "volatile uint32_t counter = 0;\n"
@@ -137,8 +145,7 @@ def _main_sections(facets: DeviceFacets, primary: bool) -> tuple[str, str]:
     on_shift, off_shift = (
         (led.pin, led.pin + 16) if led.active == "high" else (led.pin + 16, led.pin)
     )
-    # ~10 Hz: half-period ≈ 0.05 s; loop ≈ 16 cycles/iter at -O (approximate).
-    iters = round(0.05 * led.clock_hz / 16)
+    iters = round(_DELAY_HALF_PERIOD_S * led.clock_hz / _DELAY_CYCLES_PER_ITER)
     includes = (
         "#include <stdint.h>\n"
         "\n"
@@ -150,7 +157,7 @@ def _main_sections(facets: DeviceFacets, primary: bool) -> tuple[str, str]:
         f"#define LED_PIN      {led.pin}u\n"
         f"#define BSRR_ON      (1u << {on_shift})\n"
         f"#define BSRR_OFF     (1u << {off_shift})\n"
-        f"#define DELAY_ITERS  {iters}UL  /* ~0.05 s @{led.clock_hz} Hz, ~10 Hz; tune */\n"
+        f"#define DELAY_ITERS  {iters}UL  /* ~{_DELAY_HALF_PERIOD_S:g} s @{led.clock_hz} Hz, ~2 Hz blink; tune */\n"
         "\n"
         "static void delay_half_period(void)\n"
         "{\n"
