@@ -28,6 +28,11 @@ ENV DEBIAN_FRONTEND=noninteractive \
     CARGO_HOME=/usr/local/cargo \
     PATH=/usr/local/cargo/bin:/usr/local/bin:${PATH}
 
+# bug-017: login shells (VS Code tasks run `bash -l`) source /etc/profile, whose
+# base image resets PATH and drops the toolchain. /etc/profile sources
+# profile.d last, so re-export the image PATH there.
+RUN printf 'export PATH="%s"\n' "$PATH" > /etc/profile.d/00-mu-path.sh
+
 RUN apt-get update && apt-get install -y --no-install-recommends \
         ca-certificates curl xz-utils \
         build-essential git autoconf automake libtool pkg-config make \

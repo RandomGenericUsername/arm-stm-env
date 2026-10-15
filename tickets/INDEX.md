@@ -52,6 +52,7 @@
 - [bug-014-dual-core-ram](./bug-014-dual-core-ram/ticket.md) — Dual-core packs link both cores into one RAM region (same _estack) -> M7 hard-faults | `done` | S1, per-core memory regions
 - [bug-015-blink-rate](./bug-015-blink-rate/ticket.md) — Generated blink runs ~29 Hz (delay formula 3x off) — LED looks steady, not blinking | `done` | S2
 - [bug-016-hla-maskisr-gate](./bug-016-hla-maskisr-gate/ticket.md) — HLA targets (stlink.cfg) reject `cortex_m maskisr` -> F411 debug launch fails | `done` | S1
+- [bug-017-login-shell-path](./bug-017-login-shell-path/ticket.md) — Image /etc/profile resets PATH -> login shells (VS Code tasks) lose the toolchain (Error 127) | `done` | S2, needs image rebuild
 
 ## Ops tasks
 
