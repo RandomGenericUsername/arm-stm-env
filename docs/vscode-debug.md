@@ -119,3 +119,39 @@ mu debug --project-dir ~/Desktop/my-project --serial <probe-serial>
 
 See also: `docs/flash-stm32-linux.md` (raw OpenOCD / USB access),
 `docs/e2e-evidence.md` (how the flash paths are proven).
+
+## 9. Clean test from zero (per board)
+
+The end-to-end check: a **fresh project**, a **fresh container**, real hardware.
+Do it per pack, with both boards attached.
+
+```sh
+# 1. fresh project
+mu create --name f411-clean --path ~/Desktop --mcu-config stm32f411re --lang c --vscode
+
+# 2. probe serial (mu resolves it; or read /sys/bus/usb/devices/*/serial)
+mu flash --mcu-config stm32f411re --dry-run   # shows -e MU_PROBE_SERIAL=<serial>
+
+# 3. fresh container: whole USB bus + the serial (replug-proof, picks the right probe)
+docker run -d --name mu-f411 \
+  --device-cgroup-rule 'c 189:* rmw' -v /dev/bus/usb:/dev/bus/usb \
+  -v ~/Desktop/f411-clean:/project \
+  -v "$(pwd)/engine:/opt/mu/engine:ro" -v "$(pwd)/packs:/opt/mu/packs:ro" \
+  -e PYTHONPATH=/opt/mu -e MU_PROBE_SERIAL=<serial> \
+  -w /project ghcr.io/randomgenericusername/lang-cpp:15.3.rel2 sleep infinity
+
+# 4. build + flash exactly as the VS Code task does (login shell)
+docker exec mu-f411 bash -lc 'cd /project && make flash'
+```
+
+Then attach VS Code to the container (§3) and `F5`.
+
+**Expected** (verified 2026-10-14, NUCLEO-F411RE + NUCLEO-H755ZI-Q, both attached):
+
+| Board | openocd picks | flash | runs |
+| --- | --- | --- | --- |
+| F411RE | `0483:3752` | `Verified OK` | LD2 toggles (~1 Hz), PC in `delay_half_period` |
+| H755ZI-Q | `0483:3754` | `Verified OK` ×2 (both banks) | M7 LD2 toggles; M4 `counter` increments |
+
+Each container sees **both** probes and still selects the right one — that is
+`MU_PROBE_SERIAL` → `probe/probe-serial.cfg` → `adapter serial` (§5).
