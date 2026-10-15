@@ -783,6 +783,19 @@ def _processor_index(device: Device, core: Core, index: int) -> int:
     return index
 
 
+def _cortex_m_maskisr_available(device: Device) -> bool:
+    """True when the OpenOCD target is a ``cortex_m`` (DAP) target (bug-016).
+
+    The bug-011 workaround uses ``cortex_m maskisr``, which only exists on
+    DAP-based targets. HLA interfaces (``stlink.cfg`` -> ``hla_target``) reject
+    it — ``invalid command name "cortex_m"`` — which aborts the gdb launch
+    ("Protocol error with Rcmd: 01"). HLA targets don't need it either: their
+    single-step already works.
+    """
+    interface = device.openocd.interface if device.openocd else ""
+    return "dap" in interface.lower()
+
+
 def _vscode_files(device: Device) -> dict[str, str]:
     """Generated ``.vscode/`` for the container-attached flow (req-016/017).
 
@@ -822,7 +835,7 @@ def _vscode_files(device: Device) -> dict[str, str]:
             # per-core config without it would attach every session to cpu0.
             config["numberOfProcessors"] = len(cores)
             config["targetProcessor"] = _processor_index(device, core, index)
-        if _is_cortex_m(core.arch):
+        if _is_cortex_m(core.arch) and _cortex_m_maskisr_available(device):
             # bug-011: OpenOCD never advances the PC on a Cortex-M single-step
             # unless interrupts are masked for the duration of the step
             # (J-Link/ST-Link GDB servers do this by default; OpenOCD must be
@@ -832,6 +845,9 @@ def _vscode_files(device: Device) -> dict[str, str]:
             # bug-012: gated to Cortex-M — the `cortex_m` command group does
             # not exist on other architectures (e.g. RISC-V), where it would
             # error and abort the launch.
+            # bug-016: and gated to DAP targets — HLA (`stlink.cfg` ->
+            # `hla_target`) has no `cortex_m` group, so the command fails with
+            # 'invalid command name "cortex_m"' and the launch aborts.
             config["postLaunchCommands"] = ["monitor cortex_m maskisr steponly"]
         svd = _svd_file_for(device, core.name)
         if svd is not None:
