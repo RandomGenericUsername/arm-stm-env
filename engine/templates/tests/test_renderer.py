@@ -156,8 +156,10 @@ def test_render_vscode_generates_valid_configs(tmp_path) -> None:
         "board/st_nucleo_f4.cfg",
         "probe/resume-on-detach.cfg",
     ]
-    # bug-011: mask interrupts during single-step so stepping advances (H7/M7).
-    assert cfg["postLaunchCommands"] == ["monitor cortex_m maskisr steponly"]
+    # bug-016: the F411 uses HLA (stlink.cfg -> hla_target), which has no
+    # `cortex_m` command group, so the workaround must NOT be emitted (it would
+    # fail the launch with 'invalid command name "cortex_m"').
+    assert "postLaunchCommands" not in cfg
     # bug-013: single-core configs need no processor targeting.
     assert "numberOfProcessors" not in cfg and "targetProcessor" not in cfg
     assert (tmp_path / "probe/resume-on-detach.cfg").is_file()
@@ -204,26 +206,39 @@ def test_render_vscode_per_core_dual(tmp_path) -> None:
     assert chained["launches"] == [{"name": "Debug M4 (OpenOCD)"}]
 
 
-def test_vscode_maskisr_gated_to_cortex_m() -> None:
-    """bug-012: the `cortex_m` workaround is only emitted for Cortex-M cores."""
+def test_vscode_maskisr_gated_to_cortex_m_and_dap() -> None:
+    """bug-012/016: the `cortex_m maskisr` workaround is emitted only for
+    Cortex-M cores on a DAP target — HLA (stlink.cfg -> hla_target) has no
+    `cortex_m` command group and would abort the launch."""
     import json
     from dataclasses import replace
 
     from engine.templates.renderer import _vscode_files
 
-    cm = _vscode_files(_synthetic_device())  # thumbv7em-none-eabihf
-    cfgs = json.loads(cm[".vscode/launch.json"])["configurations"]
-    assert all(
-        c.get("postLaunchCommands") == ["monitor cortex_m maskisr steponly"]
-        for c in cfgs
-    )
+    def cmds(device) -> list[dict]:
+        return json.loads(_vscode_files(device)[".vscode/launch.json"])["configurations"]
 
+    dap = OpenocdConfig(interface="stlink-dap.cfg", target="board.cfg", board="synth.cfg")
+    hla = OpenocdConfig(interface="stlink.cfg", target="board.cfg", board="synth.cfg")
+    workaround = ["monitor cortex_m maskisr steponly"]
+
+    # Cortex-M + DAP -> present
+    assert all(
+        c["postLaunchCommands"] == workaround
+        for c in cmds(replace(_synthetic_device(), openocd=dap))
+    )
+    # Cortex-M + HLA -> absent
+    assert all(
+        "postLaunchCommands" not in c
+        for c in cmds(replace(_synthetic_device(), openocd=hla))
+    )
+    # non-Cortex-M (DAP) -> absent
     riscv = replace(
         _synthetic_device(),
         cores=[Core(name="M4", arch="riscv32imac-unknown-none-elf")],
+        openocd=dap,
     )
-    rv = json.loads(_vscode_files(riscv)[".vscode/launch.json"])["configurations"]
-    assert all("postLaunchCommands" not in c for c in rv)
+    assert all("postLaunchCommands" not in c for c in cmds(riscv))
 
 
 def test_render_vscode_off_by_default(tmp_path) -> None:
