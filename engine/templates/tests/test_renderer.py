@@ -154,8 +154,12 @@ def test_render_vscode_generates_valid_configs(tmp_path) -> None:
     assert cfg["configFiles"] == [
         "interface/stlink.cfg",
         "board/st_nucleo_f4.cfg",
+        "probe/probe-serial.cfg",
         "probe/resume-on-detach.cfg",
     ]
+    # bug-018: probe pinning by serial (containers pass the whole USB bus).
+    serial_cfg = (tmp_path / "probe/probe-serial.cfg").read_text()
+    assert "MU_PROBE_SERIAL" in serial_cfg and "adapter serial" in serial_cfg
     # bug-016: the F411 uses HLA (stlink.cfg -> hla_target), which has no
     # `cortex_m` command group, so the workaround must NOT be emitted (it would
     # fail the launch with 'invalid command name "cortex_m"').

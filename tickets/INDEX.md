@@ -53,6 +53,7 @@
 - [bug-015-blink-rate](./bug-015-blink-rate/ticket.md) — Generated blink runs ~29 Hz (delay formula 3x off) — LED looks steady, not blinking | `done` | S2
 - [bug-016-hla-maskisr-gate](./bug-016-hla-maskisr-gate/ticket.md) — HLA targets (stlink.cfg) reject `cortex_m maskisr` -> F411 debug launch fails | `done` | S1
 - [bug-017-login-shell-path](./bug-017-login-shell-path/ticket.md) — Image /etc/profile resets PATH -> login shells (VS Code tasks) lose the toolchain (Error 127) | `done` | S2, needs image rebuild
+- [bug-018-usb-bus-binding](./bug-018-usb-bus-binding/ticket.md) — Containers bind a USB node number -> a replug breaks them (GDB Server Quit Unexpectedly) | `done` | S2, whole-bus mount + serial selection
 
 ## Ops tasks
 

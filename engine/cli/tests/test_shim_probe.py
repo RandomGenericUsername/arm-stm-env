@@ -79,7 +79,7 @@ def test_binding_autodetect_ambiguous_raises(tmp_path):
 def test_binding_macos_documented_limits():
     # macOS: selector kept, but no docker USB passthrough (Desktop limit).
     assert resolve_probe_binding(os_name="darwin", serial="ABC123") == ProbeBinding(
-        selector="ABC123", host_devices=()
+        selector="ABC123", host_devices=(), serial="ABC123"
     )
     assert resolve_probe_binding(
         os_name="darwin", device="/dev/cu.usbserial-X"
@@ -95,14 +95,20 @@ def test_endpoint_address_is_selector_not_path(tmp_path):
     assert ep is not None and ep.address == "STL-1"
 
 
-def test_container_argv_forwards_usb_node(monkeypatch, tmp_path):
+def test_container_argv_forwards_usb_bus(monkeypatch, tmp_path):
+    """bug-018: pass the whole USB bus + serial, never a per-node --device."""
     root = _fake_sysfs(tmp_path)
     monkeypatch.setattr("engine.cli.shim._SYSFS_USB", root)
     argv = build_container_argv(
         ShimRequest(verb="flash", vid="0483", pid="3752", os_name="linux")
     )
-    assert "/dev/bus/usb/003/009:/dev/bus/usb/003/009" in argv
-    assert "--device" in argv and "STL-1" in argv
+    joined = " ".join(argv)
+    assert "/dev/bus/usb:/dev/bus/usb" in joined
+    assert "c 189:* rmw" in joined
+    assert "MU_PROBE_SERIAL=STL-1" in argv
+    # the stale-prone per-node passthrough is gone
+    assert "/dev/bus/usb/003/009:/dev/bus/usb/003/009" not in joined
+    assert "--device" in argv and "STL-1" in argv  # selector still forwarded
 
 
 def test_container_argv_explicit_device(monkeypatch):
@@ -120,21 +126,25 @@ def test_container_argv_macos_no_usb_passthrough():
     assert "ABC" in argv  # selector still forwarded for in-container use
 
 
-def test_shim_probe_linux_dry_run_carries_device(capsys, monkeypatch, tmp_path):
+def test_shim_probe_linux_dry_run_carries_bus(capsys, monkeypatch, tmp_path):
     root = _fake_sysfs(tmp_path)
     monkeypatch.setattr("engine.cli.shim._SYSFS_USB", root)
     monkeypatch.setattr("platform.system", lambda: "Linux")
     assert main(["flash", "--vid", "0483", "--pid", "3752", "--dry-run"]) == 0
     out = capsys.readouterr().out
-    assert "--device /dev/bus/usb/003/009:/dev/bus/usb/003/009" in out
+    assert "/dev/bus/usb:/dev/bus/usb" in out
+    assert "MU_PROBE_SERIAL=STL-1" in out
 
 
-def test_dev_forwards_probe_device(capsys, monkeypatch):
-    """req-019: `mu dev` hands the probe's USB node to the dev container."""
+def test_dev_forwards_probe_bus(capsys, monkeypatch, tmp_path):
+    """bug-018: `mu dev` hands the whole USB bus + the probe serial to the container."""
+    root = _fake_sysfs(tmp_path)
+    monkeypatch.setattr("engine.cli.shim._SYSFS_USB", root)
     monkeypatch.setattr("platform.system", lambda: "Linux")
-    assert main(["dev", "--device", "/dev/bus/usb/003/045", "--dry-run"]) == 0
+    assert main(["dev", "--device", "/dev/bus/usb/003/009", "--dry-run"]) == 0
     out = capsys.readouterr().out
-    assert "--device /dev/bus/usb/003/045:/dev/bus/usb/003/045" in out
+    assert "/dev/bus/usb:/dev/bus/usb" in out
+    assert "MU_PROBE_SERIAL=STL-1" in out
     assert "/bin/bash" in out
 
 
@@ -146,11 +156,12 @@ def test_build_verb_carries_no_probe_device(monkeypatch, tmp_path):
     assert "--device" not in argv
 
 
-def test_flash_verb_autodetects_probe_device(monkeypatch, tmp_path):
+def test_flash_verb_autodetects_probe_bus(monkeypatch, tmp_path):
     root = _fake_sysfs(tmp_path)
     monkeypatch.setattr("engine.cli.shim._SYSFS_USB", root)
     argv = build_container_argv(ShimRequest(verb="flash", os_name="linux"))
-    assert "/dev/bus/usb/003/009:/dev/bus/usb/003/009" in argv
+    assert "/dev/bus/usb:/dev/bus/usb" in " ".join(argv)
+    assert "MU_PROBE_SERIAL=STL-1" in argv
 
 
 def test_shim_probe_xor_mcu_config_vs_individual_flags(capsys):

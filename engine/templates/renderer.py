@@ -76,9 +76,18 @@ def _oc_flash_args(device: Device) -> str:
     """`openocd -f ...` args for flash-helper targets, from model facts."""
     oc = device.openocd
     if oc is None:
-        return "-f interface/stlink.cfg -f target/stm32f4x.cfg"
+        # No invented fallback (startup lesson, mirrors DeviceFacets.linker_for):
+        # a pack without an openocd block is a loud error, never a plausible-
+        # but-wrong board default (stlink.cfg/stm32f4x.cfg).
+        raise ValueError(
+            f"pack {device.id!r} declares no openocd block; cannot derive flash args"
+        )
     interface, target = oc.config_files()
-    args = f"-f {interface} -f {target}"
+    # probe/probe-serial.cfg is renderer-owned layout (written for every
+    # project): it pins the probe by serial from MU_PROBE_SERIAL (bug-018).
+    # Containers pass the whole USB bus, so this selects the right probe when
+    # several are attached. Harmless when unset.
+    args = f"-f {interface} -f {target} -f probe/probe-serial.cfg"
     if oc.dual_core and not oc.board:
         # Target-direct dual sessions (WL55JC) need the flag on the command
         # line; board cfgs (F4/H7) set DUAL_CORE themselves (spike-001).
@@ -566,6 +575,25 @@ _MAIN_RS = Template(
     "}\n"
 )
 
+def _probe_serial(device: Device) -> str:
+    """``probe/probe-serial.cfg``: pin the probe by serial from MU_PROBE_SERIAL.
+
+    Plain string (not ``Template``) because the TCL ``$::env`` would trip
+    ``string.Template``. bug-018: containers pass the whole USB bus, so this is
+    what selects the right probe when more than one is attached; unset/empty
+    means "let OpenOCD pick" (single probe).
+    """
+    return (
+        f"# {device.id} probe/probe-serial.cfg — pin the probe by serial (bug-018).\n"
+        "# mu resolves a probe and sets MU_PROBE_SERIAL; the container passes the\n"
+        "# whole USB bus, so this is what selects the right probe when more than one\n"
+        "# is attached. Unset/empty means 'let OpenOCD pick' (single probe).\n"
+        'if {[info exists ::env(MU_PROBE_SERIAL)] && $::env(MU_PROBE_SERIAL) ne ""} {\n'
+        "    adapter serial $::env(MU_PROBE_SERIAL)\n"
+        "}\n"
+    )
+
+
 _OPENOCD = Template(
     "# $project probe/openocd.cfg — generated from pack openocd facts (spike-001).\n"
     "# Probe: $probe_transport ($probe_address).\n"
@@ -805,9 +833,12 @@ def _vscode_files(device: Device) -> dict[str, str]:
     Built as JSON, never string-templated, so the output is always valid.
     """
     oc = device.openocd
-    iface, target = (
-        oc.config_files() if oc else ("interface/stlink.cfg", "target/stm32f4x.cfg")
-    )
+    if oc is None:
+        # No invented fallback (mirrors _oc_flash_args / linker_for).
+        raise ValueError(
+            f"pack {device.id!r} declares no openocd block; cannot render .vscode/"
+        )
+    iface, target = oc.config_files()
     gdb = "/opt/arm-gnu-toolchain/bin/arm-none-eabi-gdb"
     openocd = "/usr/local/bin/openocd"
 
@@ -825,7 +856,12 @@ def _vscode_files(device: Device) -> dict[str, str]:
             "cwd": "${workspaceFolder}",
             "executable": "${workspaceFolder}/" + elf,
             "runToEntryPoint": "main",
-            "configFiles": [iface, target, "probe/resume-on-detach.cfg"],
+            "configFiles": [
+                iface,
+                target,
+                "probe/probe-serial.cfg",
+                "probe/resume-on-detach.cfg",
+            ],
             "openocdPath": openocd,
             "gdbPath": gdb,
         }
@@ -941,6 +977,10 @@ def render(
 
     write(".gitignore", _GITIGNORE)
     write("probe/openocd.cfg", _render_openocd(pack_model))
+    # bug-018: containers pass the whole USB bus (replugs no longer break them),
+    # so the probe is selected by serial from MU_PROBE_SERIAL. Written for every
+    # project — the Makefile flash targets source it too.
+    write("probe/probe-serial.cfg", _probe_serial(pack_model))
     if vscode and lang in ("c", "cpp"):
         written.extend(fetch_svds(pack_model, out))
         write("probe/resume-on-detach.cfg", _resume_on_detach(pack_model))
