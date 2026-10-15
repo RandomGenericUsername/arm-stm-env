@@ -62,7 +62,13 @@ def expected_files(pack_id: str, lang: str) -> list[str]:
         files.append("Startup/NOTE.md")
     else:
         files = [*base, "memory.x", "build.rs", "src/main.rs"]
-    files += [".gitignore", "probe/openocd.cfg", f"config/{header}", "config/OVERRIDES.md"]
+    files += [
+        ".gitignore",
+        "probe/openocd.cfg",
+        "probe/probe-serial.cfg",
+        f"config/{header}",
+        "config/OVERRIDES.md",
+    ]
     return sorted(files)
 
 

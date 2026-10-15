@@ -98,10 +98,14 @@ class ProbeBinding:
     ``selector`` is what a backend uses to pick the probe (USB serial or
     ``VID:PID``); ``host_devices`` are the host paths the container must be
     given (the USB device node) so a USB probe is reachable through libusb.
+    ``serial`` is the USB serial when known, forwarded to the container as
+    ``MU_PROBE_SERIAL`` so the backend can pin the probe by serial (bug-018)
+    even when the whole USB bus is passed through.
     """
 
     selector: str
     host_devices: tuple[str, ...] = ()
+    serial: str | None = None
 
 
 def _read_text(path: Path) -> str:
@@ -116,6 +120,20 @@ def _usb_device_node(entry: Path) -> str | None:
     bus, dev = _read_text(entry / "busnum"), _read_text(entry / "devnum")
     if bus.isdigit() and dev.isdigit():
         return f"/dev/bus/usb/{int(bus):03d}/{int(dev):03d}"
+    return None
+
+
+def _serial_for_usb_node(sysfs_root: Path, node: str) -> str | None:
+    """USB serial for a ``/dev/bus/usb/<bus>/<dev>`` node (bug-018).
+
+    Lets an explicit ``--device`` node still be pinned by serial inside the
+    container (whose whole USB bus is passed through).
+    """
+    if not sysfs_root.is_dir():
+        return None
+    for entry in sorted(sysfs_root.iterdir()):
+        if _usb_device_node(entry) == node:
+            return _read_text(entry / "serial") or None
     return None
 
 
@@ -168,7 +186,7 @@ def _autodetect(*, is_mac: bool, sysfs_root: Path | str | None) -> ProbeBinding 
     s = _read_text(entry / "serial")
     node = _usb_device_node(entry)
     host = () if is_mac else ((node,) if node else ())
-    return ProbeBinding(selector=s or f"{v}:{p}", host_devices=host)
+    return ProbeBinding(selector=s or f"{v}:{p}", host_devices=host, serial=s or None)
 
 
 def resolve_probe_binding(
@@ -191,8 +209,15 @@ def resolve_probe_binding(
     nodes, so ``host_devices`` is empty there (use ``--mode local``).
     """
     is_mac = os_name.lower().startswith(("darwin", "mac"))
+    root = Path(sysfs_root) if sysfs_root else _SYSFS_USB
     if device:
-        return ProbeBinding(selector=device, host_devices=() if is_mac else (device,))
+        # Explicit node: still resolve its serial when it is a USB node, so the
+        # container can pin the probe with `adapter serial` (bug-018).
+        return ProbeBinding(
+            selector=device,
+            host_devices=() if is_mac else (device,),
+            serial=None if is_mac else _serial_for_usb_node(root, device),
+        )
     if not (vid or pid or serial):
         return _autodetect(is_mac=is_mac, sysfs_root=sysfs_root)
     if is_mac and not serial:
@@ -200,18 +225,17 @@ def resolve_probe_binding(
             "macOS probe limit: automatic VID/PID mapping unsupported; "
             "pass --device /dev/(cu|tty).usb* explicitly or use --mode local"
         )
-    root = Path(sysfs_root) if sysfs_root else _SYSFS_USB
     match = _match_usb(root, vid, pid, serial)
     if match is None:
         # No sysfs match (unplugged/unknown): keep a usable selector so the
         # backend single-probe default still applies; nothing to forward.
         selector = serial or (f"{vid}:{pid}" if vid and pid else (vid or pid or "probe"))
-        return ProbeBinding(selector=selector, host_devices=())
+        return ProbeBinding(selector=selector, host_devices=(), serial=serial or None)
     entry, v, p, s = match
     selector = s or f"{v}:{p}"
     node = _usb_device_node(entry)
     host = () if is_mac else ((node,) if node else ())
-    return ProbeBinding(selector=selector, host_devices=host)
+    return ProbeBinding(selector=selector, host_devices=host, serial=s or None)
 
 
 def probe_endpoint(
@@ -279,8 +303,26 @@ def build_container_argv(
     )
     docker_devices: list[str] = []
     if binding is not None:
+        # USB probes: pass the whole bus, not one node number. Docker binds
+        # devices at container creation, so a per-node --device goes stale the
+        # moment the board is replugged (the node number changes) and the
+        # backend cannot open the probe (bug-018). With the bus visible,
+        # MU_PROBE_SERIAL is what selects the right probe.
+        usb_nodes = [n for n in binding.host_devices if n.startswith("/dev/bus/usb/")]
+        if usb_nodes:
+            docker_devices += [
+                "--device-cgroup-rule",
+                "c 189:* rmw",
+                "-v",
+                "/dev/bus/usb:/dev/bus/usb",
+            ]
         for node in binding.host_devices:
-            docker_devices += ["--device", f"{node}:{node}"]
+            if node not in usb_nodes:  # non-USB (e.g. a serial tty) keeps --device
+                docker_devices += ["--device", f"{node}:{node}"]
+    env_args: list[str] = ["-e", "PYTHONPATH=/opt/mu"]
+    if binding is not None and binding.serial:
+        # The container sees every probe; the serial is how the backend picks ours.
+        env_args += ["-e", f"MU_PROBE_SERIAL={binding.serial}"]
     inner: list[str] = ["python3", "-m", "engine"]
     if request.verb == "dev":
         inner = ["/bin/bash"]
@@ -304,8 +346,7 @@ def build_container_argv(
         f"{engine_root()}:{CONTAINER_REPO}/engine:ro",
         "-v",
         f"{packs_dir()}:{CONTAINER_REPO}/packs:ro",
-        "-e",
-        "PYTHONPATH=/opt/mu",
+        *env_args,
         "-w",
         CONTAINER_PROJECT,
         image,
