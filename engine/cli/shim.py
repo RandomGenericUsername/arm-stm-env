@@ -22,8 +22,9 @@ on macOS. Explicit ``--device`` always wins over VID/PID/serial selectors.
 
 from __future__ import annotations
 
+import re
 import shlex
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 
 import engine
@@ -34,9 +35,12 @@ __all__ = [
     "ProbeBinding",
     "ShimRequest",
     "build_container_argv",
+    "build_probe_argv",
+    "describe_mount_failure",
     "engine_root",
     "format_argv",
     "interactive_args",
+    "parse_mount_failure",
     "probe_endpoint",
     "repo_root",
     "resolve_probe_binding",
@@ -265,20 +269,16 @@ def probe_endpoint(
     return Endpoint(transport="probe", address=binding.selector)
 
 
-def build_container_argv(
+def _container_prefix(
     request: ShimRequest, *, lookup: ImageLookup | None = None
-) -> list[str]:
-    """Return the exact ``docker run`` argv for ``request``.
+) -> tuple[list[str], str, ProbeBinding | None]:
+    """Shared ``docker run`` prefix + image + probe binding for argv builders.
 
-    The image carries toolchains only, so the container side runs the engine
-    from the read-only repo mount: ``python3 -m engine <verb> ... --mode
-    local`` with ``--project-dir /project``. The probe binding resolves on the
-    host: its USB device node(s) become docker ``--device`` flags, and the
-    selector forwards into the container as ``--device`` (pack ids resolve via
-    the mounted repo; ``--mcu-config`` files must live under the project —
-    enforced by the caller).
-    ``local`` mode executes in-process and never builds argv: it raises
-    :class:`ValueError`. Unknown mode/lang raises :class:`ValueError`.
+    Covers everything up to and including the image: runtime flags, probe
+    device forwarding, the three mounts (project read-write at
+    ``/project``, ``engine`` + ``packs`` read-only), env, and working dir.
+    Validation matches :func:`build_container_argv` (``local`` mode and empty
+    verbs raise :class:`ValueError`).
     """
     if request.mode not in MODES:
         raise ValueError(f"mode must be one of {MODES}, got {request.mode!r}")
@@ -323,18 +323,7 @@ def build_container_argv(
     if binding is not None and binding.serial:
         # The container sees every probe; the serial is how the backend picks ours.
         env_args += ["-e", f"MU_PROBE_SERIAL={binding.serial}"]
-    inner: list[str] = ["python3", "-m", "engine"]
-    if request.verb == "dev":
-        inner = ["/bin/bash"]
-    else:
-        inner += [request.verb, "--lang", request.lang, "--mode", "local"]
-        inner += ["--project-dir", CONTAINER_PROJECT]
-        if request.mcu_config is not None:
-            inner += ["--mcu-config", request.mcu_config]
-        if binding is not None:
-            inner += ["--device", binding.selector]
-        inner += list(request.extra)
-    return [
+    prefix = [
         "docker",
         "run",
         "--rm",
@@ -349,9 +338,85 @@ def build_container_argv(
         *env_args,
         "-w",
         CONTAINER_PROJECT,
-        image,
-        *inner,
     ]
+    return prefix, image, binding
+
+
+def build_container_argv(
+    request: ShimRequest, *, lookup: ImageLookup | None = None
+) -> list[str]:
+    """Return the exact ``docker run`` argv for ``request``.
+
+    The image carries toolchains only, so the container side runs the engine
+    from the read-only repo mount: ``python3 -m engine <verb> ... --mode
+    local`` with ``--project-dir /project``. The probe binding resolves on the
+    host: its USB device node(s) become docker ``--device`` flags, and the
+    selector forwards into the container as ``--device`` (pack ids resolve via
+    the mounted repo; ``--mcu-config`` files must live under the project —
+    enforced by the caller).
+    ``local`` mode executes in-process and never builds argv: it raises
+    :class:`ValueError`. Unknown mode/lang raises :class:`ValueError`.
+    """
+    lookup = lookup or DefaultImageLookup()
+    prefix, image, binding = _container_prefix(request, lookup=lookup)
+    inner: list[str] = ["python3", "-m", "engine"]
+    if request.verb == "dev":
+        inner = ["/bin/bash"]
+    else:
+        inner += [request.verb, "--lang", request.lang, "--mode", "local"]
+        inner += ["--project-dir", CONTAINER_PROJECT]
+        if request.mcu_config is not None:
+            inner += ["--mcu-config", request.mcu_config]
+        if binding is not None:
+            inner += ["--device", binding.selector]
+        inner += list(request.extra)
+    return [*prefix, image, *inner]
+
+
+def build_probe_argv(
+    request: ShimRequest, *, lookup: ImageLookup | None = None
+) -> list[str]:
+    """Return a mount-preflight probe argv for ``request`` (bug-022).
+
+    Same ``docker run`` prefix (flags, devices, the three mounts, env, work
+    dir) and image as :func:`build_container_argv`, but non-interactive and
+    running ``true`` instead of the verb. Mounts are created at container
+    creation, so one probe run ground-truths every mount at once — no
+    blocklists, no guessing which roots a runtime shares. ``local`` mode,
+    unknown mode/lang raise :class:`ValueError` like the run argv.
+    """
+    prefix, image, _ = _container_prefix(replace(request, interactive=False), lookup=lookup)
+    return [*prefix, image, "true"]
+
+
+_MOUNT_SOURCE_RE = re.compile(r"error while creating mount source path '([^']+)'")
+
+
+def parse_mount_failure(stderr_text: str) -> str | None:
+    """Host path of the rejected mount source in daemon stderr, if any (bug-022).
+
+    Matches the daemon's ``error while creating mount source path ...`` and
+    maps runtime-side prefixes back to host paths (Docker Desktop on macOS
+    reports ``/host_mnt/<host path>``). Returns ``None`` when the text is not
+    a mount failure.
+    """
+    match = _MOUNT_SOURCE_RE.search(stderr_text or "")
+    if match is None:
+        return None
+    node = match.group(1)
+    if node.startswith("/host_mnt/"):
+        return "/" + node[len("/host_mnt/") :]
+    return node
+
+
+def describe_mount_failure(host_path: str) -> str:
+    """Friendly rendering of a rejected mount source (bug-022)."""
+    return (
+        f"mu: error: the container runtime cannot mount '{host_path}'\n"
+        f"  fix: move it somewhere the runtime can share (e.g. /tmp or ~/projects), "
+        f"repair its ownership/permissions, or (Docker Desktop) add it under "
+        f"Settings -> Resources -> File Sharing"
+    )
 
 
 def interactive_args(request: ShimRequest) -> list[str]:

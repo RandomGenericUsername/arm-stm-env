@@ -29,8 +29,11 @@ from engine.cli.shim import (
     MODES,
     ShimRequest,
     build_container_argv,
+    build_probe_argv,
+    describe_mount_failure,
     format_argv,
     packs_dir,
+    parse_mount_failure,
     probe_endpoint,
 )
 from engine.cli.verdict import render_flash_verdict
@@ -350,6 +353,30 @@ def _run_dev_local(args: argparse.Namespace) -> int:
     return completed.returncode
 
 
+def _run_with_tee(argv: list[str]) -> tuple[int, str]:
+    """Run ``argv`` with stdout inherited and stderr streamed live + captured.
+
+    Returns ``(exit code, captured stderr)`` so the caller can match daemon
+    failures (bug-022) without buffering the build log.
+    """
+    proc = subprocess.Popen(argv, stderr=subprocess.PIPE, text=True)
+    chunks: list[str] = []
+    assert proc.stderr is not None
+    for line in proc.stderr:
+        sys.stderr.write(line)
+        chunks.append(line)
+    return proc.wait(), "".join(chunks)
+
+
+def _report_mount_failure(stderr_text: str) -> bool:
+    """Print the friendly hint when ``stderr_text`` is a mount failure (bug-022)."""
+    bad = parse_mount_failure(stderr_text)
+    if bad is None:
+        return False
+    print(describe_mount_failure(bad), file=sys.stderr)
+    return True
+
+
 def _run_local(args: argparse.Namespace) -> int:
     """Execute the verb in-process (never re-execs ``mu``)."""
     if args.verb == "build":
@@ -454,12 +481,23 @@ def _run_verb(args: argparse.Namespace) -> int:
             file=sys.stderr,
         )
         return 1
+    # Mount preflight (bug-022): one probe run with the same mounts fails fast
+    # with a friendly hint instead of the raw daemon error from the real run.
+    probe = build_probe_argv(request, lookup=DefaultImageLookup())
+    probed = subprocess.run(probe, capture_output=True, text=True)
+    if probed.returncode != 0:
+        if not _report_mount_failure(probed.stderr or ""):
+            sys.stderr.write(probed.stderr or "")
+        return 1
     try:
-        completed = subprocess.run(argv)
+        code, err_text = _run_with_tee(argv)
     except FileNotFoundError:
         print(f"mu: error: executable not found: {argv[0]}", file=sys.stderr)
         return 1
-    return completed.returncode
+    if code != 0:
+        # Fallback for races the probe misses (unshared between probe and run).
+        _report_mount_failure(err_text)
+    return code
 
 
 def main(argv: list[str] | None = None) -> int:
