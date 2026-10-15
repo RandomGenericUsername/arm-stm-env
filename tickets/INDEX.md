@@ -72,6 +72,7 @@
 - [ops-017-wl55-example](./ops-017-wl55-example/ticket.md) — WL55JC blink example (LD1/PB15) | `done`
 - [ops-018-sibling-core-example](./ops-018-sibling-core-example/ticket.md) — Sibling-core example: debuggable counter loop instead of a wfi stub | `done`
 - [ops-019-vscode-debug-docs](./ops-019-vscode-debug-docs/ticket.md) — Document the VS Code debug flow (docs/vscode-debug.md) | `done`
+- [ops-020-clean-test-doc](./ops-020-clean-test-doc/ticket.md) — Document the clean from-zero test (docs/vscode-debug.md §9) | `done`
 
 ## Spikes
 
