@@ -2,7 +2,7 @@
 id: bug-022
 title: "Unshared Docker mount paths fail with raw daemon error (no preflight, no hint)"
 kind: bug
-status: in-progress
+status: done
 lane: direct
 severity: S3
 links:

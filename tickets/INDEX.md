@@ -57,7 +57,7 @@
 - [bug-019-cli-test-isolation](./bug-019-cli-test-isolation/ticket.md) — CLI tests depend on the host USB bus (fail when more than one probe is attached) | `done` | S3
 - [bug-020-dockerfile-layer-order](./bug-020-dockerfile-layer-order/ticket.md) — bug-017's profile.d RUN sits before the toolchain layers -> every image rebuild is a full rebuild | `done` | S3
 - [bug-021-wl55-dual-core](./bug-021-wl55-dual-core/ticket.md) — WL55JC dual-core: HLA hides the CM0+, both cores share flash, M0+ arch wrong, CPU2 never released | `done` | S2, M4 verified; CM0+ -> spike-006
-- [bug-022-mount-preflight](./bug-022-mount-preflight/ticket.md) — Unshared Docker mount paths fail with raw daemon error (no preflight, no hint) | `in-progress` | S3
+- [bug-022-mount-preflight](./bug-022-mount-preflight/ticket.md) — Unshared Docker mount paths fail with raw daemon error (no preflight, no hint) | `done` | S3, probe + tee fallback, 276/276 tests, live repro proven
 
 ## Ops tasks
 
