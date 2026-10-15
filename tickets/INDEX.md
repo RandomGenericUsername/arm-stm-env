@@ -81,6 +81,7 @@
 
 - [spike-005-h755-single-step](./spike-005-h755-single-step/ticket.md) — H755 single-step doesn't advance (stlink-dap) | `consumed` | boxed 3h — cause found (interrupts during step); fixed in bug-011
 - [spike-006-wl55-cm0p-bringup](./spike-006-wl55-cm0p-bringup/ticket.md) — WL55JC CM0+ bring-up: C2BOOT doesn't persist and the CM0+ double-faults | `reported` | boxed 4h — M4 works; CM0+ needs security/RAM investigation
+- [spike-007-esp32-cam](./spike-007-esp32-cam/ticket.md) — First non-STM32 board: what does an ESP32-CAM pack require? | `boxed` | boxed 4h
 
 ## Tasks
 
