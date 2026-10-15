@@ -12,7 +12,8 @@ mu create --name my-project --mcu-config stm32f411re --lang c --vscode --path ~/
 
 `--vscode` adds `.vscode/` (launch + tasks + settings + extension
 recommendations), fetches the pack's pinned SVD(s) into `probe/`, and writes
-`probe/probe-serial.cfg` (probe pinning — see §5).
+`probe/probe-serial.cfg` (probe pinning — see §5). Every project also gets a
+`README.md` restating its own tasks, launch configs, and expected behaviour.
 
 ## 2. Start the dev container
 

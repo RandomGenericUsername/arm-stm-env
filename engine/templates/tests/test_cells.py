@@ -64,6 +64,7 @@ def expected_files(pack_id: str, lang: str) -> list[str]:
         files = [*base, "memory.x", "build.rs", "src/main.rs"]
     files += [
         ".gitignore",
+        "README.md",
         "probe/openocd.cfg",
         "probe/probe-serial.cfg",
         f"config/{header}",
