@@ -143,6 +143,26 @@ def test_renderer_consumes_model_only(lang: str, tmp_path) -> None:
         assert 'name = "synthetic"' in (tmp_path / "Cargo.toml").read_text()
 
 
+def test_renderer_writes_project_readme(tmp_path) -> None:
+    """ops-021: every project documents its own build/flash/debug flow."""
+    device = load_file(PACKS_DIR / "stm32h755.yaml")
+    render(device, "c", tmp_path)
+    text = (tmp_path / "README.md").read_text()
+    assert text.startswith("# stm32h755")
+    assert "`M7`" in text and "`M4`" in text          # cores from the pack
+    assert "make flash-M4" in text                    # per-core targets
+    assert "Debug M7+M4 (OpenOCD)" in text            # compound dual-core config
+    assert "MU_PROBE_SERIAL" in text                  # probe-by-serial
+
+
+def test_renderer_readme_rust_has_no_make_targets(tmp_path) -> None:
+    device = load_file(PACKS_DIR / "stm32f411re.yaml")
+    render(device, "rust", tmp_path)
+    text = (tmp_path / "README.md").read_text()
+    assert "mu build --project-dir ." in text
+    assert "make flash" not in text                   # cargo path, not make
+
+
 def test_render_vscode_generates_valid_configs(tmp_path) -> None:
     import json
 
