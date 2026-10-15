@@ -221,7 +221,7 @@ def test_proof_loader_carries_openocd_block_facts():
     assert dual_board.openocd_interface == "stlink-dap.cfg"
     dual_target = DeviceView.of(load_file(PACKS / "stm32wl55jc.yaml"))
     assert (dual_target.openocd_interface, dual_target.openocd_target) == (
-        "stlink.cfg",
+        "stlink-dap.cfg",  # bug-021: HLA cannot do multicore
         "stm32wlx.cfg",
     )
     assert dual_target.openocd_dual_core is True

@@ -56,6 +56,7 @@
 - [bug-018-usb-bus-binding](./bug-018-usb-bus-binding/ticket.md) — Containers bind a USB node number -> a replug breaks them (GDB Server Quit Unexpectedly) | `done` | S2, whole-bus mount + serial selection
 - [bug-019-cli-test-isolation](./bug-019-cli-test-isolation/ticket.md) — CLI tests depend on the host USB bus (fail when more than one probe is attached) | `done` | S3
 - [bug-020-dockerfile-layer-order](./bug-020-dockerfile-layer-order/ticket.md) — bug-017's profile.d RUN sits before the toolchain layers -> every image rebuild is a full rebuild | `done` | S3
+- [bug-021-wl55-dual-core](./bug-021-wl55-dual-core/ticket.md) — WL55JC dual-core: HLA hides the CM0+, both cores share flash, M0+ arch wrong, CPU2 never released | `done` | S2, M4 verified; CM0+ -> spike-006
 
 ## Ops tasks
 
@@ -78,6 +79,7 @@
 ## Spikes
 
 - [spike-005-h755-single-step](./spike-005-h755-single-step/ticket.md) — H755 single-step doesn't advance (stlink-dap) | `consumed` | boxed 3h — cause found (interrupts during step); fixed in bug-011
+- [spike-006-wl55-cm0p-bringup](./spike-006-wl55-cm0p-bringup/ticket.md) — WL55JC CM0+ bring-up: C2BOOT doesn't persist and the CM0+ double-faults | `reported` | boxed 4h — M4 works; CM0+ needs security/RAM investigation
 
 ## Tasks
 

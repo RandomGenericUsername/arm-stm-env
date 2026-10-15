@@ -7,11 +7,18 @@ cores:
   - name: M4
     arch: thumbv7em-none-eabi
   - name: M0+
-    arch: thumbv7em-none-eabi
+    arch: thumbv6m-none-eabi # ARMv6-M (bug-021: was wrongly thumbv7em)
 memory:
-  - name: flash
+  # bug-021: the two cores must not share flash. CPU2 (CM0+) boots from its
+  # reset vector (FLASH_SRRVR.SBRV), normally 0x08020000 — the second half.
+  - name: flash_m4
     origin_hex: "0x08000000"
-    size: 262144 # 256K
+    size: 131072 # 128K
+    cores: [M4]
+  - name: flash_m0plus
+    origin_hex: "0x08020000"
+    size: 131072 # 128K
+    cores: [M0+]
   # bug-014: per-core RAM so the M4 and M0+ don't share one stack. UNVERIFIED
   # on hardware (no WL55 attached) — mirrors the H755 fix; the 64K is
   # partitioned rather than re-addressed so it stays inside the known region.
@@ -24,15 +31,18 @@ memory:
     size: 16384 # 16K
     cores: [M0+]
 probe:
-  transport: stlink
-  address: openocd:stlink
+  transport: stlink-dap
+  address: openocd:stlink-dap
 # Readback-first ladder: readback rung; DUAL_CORE OpenOCD session limits may
 # force LED fallback for live verification (noted, not silently assumed).
 probe_backend: openocd
 proof_rung: readback
 blocks:
   openocd:
-    interface: stlink.cfg
+    # bug-021: HLA ("stlink.cfg") cannot do multicore — the stm32wlx script
+    # warns and forces DUAL_CORE 0, so the CM0+ was never exposed. The probe is
+    # an STLINK-V3 (dapdirect), so use the DAP interface like the H755.
+    interface: stlink-dap.cfg
     target: stm32wlx.cfg
     dual_core: true
   # Sibling evidence ArmDevelopmentEnvironment@19a3889:
@@ -87,6 +97,20 @@ blocks:
       rcc_en_addr: 0x5800004C
       rcc_en_bit: 1
       clock_hz: 4000000
+    # bug-021: CPU2 (CM0+) stays in reset until CPU1 releases it (RM0453 §2.3).
+    # CPU1 must (1) point CPU2's reset vector at its image via FLASH_SRRVR.SBRV
+    # (word offset: 0x8000 -> 0x08020000) and (2) set PWR_CR4.C2BOOT. Addresses
+    # from the vendored cmsis-device-stm32wl55jc header (FLASH base 0x58004000 +
+    # 0x84; PWR base 0x58000400 + 0x0C, C2BOOT = bit 15).
+    cpu2_boot:
+      core: M0+
+      writes:
+        - addr: 0x58004084 # FLASH_SRRVR: SBRV -> 0x08020000
+          value: 0x8000
+          mask: 0x0000FFFF
+        - addr: 0x5800040C # PWR_CR4: C2BOOT
+          value: 0x8000
+          mask: 0x00008000
   # Cortex-Debug register view (req-017): pinned SVD per core (WL M4/M0+).
   svd:
     M4: stm32wl/STM32WL5x_CM4.svd

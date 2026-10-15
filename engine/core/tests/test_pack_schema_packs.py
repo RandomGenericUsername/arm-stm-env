@@ -47,14 +47,18 @@ def test_packs_accept_wl55jc_conservative_map():
     dev = load_file(PACKS / "stm32wl55jc.yaml")
     assert [(c.name, c.arch) for c in dev.cores] == [
         ("M4", "thumbv7em-none-eabi"),
-        ("M0+", "thumbv7em-none-eabi"),
+        ("M0+", "thumbv6m-none-eabi"),  # bug-021: ARMv6-M, was wrongly thumbv7em
     ]
     origins = {m.name: (m.origin, m.size) for m in dev.memory}
-    assert origins["flash"] == (0x08000000, 256 * 1024)  # bug-008: 256K, not 1M
+    # bug-021: the two cores must not share flash (256K split in half).
+    assert origins["flash_m4"] == (0x08000000, 128 * 1024)
+    assert origins["flash_m0plus"] == (0x08020000, 128 * 1024)
     # bug-008: 64K total (not 128K); bug-014: split per core.
     assert origins["ram_m4"] == (0x20000000, 48 * 1024)
     assert origins["ram_m0plus"] == (0x2000C000, 16 * 1024)
     assert origins["ram_m4"][1] + origins["ram_m0plus"][1] == 64 * 1024
+    tags = {m.name: m.cores for m in dev.memory}
+    assert tags["flash_m4"] == ("M4",) and tags["flash_m0plus"] == ("M0+",)
 
 
 def test_packs_accept_openocd_corrected_targets():
@@ -68,7 +72,7 @@ def test_packs_accept_openocd_corrected_targets():
     )
     wl = _raw("stm32wl55jc")["blocks"]["openocd"]
     assert (wl["interface"], wl["target"], wl["dual_core"]) == (
-        "stlink.cfg",
+        "stlink-dap.cfg",  # bug-021: HLA cannot do multicore
         "stm32wlx.cfg",
         True,
     )

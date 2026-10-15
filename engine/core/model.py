@@ -224,6 +224,10 @@ class DeviceFacets:
     probe_settings: Tuple[Tuple[str, Tuple[Tuple[str, str], ...]], ...] = ()
     #: Optional on-board LED example fact (req-014/req-015) or None.
     example_led: ExampleLed | None = None
+    #: Optional sibling-core release sequence (bug-021): ``(addr, value, mask)``
+    #: register writes the primary core performs to boot a sibling (e.g. the
+    #: STM32WL55 CPU2/CM0+). Empty when the pack needs none.
+    cpu2_boot: Tuple[Tuple[int, int, int | None], ...] = ()
     #: Per-core SVD source paths for the register view (req-017): (core, path).
     svd: Tuple[Tuple[str, str], ...] = ()
 
