@@ -109,6 +109,15 @@ def validate_frame(doc: dict) -> Device:
         if led
         else None
     )
+    cpu2 = example_block.get("cpu2_boot") if isinstance(example_block, dict) else None
+    cpu2_boot = (
+        tuple(
+            (_as_int(w["addr"]), _as_int(w["value"]), _as_int(w["mask"]) if "mask" in w else None)
+            for w in cpu2["writes"]
+        )
+        if cpu2
+        else ()
+    )
     facets = DeviceFacets(
         fpu_mode=fpu_block.get("mode", "soft"),
         fpu_variant=fpu_block.get("variant", "none"),
@@ -126,6 +135,7 @@ def validate_frame(doc: dict) -> Device:
             )
         ),
         example_led=example_led,
+        cpu2_boot=cpu2_boot,
         svd=tuple(sorted(svd_block.items())),
     )
     return Device(

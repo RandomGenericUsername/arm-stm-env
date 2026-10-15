@@ -85,13 +85,17 @@ def _oc_flash_args(device: Device) -> str:
     interface, target = oc.config_files()
     # probe/probe-serial.cfg is renderer-owned layout (written for every
     # project): it pins the probe by serial from MU_PROBE_SERIAL (bug-018).
-    # Containers pass the whole USB bus, so this selects the right probe when
-    # several are attached. Harmless when unset.
-    args = f"-f {interface} -f {target} -f probe/probe-serial.cfg"
-    if oc.dual_core and not oc.board:
-        # Target-direct dual sessions (WL55JC) need the flag on the command
-        # line; board cfgs (F4/H7) set DUAL_CORE themselves (spike-001).
-        args += ' -c "set DUAL_CORE 1"'
+    args = f"-f {interface} -f probe/probe-serial.cfg"
+    if oc.dual_core and not oc.board and not device.facets.cpu2_boot:
+        # Target-direct dual-core packs (WL55JC) have no board file to set the
+        # flag, and the target cfg reads DUAL_CORE while creating the second
+        # core — so it must be sourced BEFORE the target (bug-021).
+        # Packs that must *release* their sibling (cpu2_boot) are flashed
+        # single-core: the second core is asleep at reset, so its AP writes fail
+        # the final reset ("AP write error, reset will not halt"). Flashing the
+        # sibling image via cpu0's flash bank works regardless (bug-021).
+        args += " -f probe/dual-core.cfg"
+    args += f" -f {target}"
     return args
 
 
@@ -102,6 +106,35 @@ def _oc_flash_args(device: Device) -> str:
 # half-period (~2 Hz), which the eye clearly sees as a blink.
 _DELAY_CYCLES_PER_ITER = 5
 _DELAY_HALF_PERIOD_S = 0.25
+
+
+def _cpu2_boot_sections(facets: DeviceFacets) -> tuple[str, str]:
+    """(extra includes, main body) that release a sibling core (bug-021).
+
+    Device facts only: each ``(addr, value, mask)`` becomes a masked or plain OR
+    write, so the primary core boots its sibling (e.g. the STM32WL55 CPU2/CM0+
+    needs its reset vector pointed at its own image and ``PWR_CR4.C2BOOT`` set).
+    """
+    if not facets.cpu2_boot:
+        return "", ""
+    includes = (
+        "#include <stdint.h>\n"
+        "\n"
+        "#define REG32(a)     (*(volatile uint32_t *)(a))\n"
+    )
+    lines = [
+        "    /* Release the sibling core: point its reset vector at its image, then boot it. */"
+    ]
+    for addr, value, mask in facets.cpu2_boot:
+        if mask:
+            lines.append(
+                f"    REG32(0x{addr:08X}UL) = (REG32(0x{addr:08X}UL) & ~0x{mask:08X}UL)"
+                f" | 0x{value:08X}UL;"
+            )
+        else:
+            lines.append(f"    REG32(0x{addr:08X}UL) |= 0x{value:08X}UL;")
+    lines.append("")
+    return includes, "\n".join(lines) + "\n"
 
 
 def _sibling_sections(facets: DeviceFacets) -> tuple[str, str]:
@@ -147,9 +180,11 @@ def _main_sections(facets: DeviceFacets, primary: bool) -> tuple[str, str]:
     **primary** (first) core. Any other core (a dual-core sibling, or a pack
     with no LED fact) gets the ``_sibling_sections`` counter loop instead.
     """
+    boot_includes, boot_body = _cpu2_boot_sections(facets) if primary else ("", "")
     led = facets.example_led if primary else None
     if led is None:
-        return _sibling_sections(facets)
+        sibling_includes, sibling_body = _sibling_sections(facets)
+        return boot_includes + sibling_includes, boot_body + sibling_body
     gpio, rcc = led.gpio_base, led.rcc_en_addr
     on_shift, off_shift = (
         (led.pin, led.pin + 16) if led.active == "high" else (led.pin + 16, led.pin)
@@ -189,7 +224,8 @@ def _main_sections(facets: DeviceFacets, primary: bool) -> tuple[str, str]:
         "        delay_half_period();\n"
         "    }\n"
     )
-    return includes, body
+    # boot_body precedes the blink; the LED includes already define REG32.
+    return includes, boot_body + body
 
 
 def core_context(device: Device, core: Core, lang: str) -> dict:
@@ -704,6 +740,22 @@ mu build --project-dir .          # cargo build in the pinned image
     return "\n".join(head) + "\n" + body
 
 
+def _dual_core_cfg(device: Device) -> str:
+    """``probe/dual-core.cfg``: enable the pack's second OpenOCD core (bug-021).
+
+    Sourced *before* the target config, which reads ``DUAL_CORE`` while creating
+    the second core. Target-direct dual-core packs have no board file to set it,
+    and emitting ``-c "set DUAL_CORE 1"`` after the target was too late — the
+    second core never existed.
+    """
+    return (
+        f"# {device.id} probe/dual-core.cfg — enable the second core (bug-021).\n"
+        "# Sourced BEFORE the target config (it reads DUAL_CORE while creating\n"
+        "# the second core); target-direct packs have no board file to set it.\n"
+        "set DUAL_CORE 1\n"
+    )
+
+
 _OPENOCD = Template(
     "# $project probe/openocd.cfg — generated from pack openocd facts (spike-001).\n"
     "# Probe: $probe_transport ($probe_address).\n"
@@ -968,8 +1020,9 @@ def _vscode_files(device: Device) -> dict[str, str]:
             "runToEntryPoint": "main",
             "configFiles": [
                 iface,
-                target,
                 "probe/probe-serial.cfg",
+                *(["probe/dual-core.cfg"] if oc.dual_core and not oc.board else []),
+                target,
                 "probe/resume-on-detach.cfg",
             ],
             "openocdPath": openocd,
@@ -1092,6 +1145,9 @@ def render(
     # so the probe is selected by serial from MU_PROBE_SERIAL. Written for every
     # project — the Makefile flash targets source it too.
     write("probe/probe-serial.cfg", _probe_serial(pack_model))
+    oc = pack_model.openocd
+    if oc is not None and oc.dual_core and not oc.board:
+        write("probe/dual-core.cfg", _dual_core_cfg(pack_model))
     if vscode and lang in ("c", "cpp"):
         written.extend(fetch_svds(pack_model, out))
         write("probe/resume-on-detach.cfg", _resume_on_detach(pack_model))

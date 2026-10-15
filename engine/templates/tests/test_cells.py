@@ -33,7 +33,7 @@ SRC_EXT = {"c": "c", "cpp": "c", "rust": "rs"}
 EXPECTED_OC = {
     "stm32f411re": ("interface/stlink.cfg", "board/st_nucleo_f4.cfg", False),
     "stm32h755": ("interface/stlink-dap.cfg", "board/st_nucleo_h745zi.cfg", True),
-    "stm32wl55jc": ("interface/stlink.cfg", "target/stm32wlx.cfg", True),
+    "stm32wl55jc": ("interface/stlink-dap.cfg", "target/stm32wlx.cfg", True),
 }
 
 
@@ -70,6 +70,11 @@ def expected_files(pack_id: str, lang: str) -> list[str]:
         f"config/{header}",
         "config/OVERRIDES.md",
     ]
+    # bug-021: target-direct dual-core packs get a DUAL_CORE cfg (sourced before
+    # the target); board cfgs (H7) set the flag themselves.
+    oc = doc["blocks"].get("openocd", {})
+    if oc.get("dual_core") and "board" not in oc:
+        files.append("probe/dual-core.cfg")
     return sorted(files)
 
 

@@ -233,6 +233,27 @@ def _validate_example(payload: Any) -> None:
     bit = led.get("rcc_en_bit")
     if not isinstance(bit, int) or isinstance(bit, bool) or not 0 <= bit <= 31:
         raise ValueError("example.led.rcc_en_bit must be an int 0..31")
+    # bug-021: optional "release the sibling core" sequence (e.g. STM32WL55
+    # CPU2/CM0+ needs PWR_CR4.C2BOOT + its reset vector). Device facts only.
+    cpu2 = payload.get("cpu2_boot")
+    if cpu2 is None:
+        return
+    if not isinstance(cpu2, dict):
+        raise ValueError("example.cpu2_boot must be a mapping")
+    if not isinstance(cpu2.get("core"), str) or not cpu2["core"]:
+        raise ValueError("example.cpu2_boot.core must be a non-empty core name")
+    writes = cpu2.get("writes")
+    if not isinstance(writes, list) or not writes:
+        raise ValueError("example.cpu2_boot.writes must be a non-empty list")
+    for write in writes:
+        if not isinstance(write, dict) or not _is_addr(write.get("addr")):
+            raise ValueError("example.cpu2_boot.writes[].addr must be a positive int address")
+        for key in ("value", "mask"):
+            v = write.get(key)
+            if key == "mask" and v is None:
+                continue
+            if not isinstance(v, int) or isinstance(v, bool) or v < 0:
+                raise ValueError(f"example.cpu2_boot.writes[].{key} must be a non-negative int")
 
 
 register("example", _validate_example, families=_STM32_FAMILIES)
