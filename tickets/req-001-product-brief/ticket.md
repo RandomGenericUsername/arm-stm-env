@@ -11,7 +11,7 @@ links:
     - _bmad-output/initiative-universal-mcu-env/brief-universal-mcu-env/brief-universal-mcu-env.md
 worktree: .worktrees/req-001/
 branch: ticket/req-001-product-brief
-parent: ""
+parent: epic-001
 children: []
 ---
 
