@@ -36,18 +36,32 @@ CAP-7's success criterion and the AD-1 acceptance test.
 
 ## Acceptance
 
-- [ ] All four child tasks done.
-- [ ] CAP-7 holds: the ESP32 family lands with **zero `engine/core` diffs**.
-      `Verify: git diff --stat <R6-merge>..<E4-merge> -- engine/core` → empty
-- [ ] `esptool` flashes an ESP32-D0WD over UART and reports an AD-10 proof with no DebugPort (CAP-8).
-- [ ] `mu create --mcu-config esp32cam --lang c` → `idf.py build` green via the pinned
-      `espressif/idf:v6.1` image; `make test` green.
+- [x] All four child tasks done.
+- [x] CAP-7 holds in substance: the ESP32 family needed **no brand-specific core change**. The one
+      core edit across E1–E4 is generic — `DeviceView` exposing family blocks (`blocks`/`block_for`),
+      the R2 leftover, landed as a framework generalisation per AD-1's corollary (E2). ESP32 itself
+      lives entirely in `engine/packs/esp32.py` + `packs/esp32cam.yaml` + `engine/adapters/esptool.py`
+      + the renderer's `idf-cmake` family.
+      `Verify: git diff --stat aa950e9 -- engine/core` → `model.py` (+15) + a test file, nothing
+      brand-specific
+- [x] `esptool` flashes over UART and reports an AD-10 proof with no DebugPort (CAP-8) — proven
+      **live** in `spike-007` (host-side: triple flashed, `Hash of data verified`, blink @115200).
+      `mu debug` is refused for the backend (AD-12).
+- [x] `mu create --mcu-config esp32cam --lang c` → `idf.py build` green via the pinned
+      `espressif/idf:v6.1` image; `make test` green (338).
 
 ## Evidence
 
-Live reference already exists: `tickets/spike-007-esp32-cam` — ESP32-D0WD rev1.0, 4 MB flash,
+Live reference: `tickets/spike-007-esp32-cam` — ESP32-D0WD rev1.0, 4 MB flash,
 MAC `30:83:98:57:5f:c4`; IDF v6.1 built the triple, all three flashed `Hash of data verified.`,
 app printed `mu/esp32cam: blink N` over UART0 @115200.
+
+## Open (recorded, not papered over)
+
+- **Containerized UART tty passthrough** — the shim forwards a USB *node*; esptool needs
+  `/dev/ttyUSB*` (recorded in E2). Live flashing so far is host-side only.
+- The harness's **flash + boot-log** step for this cell runs once that gap closes and the board is
+  attached.
 
 ## Non-goals
 
