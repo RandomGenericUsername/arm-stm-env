@@ -58,6 +58,8 @@
 - [bug-020-dockerfile-layer-order](./bug-020-dockerfile-layer-order/ticket.md) — bug-017's profile.d RUN sits before the toolchain layers -> every image rebuild is a full rebuild | `done` | S3
 - [bug-021-wl55-dual-core](./bug-021-wl55-dual-core/ticket.md) — WL55JC dual-core: HLA hides the CM0+, both cores share flash, M0+ arch wrong, CPU2 never released | `done` | S2, M4 verified; CM0+ -> spike-006
 - [bug-022-mount-preflight](./bug-022-mount-preflight/ticket.md) — Unshared Docker mount paths fail with raw daemon error (no preflight, no hint) | `done` | S3, probe + tee fallback, 276/276 tests, live repro proven
+- [bug-023-sibling-attach](./bug-023-sibling-attach/ticket.md) — WL55JC: released sibling can't be launched, primary's reset hides it, flash order boots it into an unflashed image | `done` | S2, M4+CM0+ run; compound sequence fragile
+- [bug-024-no-reset-for-released-siblings](./bug-024-no-reset-for-released-siblings/ticket.md) — cortex-debug launch fails on a released-sibling pack: 'monitor reset halt' errors (Protocol error with Rcmd) | `done` | S1, attach-only for cpu2_boot packs
 
 ## Ops tasks
 
@@ -76,6 +78,7 @@
 - [ops-019-vscode-debug-docs](./ops-019-vscode-debug-docs/ticket.md) — Document the VS Code debug flow (docs/vscode-debug.md) | `done`
 - [ops-020-clean-test-doc](./ops-020-clean-test-doc/ticket.md) — Document the clean from-zero test (docs/vscode-debug.md §9) | `done`
 - [ops-021-project-readme](./ops-021-project-readme/ticket.md) — Generated project README.md (each project documents its own flow) | `done`
+- [ops-022-f5-prelaunch](./ops-022-f5-prelaunch/ticket.md) — F5 = build + flash + debug (preLaunchTask in the generated launch configs) | `done`
 
 ## Spikes
 

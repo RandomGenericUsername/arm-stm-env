@@ -75,6 +75,8 @@ def expected_files(pack_id: str, lang: str) -> list[str]:
     oc = doc["blocks"].get("openocd", {})
     if oc.get("dual_core") and "board" not in oc:
         files.append("probe/dual-core.cfg")
+    if doc["blocks"].get("example", {}).get("cpu2_boot"):
+        files.append("probe/cpu2-boot.cfg")  # bug-023
     return sorted(files)
 
 

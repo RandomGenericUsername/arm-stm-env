@@ -109,21 +109,24 @@ _DELAY_HALF_PERIOD_S = 0.25
 
 
 def _cpu2_boot_sections(facets: DeviceFacets) -> tuple[str, str]:
-    """(extra includes, main body) that release a sibling core (bug-021).
+    """(extra includes, main body) that release a sibling core (bug-021/023).
 
     Device facts only: each ``(addr, value, mask)`` becomes a masked or plain OR
     write, so the primary core boots its sibling (e.g. the STM32WL55 CPU2/CM0+
     needs its reset vector pointed at its own image and ``PWR_CR4.C2BOOT`` set).
+
+    Emitted as a **constructor**, i.e. it runs during C-runtime init *before*
+    ``main`` (bug-023): a debug session that halts at the ``main`` entry
+    (`runToEntryPoint`) would otherwise leave the sibling unreleased, and the
+    sibling's own session could never attach.
     """
     if not facets.cpu2_boot:
         return "", ""
-    includes = (
-        "#include <stdint.h>\n"
-        "\n"
-        "#define REG32(a)     (*(volatile uint32_t *)(a))\n"
-    )
     lines = [
-        "    /* Release the sibling core: point its reset vector at its image, then boot it. */"
+        "/* Release the sibling core before main() so it is up however the\n"
+        "   debugger halts (bug-023): point its reset vector at its image, then boot it. */\n"
+        "__attribute__((constructor)) static void mu_release_sibling(void)\n"
+        "{\n"
     ]
     for addr, value, mask in facets.cpu2_boot:
         if mask:
@@ -133,8 +136,17 @@ def _cpu2_boot_sections(facets: DeviceFacets) -> tuple[str, str]:
             )
         else:
             lines.append(f"    REG32(0x{addr:08X}UL) |= 0x{value:08X}UL;")
-    lines.append("")
-    return includes, "\n".join(lines) + "\n"
+    lines.append("}\n")
+    ctor = "\n".join(lines)
+    # Preamble only needed where the surrounding includes lack it (the sibling
+    # example); the LED example already defines REG32 and includes <stdint.h>.
+    preamble = (
+        "#include <stdint.h>\n"
+        "\n"
+        "#define REG32(a)     (*(volatile uint32_t *)(a))\n"
+        "\n"
+    )
+    return preamble, ctor
 
 
 def _sibling_sections(facets: DeviceFacets) -> tuple[str, str]:
@@ -180,11 +192,11 @@ def _main_sections(facets: DeviceFacets, primary: bool) -> tuple[str, str]:
     **primary** (first) core. Any other core (a dual-core sibling, or a pack
     with no LED fact) gets the ``_sibling_sections`` counter loop instead.
     """
-    boot_includes, boot_body = _cpu2_boot_sections(facets) if primary else ("", "")
+    boot_preamble, boot_ctor = _cpu2_boot_sections(facets) if primary else ("", "")
     led = facets.example_led if primary else None
     if led is None:
         sibling_includes, sibling_body = _sibling_sections(facets)
-        return boot_includes + sibling_includes, boot_body + sibling_body
+        return boot_preamble + sibling_includes + "\n" + boot_ctor, sibling_body
     gpio, rcc = led.gpio_base, led.rcc_en_addr
     on_shift, off_shift = (
         (led.pin, led.pin + 16) if led.active == "high" else (led.pin + 16, led.pin)
@@ -224,8 +236,8 @@ def _main_sections(facets: DeviceFacets, primary: bool) -> tuple[str, str]:
         "        delay_half_period();\n"
         "    }\n"
     )
-    # boot_body precedes the blink; the LED includes already define REG32.
-    return includes, boot_body + body
+    # The release constructor precedes main (the LED includes already define REG32).
+    return includes + "\n" + boot_ctor, body
 
 
 def core_context(device: Device, core: Core, lang: str) -> dict:
@@ -756,6 +768,30 @@ def _dual_core_cfg(device: Device) -> str:
     )
 
 
+def _cpu2_boot_cfg(device: Device) -> str:
+    """``probe/cpu2-boot.cfg``: keep the released sibling debuggable (bug-023).
+
+    CPU2 clears ``C2BOOT`` when it idles, after which cpu1's examination fails
+    (``Failed to read memory at 0xe000ed00``). Re-assert the boot write every
+    time the primary core is examined. Sourced *after* the target (it needs the
+    target name); the last ``cpu2_boot`` write is the boot bit.
+    """
+    oc = device.openocd
+    primary = device.cores[0].name
+    target_name = next((name for core, name in oc.targets if core == primary), None)
+    if target_name is None:
+        raise ValueError(
+            f"pack {device.id!r} declares cpu2_boot but no openocd.targets for {primary!r}"
+        )
+    addr, value, _mask = device.facets.cpu2_boot[-1]
+    return (
+        f"# {device.id} probe/cpu2-boot.cfg — keep the sibling debuggable (bug-023).\n"
+        "# CPU2 clears C2BOOT when it idles, after which cpu1's examine fails;\n"
+        "# re-assert the boot bit each time the primary core is examined.\n"
+        f"{target_name} configure -event examine-end {{ mww 0x{addr:08X} 0x{value:08X} }}\n"
+    )
+
+
 _OPENOCD = Template(
     "# $project probe/openocd.cfg — generated from pack openocd facts (spike-001).\n"
     "# Probe: $probe_transport ($probe_address).\n"
@@ -1007,6 +1043,14 @@ def _vscode_files(device: Device) -> dict[str, str]:
     cores = list(device.cores)
     multi_core = len(cores) > 1
 
+    # bug-023/024: a pack that must *release* its sibling (cpu2_boot) is debugged
+    # by **attach only**. Launching runs `monitor reset halt`, and a system reset
+    # cannot halt the sibling (`AP write error, reset will not halt`) — OpenOCD
+    # then errors the whole command, and cortex-debug aborts with
+    # 'Protocol error with Rcmd'. Attach (`monitor halt`) touches neither core's
+    # reset state, so the released sibling stays accessible.
+    attach_only = bool(device.facets.cpu2_boot)
+
     configurations = []
     for index, core in enumerate(device.cores):
         elf = f"build/{core.name}/{device.id}-{core.name}.elf"
@@ -1023,11 +1067,22 @@ def _vscode_files(device: Device) -> dict[str, str]:
                 "probe/probe-serial.cfg",
                 *(["probe/dual-core.cfg"] if oc.dual_core and not oc.board else []),
                 target,
+                *(["probe/cpu2-boot.cfg"] if device.facets.cpu2_boot else []),
                 "probe/resume-on-detach.cfg",
             ],
             "openocdPath": openocd,
             "gdbPath": gdb,
         }
+        if attach_only:
+            config["request"] = "attach"
+            del config["runToEntryPoint"]
+        # ops-022: F5 = build (+ flash) + debug. The primary does the real work —
+        # attach configs never program the target, so they run the Flash task
+        # first (its reset also releases the sibling); launch configs flash via
+        # gdb `load` and only need a build. Siblings only build: they are also the
+        # compound's chained children, and a chained child runs its own
+        # preLaunchTask, so a Flash there would re-program and disturb the parent.
+        config["preLaunchTask"] = ("Flash" if attach_only else "Build") if index == 0 else "Build"
         if multi_core:
             # bug-013: OpenOCD exposes one gdb server per core (…cpu0, …cpu1);
             # cortex-debug connects to the port for `targetProcessor`, so a
@@ -1047,7 +1102,12 @@ def _vscode_files(device: Device) -> dict[str, str]:
             # bug-016: and gated to DAP targets — HLA (`stlink.cfg` ->
             # `hla_target`) has no `cortex_m` group, so the command fails with
             # 'invalid command name "cortex_m"' and the launch aborts.
-            config["postLaunchCommands"] = ["monitor cortex_m maskisr steponly"]
+            # bug-023: attach configs run postAttachCommands, not postLaunchCommands.
+            maskisr = ["monitor cortex_m maskisr steponly"]
+            if config["request"] == "attach":
+                config["postAttachCommands"] = maskisr
+            else:
+                config["postLaunchCommands"] = maskisr
         svd = _svd_file_for(device, core.name)
         if svd is not None:
             config["svdFile"] = "${workspaceFolder}/" + svd
@@ -1066,7 +1126,13 @@ def _vscode_files(device: Device) -> dict[str, str]:
             "detached": False,
             "lifecycleManagedByParent": True,
             "launches": [
-                {"name": f"Debug {core.name} (OpenOCD)"} for core in cores[1:]
+                {
+                    "name": f"Debug {core.name} (OpenOCD)",
+                    # bug-023: give the primary a moment to release the sibling
+                    # before its attach config runs.
+                    **({"delayMs": 1000} if attach_only else {}),
+                }
+                for core in cores[1:]
             ],
         }
         configurations.append(compound)
@@ -1148,6 +1214,8 @@ def render(
     oc = pack_model.openocd
     if oc is not None and oc.dual_core and not oc.board:
         write("probe/dual-core.cfg", _dual_core_cfg(pack_model))
+    if pack_model.facets.cpu2_boot:
+        write("probe/cpu2-boot.cfg", _cpu2_boot_cfg(pack_model))
     if vscode and lang in ("c", "cpp"):
         written.extend(fetch_svds(pack_model, out))
         write("probe/resume-on-detach.cfg", _resume_on_detach(pack_model))
@@ -1179,9 +1247,17 @@ def render(
                 ),
             )
         head_ctx = core_context(pack_model, pack_model.cores[0], lang)
+        # bug-023: flash the sibling(s) BEFORE the primary. The primary's reset
+        # runs the release constructor, so flashing it first would boot the
+        # sibling into a not-yet-programmed image (it double-faults and locks up).
+        flash_order = (
+            list(pack_model.cores[1:]) + [pack_model.cores[0]]
+            if pack_model.facets.cpu2_boot
+            else list(pack_model.cores)
+        )
         write("Makefile", _MAKEFILE_HEAD.substitute(head_ctx) + "\n".join(sections) + _MAKEFILE_FOOT.substitute(
             build_targets=" ".join(f"build-{c.name}" for c in pack_model.cores),
-            flash_targets=" ".join(f"flash-{c.name}" for c in pack_model.cores),
+            flash_targets=" ".join(f"flash-{c.name}" for c in flash_order),
             clean_targets=" ".join(f"clean-{c.name}" for c in pack_model.cores),
         ))
         write("Startup/NOTE.md", _STARTUP_NOTE.substitute(project=pack_model.id, rows="\n".join(rows) + "\n"))
