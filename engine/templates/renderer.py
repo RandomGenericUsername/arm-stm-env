@@ -1277,11 +1277,13 @@ _IDF_MAIN_C = Template(
     "    };\n"
     "    gpio_config(&io);\n"
     "    printf(\"$project: blink on GPIO$led_gpio\\n\");\n"
+    "    int n = 0;\n"
     "    while (1) {\n"
     "        gpio_set_level(LED_GPIO, $on_level);  /* on */\n"
     "        vTaskDelay(pdMS_TO_TICKS(500));\n"
     "        gpio_set_level(LED_GPIO, $off_level); /* off */\n"
     "        vTaskDelay(pdMS_TO_TICKS(500));\n"
+    "        printf(\"$project: blink %d\\n\", ++n);\n"
     "    }\n"
     "}\n"
 )
