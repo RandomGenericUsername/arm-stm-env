@@ -21,6 +21,8 @@ from __future__ import annotations
 
 import shutil
 import subprocess
+
+from engine.core.envelope import HOST_GIT
 from pathlib import Path
 
 __all__ = [
@@ -177,7 +179,7 @@ def vendor(pack_id: str, family: str, project_dir: str | Path) -> list[Path]:
         raise VendorError(
             f"vendoring: out-dir {out} does not exist; render the project first"
         )
-    if shutil.which("git") is None:
+    if shutil.which(HOST_GIT) is None:
         raise VendorError(
             "vendoring: `git` not found on PATH; install git and re-run create "
             "(submodule init requires the git CLI on the host)"

@@ -101,7 +101,7 @@
 - [task-009-stack-axis](./task-009-stack-axis/ticket.md) — R3: pack-declared stacks map + toolchain registry | `done` | parent req-021 | 295/295 tests; stack (not --lang) selects image + build command
 - [task-010-artifact-gating](./task-010-artifact-gating/ticket.md) — R4: gate artifact emission on model facts; probe ids from the family | `done` | parent req-021 | 300/300 tests, STM32 tree byte-identical, no hardcoded probe VID
 - [task-011-verify-axis](./task-011-verify-axis/ticket.md) — R5: verify matrix dispatches by stack; shared build-evidence envelope | `done` | parent req-021 | 305/305 tests, 9 cells resolve via the registry
-- [task-012-operational-envelope](./task-012-operational-envelope/ticket.md) — R6: name the operational envelope as one owned contract | `proposed` | parent req-021
+- [task-012-operational-envelope](./task-012-operational-envelope/ticket.md) — R6: name the operational envelope as one owned contract | `done` | parent req-021 | 309/309 tests, no scattered literal, ownership proven | ← refactor gate complete
 - [task-013-esp32-pack](./task-013-esp32-pack/ticket.md) — E1: packs/esp32cam.yaml + esp32 family validators | `proposed` | parent req-022
 - [task-014-esptool-backend](./task-014-esptool-backend/ticket.md) — E2: esptool probe backend (FlashPort) + UART binding | `proposed` | parent req-022
 - [task-015-idf-template](./task-015-idf-template/ticket.md) — E3: idf-cmake template family | `proposed` | parent req-022
