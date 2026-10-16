@@ -45,6 +45,11 @@ blocks:
     interface: stlink-dap.cfg
     target: stm32wlx.cfg
     dual_core: true
+    # OpenOCD target names (bug-023): the CPU2 boot cfg needs cpu0's name, and
+    # the renderer uses them for per-core processor indices.
+    targets:
+      M4: stm32wlx.cpu0
+      M0+: stm32wlx.cpu1
   # Sibling evidence ArmDevelopmentEnvironment@19a3889:
   # setup/create_project/stm_mcu_families.sh:17,22 FPU_*_PER_PROCESSOR["m0plus"]="none".
   # Neither core takes hard-float here (soft-float conservative map).
