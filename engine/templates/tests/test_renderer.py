@@ -16,7 +16,7 @@ from .test_cells import PACK_IDS, PACKS_DIR
 def _stub_vendoring(monkeypatch) -> None:
     """req-011/017: render() vendors C/C++ via git and fetches SVDs; unit
     renders stub both (tmp dirs are non-repos, no network)."""
-    monkeypatch.setattr("engine.templates.renderer.vendor", lambda _pack_id, _out: [])
+    monkeypatch.setattr("engine.templates.renderer.vendor", lambda _pack_id, _family, _out: [])
     monkeypatch.setattr(
         "engine.templates.renderer.fetch_svds", lambda _device, _out, **k: []
     )
@@ -125,6 +125,12 @@ def _synthetic_device() -> Device:
             config_defaults_source="pack/synth.h",
             startup=(("M4", "startup_synth.s"),),
             system=(("M4", "system_synth.c"),),
+            # AD-14: the model carries the config-header fact as a block.
+            blocks=((
+                "config_headers",
+                {"library": "synthlib", "header": "synth_config.h",
+                 "defaults_source": "pack/synth.h"},
+            ),),
         ),
     )
 
@@ -170,6 +176,42 @@ def test_render_errors_when_pack_declares_no_stack_for_language(tmp_path) -> Non
     dev = dataclasses.replace(device, stacks=(("rust", "cargo-cortex"),))
     with pytest.raises(ValueError, match="no build stack for language 'c'"):
         render(dev, "c", tmp_path)
+
+
+def test_render_emits_no_openocd_or_cmsis_artifacts_without_the_facts(tmp_path) -> None:
+    """AD-14: a model without the STM32 facts gets no OpenOCD/CMSIS artifacts."""
+    device = Device(
+        id="bare-1",
+        version="1.0.0",
+        source_hash="sha256:bare",
+        cores=[Core(name="C0", arch="generic")],
+        memory=[MemoryRegion(name="flash", origin_hex="0x0", size=4096)],
+        probe_ref=Endpoint(transport="t", address="a"),
+        proof_rung="rung",
+        stacks=(("rust", "cargo-cortex"),),
+        family="barefam",
+        # No openocd block, no config_headers block, no vendor files.
+        facets=DeviceFacets(),
+    )
+    written = render(device, "rust", tmp_path)
+    names = {p.relative_to(tmp_path).as_posix() for p in written}
+    assert "Cargo.toml" in names, "expected the project skeleton"
+    assert not {n for n in names if n.startswith("probe/")}
+    assert not {n for n in names if n.startswith("config/")}
+    assert not (tmp_path / "vendor").exists()
+
+
+def test_render_emits_no_config_artifacts_without_the_config_block(tmp_path, monkeypatch) -> None:
+    """AD-14: the config header is emitted only when the pack declares it."""
+    import dataclasses
+
+    monkeypatch.setattr("engine.templates.renderer.vendor", lambda *_a: [])
+    device = load_file(PACKS_DIR / "stm32f411re.yaml")
+    dev = dataclasses.replace(device, facets=dataclasses.replace(device.facets, blocks=()))
+    written = render(dev, "rust", tmp_path)
+    names = {p.relative_to(tmp_path).as_posix() for p in written}
+    assert not {n for n in names if n.startswith("config/")}
+    assert {n for n in names if n.startswith("probe/")} == {"probe/openocd.cfg", "probe/probe-serial.cfg"}
 
 
 def test_renderer_writes_project_readme(tmp_path) -> None:

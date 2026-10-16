@@ -38,17 +38,18 @@ VENDOR_CORE_PATH = "vendor/CMSIS"
 
 # Family device repos, verified 2026-10-13 (ls-remote tags + HTTP 200 on
 # core header, device Include header, and gcc startup file per family).
+# Keyed by the pack-declared family id (AD-14: never a pack-id prefix).
 FAMILY_REPOS = {
-    "f4": ("https://github.com/STMicroelectronics/cmsis_device_f4.git", "v2.6.9"),
-    "h7": ("https://github.com/STMicroelectronics/cmsis_device_h7.git", "v1.9.0"),
-    "wl": ("https://github.com/STMicroelectronics/cmsis_device_wl.git", "v1.4.0"),
+    "stm32f4": ("https://github.com/STMicroelectronics/cmsis_device_f4.git", "v2.6.9"),
+    "stm32h7": ("https://github.com/STMicroelectronics/cmsis_device_h7.git", "v1.9.0"),
+    "stm32wl": ("https://github.com/STMicroelectronics/cmsis_device_wl.git", "v1.4.0"),
 }
 
 # Pin table: logical name -> (repo URL, tag). Kept as the single source the
 # tests assert against (spec: pins recorded as tag SHAs, not branches).
 PINS = {
     "CMSIS_5": (CMSIS_CORE_URL, CMSIS_CORE_TAG),
-    **{f"cmsis_device_{fam}": pin for fam, pin in FAMILY_REPOS.items()},
+    **{f"cmsis_device_{family}": pin for family, pin in FAMILY_REPOS.items()},
 }
 
 
@@ -56,21 +57,19 @@ class VendorError(RuntimeError):
     """Loud vendoring failure: names the missing capability, path, or URL."""
 
 
-def _family_of(pack_id: str) -> str:
-    """Family key from the pack id prefix (``stm32f4…`` -> ``f4``)."""
-    for fam in FAMILY_REPOS:
-        if pack_id.startswith(f"stm32{fam}"):
-            return fam
-    raise VendorError(
-        f"vendoring: unknown family for pack id {pack_id!r}; "
-        f"expected one of {sorted('stm32' + f for f in FAMILY_REPOS)}"
-    )
+def family_repo(pack_id: str, family: str) -> tuple[str, str, str]:
+    """(repo URL, tag, submodule path) for the pack family's device repo.
 
-
-def family_repo(pack_id: str) -> tuple[str, str, str]:
-    """(repo URL, tag, submodule path) for the pack's family device repo."""
-    fam = _family_of(pack_id)
-    url, tag = FAMILY_REPOS[fam]
+    ``family`` is the pack-declared family id (AD-14) — never derived from the
+    pack id.
+    """
+    try:
+        url, tag = FAMILY_REPOS[family]
+    except KeyError:
+        raise VendorError(
+            f"vendoring: family {family!r} has no pinned device repo; "
+            f"expected one of {sorted(FAMILY_REPOS)}"
+        ) from None
     return url, tag, f"vendor/cmsis-device-{pack_id}"
 
 
@@ -163,7 +162,7 @@ def _ensure_repo(out: Path) -> None:
         )
 
 
-def vendor(pack_id: str, project_dir: str | Path) -> list[Path]:
+def vendor(pack_id: str, family: str, project_dir: str | Path) -> list[Path]:
     """Register pinned CMSIS submodules; return the submodule dirs.
 
     Runs ``git init`` in a project dir that is not already inside a work tree.
@@ -185,6 +184,6 @@ def vendor(pack_id: str, project_dir: str | Path) -> list[Path]:
         )
     _ensure_repo(out)
     _add_pin(CMSIS_CORE_URL, CMSIS_CORE_TAG, VENDOR_CORE_PATH, out, CMSIS_SPARSE)
-    url, tag, dest = family_repo(pack_id)
+    url, tag, dest = family_repo(pack_id, family)
     _add_pin(url, tag, dest, out, FAMILY_SPARSE)
     return [out / VENDOR_CORE_PATH, out / dest]

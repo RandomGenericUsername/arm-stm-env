@@ -15,7 +15,7 @@ PLACEHOLDER = re.compile(r"\$\{|\$[A-Za-z_]")
 def _stub_vendoring(monkeypatch) -> None:
     """req-011: create strictly vendors C/C++ via git; unit creates stub it
     (tmp dirs are non-repos, no network). Wiring is covered in test_vendoring."""
-    monkeypatch.setattr("engine.templates.renderer.vendor", lambda _pack_id, _out: [])
+    monkeypatch.setattr("engine.templates.renderer.vendor", lambda _pack_id, _family, _out: [])
 
 
 def _first_pack() -> tuple[str, Path]:

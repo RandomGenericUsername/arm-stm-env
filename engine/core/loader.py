@@ -169,6 +169,7 @@ def validate_frame(doc: dict) -> Device:
         facets=facets,
         probe_backend=doc.get("probe_backend"),
         stacks=stacks,
+        family=family,
     )
 
 

@@ -10,11 +10,16 @@ from __future__ import annotations
 from typing import Any
 
 from engine.core.registry import register
+from engine.core.probe_ids import register_probe_vids
 
 __all__ = ["STM32_FAMILIES", "register_stm32_families"]
 
 #: Family ids this module owns (the ``family`` a pack declares).
 STM32_FAMILIES = ("stm32f4", "stm32h7", "stm32wl")
+
+#: USB vendor id every ST-Link probe presents (AD-14: device truth, not a
+#: hardcoded list in the host shim).
+STM32_PROBE_VIDS = ("0483",)
 
 _FPU_MODES = ("soft", "softfp", "hard")
 _CONFIG_HEADER_KEYS = ("library", "header", "defaults_source")
@@ -212,3 +217,5 @@ def register_stm32_families() -> None:
     """Register every STM32 block against every STM32 family (idempotent)."""
     for block_name, validator in _STM32_BLOCKS.items():
         register(block_name, validator, families=STM32_FAMILIES)
+    for family in STM32_FAMILIES:
+        register_probe_vids(family, STM32_PROBE_VIDS)
