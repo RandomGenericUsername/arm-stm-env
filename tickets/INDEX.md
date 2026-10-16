@@ -87,12 +87,17 @@
 - [ops-024-esp32-live-proof](./ops-024-esp32-live-proof/ticket.md) — Record the live ESP32-CAM proof: containerized flash + boot log | `done` | 3/3 pieces, boot log + app output captured
 - [ops-025-monitor-port-note](./ops-025-monitor-port-note/ticket.md) — Document that a running monitor owns the serial port | `done` | README + test
 - [ops-026-esp32-wrapup](./ops-026-esp32-wrapup/ticket.md) — ESP32-CAM wrap-up: final state + prune merged branches | `done` | req-022 §Final state; origin pruned
+- [ops-027-wl55-clean-run](./ops-027-wl55-clean-run/ticket.md) — WL55JC clean-from-zero flash/run ritual + CM0+ scope | `proposed` | V1 closeout
+- [ops-028-flash-run-evidence](./ops-028-flash-run-evidence/ticket.md) — Record a flash-run evidence artifact for the V1 packs | `proposed` | V1 closeout
+- [ops-029-epic-closeout](./ops-029-epic-closeout/ticket.md) — epic-001 closeout: reconcile children, rollup checklist, flip to done | `proposed` | V1 closeout
+- [ops-030-image-distribution](./ops-030-image-distribution/ticket.md) — Confirm image distribution for a clean machine (registry push state) | `proposed` | V1 closeout
 
 ## Spikes
 
 - [spike-005-h755-single-step](./spike-005-h755-single-step/ticket.md) — H755 single-step doesn't advance (stlink-dap) | `consumed` | boxed 3h — cause found (interrupts during step); fixed in bug-011
 - [spike-006-wl55-cm0p-bringup](./spike-006-wl55-cm0p-bringup/ticket.md) — WL55JC CM0+ bring-up: C2BOOT doesn't persist and the CM0+ double-faults | `reported` | boxed 4h — M4 works; CM0+ needs security/RAM investigation
 - [spike-007-esp32-cam](./spike-007-esp32-cam/ticket.md) — First non-STM32 board: what does an ESP32-CAM pack require? | `reported` | boxed 4h — verdict: extend (blocks/backends/image), new-kind template family + verify cell; IDF mandatory, JTAG out. 2026-10-16: synced to main (`1eb9407`, 276 tests); IDF pinned `v6.1` (amd64+arm64, digest); owner-bench UART proven live (esptool → ESP32-D0WD rev1.0, 4MB flash, MAC 30:83:98:57:5f:c4) — Q1 closed
+- [spike-008-rust-flash-run](./spike-008-rust-flash-run/ticket.md) — Rust live flash/run: is it a V1 gate, and does probe-rs flash F411RE/H755? | `boxed` | boxed 3h — V1 closeout
 
 ## Tasks
 
