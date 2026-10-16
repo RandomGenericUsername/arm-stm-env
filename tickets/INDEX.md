@@ -64,7 +64,7 @@
 - [bug-022-mount-preflight](./bug-022-mount-preflight/ticket.md) — Unshared Docker mount paths fail with raw daemon error (no preflight, no hint) | `done` | S3, probe + tee fallback, 276/276 tests, live repro proven
 - [bug-023-sibling-attach](./bug-023-sibling-attach/ticket.md) — WL55JC: released sibling can't be launched, primary's reset hides it, flash order boots it into an unflashed image | `done` | S2, M4+CM0+ run; compound sequence fragile
 - [bug-024-no-reset-for-released-siblings](./bug-024-no-reset-for-released-siblings/ticket.md) — cortex-debug launch fails on a released-sibling pack: 'monitor reset halt' errors (Protocol error with Rcmd) | `done` | S1, attach-only for cpu2_boot packs
-- [bug-025-rust-build-target](./bug-025-rust-build-target/ticket.md) — mu build for Rust omits --target: compiles for the host and fails to link | `triage` | S1, found by spike-008
+- [bug-025-rust-build-target](./bug-025-rust-build-target/ticket.md) — mu build for Rust omits --target: compiles for the host and fails to link | `done` | S1, render .cargo/config.toml + README fix; 355 tests
 
 ## Ops tasks
 

@@ -61,7 +61,7 @@ def expected_files(pack_id: str, lang: str) -> list[str]:
             files.append(f"linker/{linker[core['name']]}")
         files.append("Startup/NOTE.md")
     else:
-        files = [*base, "memory.x", "build.rs", "src/main.rs"]
+        files = [*base, ".cargo/config.toml", "memory.x", "build.rs", "src/main.rs"]
     files += [
         ".gitignore",
         ".mu/stack",
@@ -152,6 +152,12 @@ def test_cells(pack_id: str, lang: str, tmp_path: Path) -> None:
         assert "-Tlink.x" in build_rs and "rerun-if-changed" in build_rs
         main_rs = (out / "src/main.rs").read_text()
         assert "#[entry]" in main_rs and "wfi" in main_rs
+        # bug-025: cargo must pin the pack arch as the build target, or
+        # `mu build`/`cargo build` compile for the host and fail to link.
+        cargo_cfg = (out / ".cargo/config.toml").read_text()
+        assert f'target = "{doc["cores"][0]["arch"]}"' in cargo_cfg, (
+            "cargo build target not pinned to the pack arch"
+        )
     oc_text = (out / "probe" / "openocd.cfg").read_text()
     iface, cfg_path, dual = EXPECTED_OC[pack_id]
     assert iface in oc_text and cfg_path in oc_text, "corrected openocd path missing"

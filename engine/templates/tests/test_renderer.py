@@ -232,6 +232,9 @@ def test_renderer_readme_rust_has_no_make_targets(tmp_path) -> None:
     text = (tmp_path / "README.md").read_text()
     assert "mu build --project-dir ." in text
     assert "make flash" not in text                   # cargo path, not make
+    # bug-025: the Rust example is a `wfi` loop — the README must not claim an
+    # LED blink it does not implement.
+    assert "on-board LED" not in text
 
 
 def test_render_vscode_generates_valid_configs(tmp_path) -> None:
