@@ -27,8 +27,16 @@ def test_registry_unknown_backend_is_usage_error():
 
 def test_registry_custom_registration():
     class _Fake(ProbeAdapter):
+        def render_argv(self, device, endpoint, pieces):
+            return ["fake", *pieces]
+
         def flash(self, device, endpoint, pieces):
             return ()
+
+        def proof_for(self, device, results, transcript):
+            from engine.core.model import ProofResult
+
+            return ProofResult(rung=device.proof_rung, payload={})
 
         def debug(self, device, endpoint):
             from engine.adapters import DebugHandle

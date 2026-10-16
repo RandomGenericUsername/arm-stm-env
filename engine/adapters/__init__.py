@@ -1,9 +1,12 @@
-"""Adapter ports (req-005, group 1): device-agnostic contracts only.
+"""Adapter ports (req-005, group 1; split by task-007): device-agnostic contracts only.
 
-``ProbeAdapter`` exposes ``flash``/``debug`` with multi-piece results; the
-image-lookup port maps language -> container image. Real implementations
-arrive later; stubs live in :mod:`engine.cli.tests.stubs`. Core types are
-read-only views — ports never touch packs, paths, or raw YAML.
+Programming and sessions are separate ports (AD-12): :class:`FlashPort`
+(``render_argv``/``flash``/``proof_for``) is implemented by every probe
+backend; :class:`DebugPort` (``debug``) only by backends whose device
+supports attach. :class:`ProbeAdapter` is the composite for backends that do
+both. The image-lookup port maps language -> container image. Real
+implementations arrive later; stubs live in :mod:`engine.cli.tests.stubs`.
+Core types are read-only views — ports never touch packs, paths, or raw YAML.
 """
 
 from __future__ import annotations
@@ -16,7 +19,9 @@ from engine.core.model import DeviceView, Endpoint, ProofResult
 
 __all__ = [
     "DebugHandle",
+    "DebugPort",
     "DefaultImageLookup",
+    "FlashPort",
     "ImageLookup",
     "PieceResult",
     "ProbeAdapter",
@@ -53,8 +58,27 @@ class DebugHandle:
             raise TypeError("DebugHandle.endpoint must be an Endpoint")
 
 
-class ProbeAdapter(ABC):
-    """Port for probe operations. Multi-piece flash; proof stays in core types."""
+class FlashPort(ABC):
+    """Programming port (AD-12): tool argv, flashing, and proof.
+
+    Every probe backend implements this port — including programming-only
+    devices with no attach (e.g. ESP32 over UART). :meth:`proof_for` fills the
+    core-owned proof struct for the rungs this port can certify (write and
+    readback rungs); attach-derived rungs belong to :class:`DebugPort`.
+    """
+
+    #: Transcript of the most recent :meth:`flash` (backend-native shape), or
+    #: ``None``; feeds :meth:`proof_for` so verdicts carry proof.
+    last_transcript: object | None
+
+    @abstractmethod
+    def render_argv(
+        self,
+        device: DeviceView,
+        endpoint: Endpoint,
+        pieces: Sequence[str],
+    ) -> list[str]:
+        """Build the programming tool argv (no execution)."""
 
     @abstractmethod
     def flash(
@@ -66,14 +90,40 @@ class ProbeAdapter(ABC):
         """Program each named piece; return one result per piece, in order."""
 
     @abstractmethod
+    def proof_for(
+        self,
+        device: DeviceView,
+        results: Sequence[PieceResult],
+        transcript: object,
+    ) -> ProofResult:
+        """Fill the core-owned proof struct from a completed flash."""
+
+
+class DebugPort(ABC):
+    """Session port (AD-12): attach / monitor.
+
+    Implemented only where the device supports attach; the CLI fails the
+    ``debug`` verb when the resolved backend does not implement it, rather
+    than fabricating a handle.
+    """
+
+    @abstractmethod
     def debug(self, device: DeviceView, endpoint: Endpoint) -> DebugHandle:
-        """Attach a debug session; return its handle."""
+        """Attach a session; return its handle."""
 
 
-_BACKEND_FACTORIES: dict[str, Callable[[], ProbeAdapter]] = {}
+class ProbeAdapter(FlashPort, DebugPort):
+    """Composite port for backends that both program *and* attach.
+
+    Compatibility alias: the two STM32 backends implement it. A
+    programming-only backend implements :class:`FlashPort` alone.
+    """
 
 
-def register_backend(name: str, factory: Callable[[], ProbeAdapter]) -> None:
+_BACKEND_FACTORIES: dict[str, Callable[[], FlashPort]] = {}
+
+
+def register_backend(name: str, factory: Callable[[], FlashPort]) -> None:
     """Register a probe backend factory (adapters own backend vocabulary)."""
     _BACKEND_FACTORIES[name] = factory
 
@@ -96,12 +146,14 @@ def _ensure_builtin_backends() -> None:
         _BACKEND_FACTORIES["probe-rs"] = ProbeRsAdapter
 
 
-def get_adapter(name: str | None = None, **kwargs) -> ProbeAdapter:
+def get_adapter(name: str | None = None, **kwargs) -> FlashPort:
     """Instantiate a registered probe backend (default when unnamed).
 
     Callers never name backend modules — adding a backend touches this
-    registry only, never CLI code. Extra kwargs (``stream``, ``log_path``)
-    pass to the backend constructor.
+    registry only, never CLI code. The returned object is guaranteed to be a
+    :class:`FlashPort`; callers needing sessions check ``isinstance(…,
+    DebugPort)`` (AD-12). Extra kwargs (``stream``, ``log_path``) pass to the
+    backend constructor.
     """
     _ensure_builtin_backends()
     key = name or default_backend_name()

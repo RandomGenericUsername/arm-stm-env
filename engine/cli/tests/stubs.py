@@ -15,6 +15,7 @@ from engine.core.model import (
     DeviceView,
     Endpoint,
     MemoryRegion,
+    ProofResult,
 )
 
 __all__ = ["StubProbeAdapter", "make_device_view", "make_endpoint"]
@@ -38,7 +39,11 @@ def make_device_view(device_id: str = "generic-board") -> DeviceView:
 
 
 class StubProbeAdapter(ProbeAdapter):
-    """In-memory port stub: preloaded per-piece outcomes + canned session."""
+    """In-memory port stub: preloaded per-piece outcomes + canned session.
+
+    Implements the full composite contract (FlashPort + DebugPort) so it can
+    stand in for any backend in CLI tests.
+    """
 
     def __init__(
         self,
@@ -49,6 +54,15 @@ class StubProbeAdapter(ProbeAdapter):
         self._session_id = session_id
         self.flashed: list[tuple[str, ...]] = []
         self.debugged: int = 0
+        self.last_transcript: object | None = None
+
+    def render_argv(
+        self,
+        device: DeviceView,
+        endpoint: Endpoint,
+        pieces: Sequence[str],
+    ) -> list[str]:
+        return ["stub-probe", "--device", endpoint.address, *pieces]
 
     def flash(
         self,
@@ -57,6 +71,7 @@ class StubProbeAdapter(ProbeAdapter):
         pieces: Sequence[str],
     ) -> Sequence[PieceResult]:
         self.flashed.append(tuple(pieces))
+        self.last_transcript = ("stub", tuple(pieces))
         return tuple(
             PieceResult(
                 name=name,
@@ -64,6 +79,22 @@ class StubProbeAdapter(ProbeAdapter):
                 detail="stub",
             )
             for name in pieces
+        )
+
+    def proof_for(
+        self,
+        device: DeviceView,
+        results: Sequence[PieceResult],
+        transcript: object,
+    ) -> ProofResult:
+        results = tuple(results)
+        passed = sum(1 for r in results if r.ok)
+        return ProofResult(
+            rung=device.proof_rung,
+            payload={
+                "pieces": ",".join(f"{r.name}={'ok' if r.ok else 'fail'}" for r in results),
+                "verified": f"{passed}/{len(results)}",
+            },
         )
 
     def debug(self, device: DeviceView, endpoint: Endpoint) -> DebugHandle:

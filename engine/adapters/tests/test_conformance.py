@@ -1,8 +1,10 @@
 """Adapter conformance + cross-adapter comparability (req-006, group 2.2).
 
-Conformance: both backends satisfy the core-owned ``ProbeAdapter`` ABC
-with identical call semantics (per-piece ordered results, empty pieces
-run nothing, debug binds the shim endpoint with no live claim).
+Conformance: both backends satisfy the split ports (AD-12) with identical
+call semantics (per-piece ordered results, empty pieces run nothing, debug
+binds the shim endpoint with no live claim). ``FlashPort`` is the guaranteed
+port every backend implements; ``DebugPort`` is opt-in for attach-capable
+devices; ``ProbeAdapter`` is the composite for backends that do both.
 
 Comparability decision (KNOWN ISSUE from group 1, decided here):
 SUBSET equality, not full equality. ``pieces`` and ``verified`` are
@@ -20,7 +22,7 @@ from typing import Sequence
 
 import pytest
 
-from engine.adapters import PieceResult, ProbeAdapter
+from engine.adapters import DebugPort, FlashPort, PieceResult, ProbeAdapter
 from engine.adapters.openocd import (
     DUAL_CORE_FIXTURE as OCD_DUAL,
 )
@@ -69,10 +71,47 @@ def view_and_endpoint(request) -> tuple[DeviceView, Endpoint]:
     return view, Endpoint(transport=view.probe_transport, address="/dev/node-0")
 
 
-def test_conformance_both_adapters_satisfy_probe_adapter_abc():
-    assert isinstance(OpenOCDAdapter(runner=_fake_ocd("")), ProbeAdapter)
-    assert isinstance(ProbeRsAdapter(runner=_fake_prs("")), ProbeAdapter)
-    assert set(ProbeAdapter.__abstractmethods__) == {"flash", "debug"}
+def test_conformance_both_adapters_satisfy_the_split_ports():
+    ocd = OpenOCDAdapter(runner=_fake_ocd(""))
+    prs = ProbeRsAdapter(runner=_fake_prs(""))
+    # STM32 backends are composites: they implement both ports.
+    for adapter in (ocd, prs):
+        assert isinstance(adapter, ProbeAdapter)
+        assert isinstance(adapter, FlashPort)
+        assert isinstance(adapter, DebugPort)
+    # Port contracts (AD-12). FlashPort is the guaranteed port; DebugPort is
+    # implemented only where the device supports attach.
+    assert set(FlashPort.__abstractmethods__) == {"render_argv", "flash", "proof_for"}
+    assert set(DebugPort.__abstractmethods__) == {"debug"}
+    assert set(ProbeAdapter.__abstractmethods__) == {
+        "render_argv",
+        "flash",
+        "proof_for",
+        "debug",
+    }
+
+
+def test_conformance_programming_only_backend_is_flash_port_only():
+    """A programming-only device (no attach) is a FlashPort, not a DebugPort."""
+
+    class _ProgramOnly(FlashPort):
+        last_transcript = None
+
+        def render_argv(self, device, endpoint, pieces):
+            return ["program-only", *pieces]
+
+        def flash(self, device, endpoint, pieces):
+            return ()
+
+        def proof_for(self, device, results, transcript):
+            from engine.core.model import ProofResult
+
+            return ProofResult(rung=device.proof_rung, payload={})
+
+    prog = _ProgramOnly()
+    assert isinstance(prog, FlashPort)
+    assert not isinstance(prog, DebugPort)
+    assert not isinstance(prog, ProbeAdapter)
 
 
 def test_conformance_flash_contract_single_piece(adapter, view_and_endpoint):
