@@ -91,7 +91,7 @@
 - [ops-027-wl55-clean-run](./ops-027-wl55-clean-run/ticket.md) — WL55JC clean-from-zero flash/run ritual + CM0+ scope | `proposed` | V1 closeout
 - [ops-028-flash-run-evidence](./ops-028-flash-run-evidence/ticket.md) — Record a flash-run evidence artifact for the V1 packs | `proposed` | V1 closeout
 - [ops-029-epic-closeout](./ops-029-epic-closeout/ticket.md) — epic-001 closeout: reconcile children, rollup checklist, flip to done | `proposed` | V1 closeout
-- [ops-030-image-distribution](./ops-030-image-distribution/ticket.md) — Confirm image distribution for a clean machine (registry push state) | `proposed` | V1 closeout
+- [ops-030-image-distribution](./ops-030-image-distribution/ticket.md) — Confirm image distribution for a clean machine (registry push state) | `done` | images pushed to ghcr (auth-required); login or `make images`
 
 ## Spikes
 
