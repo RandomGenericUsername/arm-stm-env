@@ -1,6 +1,10 @@
 id: stm32h755
 version: "1.0.0"
 family: stm32h7
+stacks:
+  c: make-cmsis
+  cpp: make-cmsis
+  rust: cargo-cortex
 cores:
   - name: M7
     arch: thumbv7em-none-eabihf

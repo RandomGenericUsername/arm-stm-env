@@ -1,6 +1,10 @@
 id: stm32f411re
 version: "1.0.0"
 family: stm32f4
+stacks:
+  c: make-cmsis
+  cpp: make-cmsis
+  rust: cargo-cortex
 cores:
   - name: M4
     arch: thumbv7em-none-eabihf

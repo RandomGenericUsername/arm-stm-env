@@ -16,6 +16,8 @@ from pathlib import Path
 from string import Template
 
 from engine.core.model import Core, Device
+from engine.core.stacks import stack_spec
+from engine.adapters.toolchain import ensure_registered as _ensure_stacks
 from engine.templates.vendoring import VendorError, vendor
 
 __all__ = [
@@ -1194,6 +1196,17 @@ def render(
     """Render a project tree; return the list of files written (sorted)."""
     if lang not in SUPPORTED_LANGS:
         raise ValueError(f"unsupported lang {lang!r}; expected one of {SUPPORTED_LANGS}")
+    # AD-11: the pack declares which build stack this language uses; the
+    # resolved stack — not the language string — selects the template family.
+    stack_id = pack_model.stack_for(lang)
+    if stack_id is None:
+        declared = [declared_lang for declared_lang, _ in pack_model.stacks]
+        raise ValueError(
+            f"pack {pack_model.id!r} declares no build stack for language {lang!r} "
+            f"(declared: {declared or 'none'})"
+        )
+    _ensure_stacks()
+    stack = stack_spec(stack_id)
     out = Path(out_dir)
     cfg = _config_ctx(pack_model)
     written: list[Path] = []
@@ -1204,6 +1217,9 @@ def render(
         path.write_text(text)
         written.append(path)
 
+    # Resolved build stack (AD-11): persisted so verbs that load no pack
+    # (`build`, `dev`) resolve the same image/build command.
+    write(".mu/stack", stack_id + "\n")
     write(".gitignore", _GITIGNORE)
     write("README.md", _readme(pack_model, lang))
     write("probe/openocd.cfg", _render_openocd(pack_model))
@@ -1224,7 +1240,7 @@ def render(
     write("config/OVERRIDES.md", _OVERRIDES.substitute(cfg))
     write(f"config/{cfg['config_header']}", _CONFIG_H.substitute(cfg))
 
-    if lang in ("c", "cpp"):
+    if stack.template_family == "c-cmsis":
         ext = "c"  # cpp shares the c template set; flag delta lives in context
         sections: list[str] = []
         rows: list[str] = []
@@ -1265,7 +1281,7 @@ def render(
         # propagates so `create` fails loud with no partial tree — spec
         # "No network means clear error"; Rust carries no vendor tree).
         vendor(pack_model.id, out)
-    else:  # rust: single tree, memory.x covers every region
+    elif stack.template_family == "rust-cortex":  # single tree; memory.x covers every region
         arch = pack_model.cores[0].arch
         write(
             "Cargo.toml",
@@ -1287,6 +1303,10 @@ def render(
         write(
             "src/main.rs",
             _MAIN_RS.substitute(project=pack_model.id, arch=arch, config_header=cfg["config_header"]),
+        )
+    else:
+        raise ValueError(
+            f"no template family {stack.template_family!r} for build stack {stack_id!r}"
         )
 
     return sorted(written)

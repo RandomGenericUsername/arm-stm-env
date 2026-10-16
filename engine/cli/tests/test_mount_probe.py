@@ -12,6 +12,13 @@ from engine.cli.shim import (
 
 import pytest
 
+
+def _project(tmp_path, stack="make-cmsis"):
+    """A minimal mu project: the persisted build stack (AD-11)."""
+    (tmp_path / ".mu").mkdir(parents=True, exist_ok=True)
+    (tmp_path / ".mu" / "stack").write_text(stack + "\n")
+    return tmp_path
+
 MACOS_DAEMON_STDERR = (
     "docker: Error response from daemon: error while creating mount source path "
     "'/host_mnt/Users/juan.david/Desktop/personal/test-project': "
@@ -27,7 +34,7 @@ LINUX_DAEMON_STDERR = (
 
 
 def test_probe_argv_mirrors_run_mounts_and_runs_true():
-    request = ShimRequest(verb="build", lang="c", project_dir=".")
+    request = ShimRequest(verb="build", lang="c", stack="make-cmsis", project_dir=".")
     run = build_container_argv(request)
     probe = build_probe_argv(request)
     image = run[run.index("-w") + 2]
@@ -37,7 +44,7 @@ def test_probe_argv_mirrors_run_mounts_and_runs_true():
 
 
 def test_probe_argv_dev_request_is_not_interactive():
-    request = ShimRequest(verb="dev", lang="c", project_dir=".", interactive=True)
+    request = ShimRequest(verb="dev", lang="c", stack="make-cmsis", project_dir=".", interactive=True)
     assert "-it" in build_container_argv(request)
     probe = build_probe_argv(request)
     assert "-it" not in probe and probe[-1] == "true"
@@ -103,6 +110,7 @@ def _auto_mocks(monkeypatch, probe, run_rc=0, run_lines=()):
 
 def test_main_probe_mount_failure_hint_and_no_exec(monkeypatch, tmp_path, capsys):
     _auto_mocks(monkeypatch, _Proc(1, MACOS_DAEMON_STDERR))
+    _project(tmp_path)
     assert main(["build", "--project-dir", str(tmp_path)]) == 1
     err = capsys.readouterr().err
     assert "cannot mount '/Users/juan.david/Desktop/personal/test-project'" in err
@@ -111,6 +119,7 @@ def test_main_probe_mount_failure_hint_and_no_exec(monkeypatch, tmp_path, capsys
 
 def test_main_probe_non_mount_failure_relayed(monkeypatch, tmp_path, capsys):
     _auto_mocks(monkeypatch, _Proc(125, "docker: daemon explosion\n"))
+    _project(tmp_path)
     assert main(["build", "--project-dir", str(tmp_path)]) == 1
     err = capsys.readouterr().err
     assert "daemon explosion" in err and "cannot mount" not in err
@@ -118,6 +127,7 @@ def test_main_probe_non_mount_failure_relayed(monkeypatch, tmp_path, capsys):
 
 def test_main_probe_ok_executes_and_passes_code(monkeypatch, tmp_path):
     _auto_mocks(monkeypatch, _Proc(0))
+    _project(tmp_path)
     seen: list = []
 
     def _fake_popen(argv, **kw):
@@ -131,6 +141,7 @@ def test_main_probe_ok_executes_and_passes_code(monkeypatch, tmp_path):
 
 def test_main_late_mount_failure_hint_with_daemon_code(monkeypatch, tmp_path, capsys):
     _auto_mocks(monkeypatch, _Proc(0))
+    _project(tmp_path)
 
     def _fake_popen(argv, **kw):
         return _FakeProc(1, MACOS_DAEMON_STDERR.splitlines(keepends=True))

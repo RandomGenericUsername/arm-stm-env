@@ -26,6 +26,27 @@ def _fake_sysfs(tmp_path, *, vid="0483", pid="3752", serial="STL-1", bus="3", de
     return root
 
 
+def _project(tmp_path, stack="make-cmsis"):
+    """A minimal mu project: the persisted build stack (AD-11)."""
+    (tmp_path / ".mu").mkdir(parents=True, exist_ok=True)
+    (tmp_path / ".mu" / "stack").write_text(stack + "\n")
+    return tmp_path
+
+
+def _pack(dir_path):
+    """A generic (non-hardware) pack file for config-composition tests."""
+    path = dir_path / "cfg.yaml"
+    path.write_text(
+        "id: gen-1\nversion: '1'\nfamily: genfam\n"
+        "stacks: {c: make-cmsis}\n"
+        "cores: [{name: C0, arch: generic}]\n"
+        "memory: [{name: flash, origin_hex: '0x0', size: 1024}]\n"
+        "probe: {transport: t, address: a}\n"
+        "proof_rung: rung\n"
+    )
+    return path
+
+
 def test_binding_explicit_device_linux():
     b = resolve_probe_binding(os_name="linux", device="/dev/ttyUSB0")
     assert b == ProbeBinding(selector="/dev/ttyUSB0", host_devices=("/dev/ttyUSB0",))
@@ -100,7 +121,7 @@ def test_container_argv_forwards_usb_bus(monkeypatch, tmp_path):
     root = _fake_sysfs(tmp_path)
     monkeypatch.setattr("engine.cli.shim._SYSFS_USB", root)
     argv = build_container_argv(
-        ShimRequest(verb="flash", vid="0483", pid="3752", os_name="linux")
+        ShimRequest(verb="flash", stack="make-cmsis", vid="0483", pid="3752", os_name="linux")
     )
     joined = " ".join(argv)
     assert "/dev/bus/usb:/dev/bus/usb" in joined
@@ -113,14 +134,14 @@ def test_container_argv_forwards_usb_bus(monkeypatch, tmp_path):
 
 def test_container_argv_explicit_device(monkeypatch):
     argv = build_container_argv(
-        ShimRequest(verb="flash", device="/dev/ttyUSB0", os_name="linux")
+        ShimRequest(verb="flash", stack="make-cmsis", device="/dev/ttyUSB0", os_name="linux")
     )
     assert "/dev/ttyUSB0:/dev/ttyUSB0" in argv
 
 
 def test_container_argv_macos_no_usb_passthrough():
     argv = build_container_argv(
-        ShimRequest(verb="flash", serial="ABC", os_name="darwin")
+        ShimRequest(verb="flash", stack="make-cmsis", serial="ABC", os_name="darwin")
     )
     assert "/dev/bus/usb" not in " ".join(argv)
     assert "ABC" in argv  # selector still forwarded for in-container use
@@ -130,7 +151,9 @@ def test_shim_probe_linux_dry_run_carries_bus(capsys, monkeypatch, tmp_path):
     root = _fake_sysfs(tmp_path)
     monkeypatch.setattr("engine.cli.shim._SYSFS_USB", root)
     monkeypatch.setattr("platform.system", lambda: "Linux")
-    assert main(["flash", "--vid", "0483", "--pid", "3752", "--dry-run"]) == 0
+    proj = _project(tmp_path)
+    assert main(["flash", "--vid", "0483", "--pid", "3752", "--dry-run",
+                 "--project-dir", str(proj)]) == 0
     out = capsys.readouterr().out
     assert "/dev/bus/usb:/dev/bus/usb" in out
     assert "MU_PROBE_SERIAL=STL-1" in out
@@ -141,7 +164,9 @@ def test_dev_forwards_probe_bus(capsys, monkeypatch, tmp_path):
     root = _fake_sysfs(tmp_path)
     monkeypatch.setattr("engine.cli.shim._SYSFS_USB", root)
     monkeypatch.setattr("platform.system", lambda: "Linux")
-    assert main(["dev", "--device", "/dev/bus/usb/003/009", "--dry-run"]) == 0
+    proj = _project(tmp_path)
+    assert main(["dev", "--device", "/dev/bus/usb/003/009", "--dry-run",
+                 "--project-dir", str(proj)]) == 0
     out = capsys.readouterr().out
     assert "/dev/bus/usb:/dev/bus/usb" in out
     assert "MU_PROBE_SERIAL=STL-1" in out
@@ -152,14 +177,14 @@ def test_build_verb_carries_no_probe_device(monkeypatch, tmp_path):
     """bug-010: build must not resolve/forward a probe (--device is rejected)."""
     root = _fake_sysfs(tmp_path)
     monkeypatch.setattr("engine.cli.shim._SYSFS_USB", root)
-    argv = build_container_argv(ShimRequest(verb="build", os_name="linux"))
+    argv = build_container_argv(ShimRequest(verb="build", stack="make-cmsis", os_name="linux"))
     assert "--device" not in argv
 
 
 def test_flash_verb_autodetects_probe_bus(monkeypatch, tmp_path):
     root = _fake_sysfs(tmp_path)
     monkeypatch.setattr("engine.cli.shim._SYSFS_USB", root)
-    argv = build_container_argv(ShimRequest(verb="flash", os_name="linux"))
+    argv = build_container_argv(ShimRequest(verb="flash", stack="make-cmsis", os_name="linux"))
     assert "/dev/bus/usb:/dev/bus/usb" in " ".join(argv)
     assert "MU_PROBE_SERIAL=STL-1" in argv
 
@@ -174,19 +199,22 @@ def test_shim_probe_xor_mcu_config_vs_individual_flags(capsys):
 def test_shim_probe_mcu_config_composes_with_probe_flags(capsys, tmp_path):
     # bug-001: probe selectors are run config, not device description —
     # --mcu-config + --device must compose, not violate XOR.
-    proj = tmp_path / "proj"
-    proj.mkdir()
+    proj = _project(tmp_path)
+    pack = _pack(proj)
     code = main(
-        ["flash", "--mcu-config", "cfg.yaml", "--device", "/dev/ttyUSB0",
+        ["flash", "--mcu-config", str(pack), "--device", "/dev/ttyUSB0",
          "--project-dir", str(proj), "--files", "a.elf", "--dry-run"]
     )
     assert code == 0
     out = capsys.readouterr().out
-    assert "--mcu-config cfg.yaml" in out and "--device /dev/ttyUSB0" in out
+    assert f"--mcu-config {pack}" in out and "--device /dev/ttyUSB0" in out
 
 
-def test_shim_probe_single_source_passes(capsys):
-    assert main(["build", "--mcu-config", "cfg.yaml", "--dry-run"]) == 0
+def test_shim_probe_single_source_passes(capsys, tmp_path):
+    proj = _project(tmp_path)
+    pack = _pack(proj)
+    assert main(["build", "--mcu-config", str(pack), "--dry-run",
+                 "--project-dir", str(proj)]) == 0
     capsys.readouterr()
-    assert main(["build", "--mcu", "x", "--dry-run"]) == 0
+    assert main(["build", "--mcu", "x", "--dry-run", "--project-dir", str(proj)]) == 0
     capsys.readouterr()

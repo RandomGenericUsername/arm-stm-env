@@ -5,6 +5,13 @@ import pytest
 from engine.cli.main import VERBS, build_parser, main
 
 
+def _project(tmp_path, stack="make-cmsis"):
+    """A minimal mu project: the persisted build stack (AD-11)."""
+    (tmp_path / ".mu").mkdir(parents=True, exist_ok=True)
+    (tmp_path / ".mu" / "stack").write_text(stack + "\n")
+    return tmp_path
+
+
 def test_verbs_all_five_registered():
     assert tuple(VERBS) == ("create", "dev", "build", "flash", "debug")
 
@@ -19,9 +26,10 @@ def test_verbs_each_has_help(capsys):
 
 
 @pytest.mark.parametrize("verb", ["dev", "build", "flash", "debug"])
-def test_verbs_dry_run_prints_container_argv_without_runtime(capsys, monkeypatch, verb):
+def test_verbs_dry_run_prints_container_argv_without_runtime(capsys, monkeypatch, tmp_path, verb):
     monkeypatch.setattr("shutil.which", lambda _: None)  # no runtime present
-    code = main([verb, "--dry-run"])
+    proj = _project(tmp_path)
+    code = main([verb, "--dry-run", "--project-dir", str(proj)])
     assert code == 0
     out = capsys.readouterr().out
     assert "docker" in out and "run" in out
@@ -45,10 +53,11 @@ def test_verbs_create_dry_run_renders_locally_without_runtime(capsys, monkeypatc
     assert not (tmp_path / "demo").exists()
 
 
-def test_verbs_local_mode_dry_run_has_no_runtime_wrap(capsys):
-    assert main(["build", "--mode", "local", "--dry-run"]) == 0
+def test_verbs_local_mode_dry_run_has_no_runtime_wrap(capsys, tmp_path):
+    proj = _project(tmp_path)
+    assert main(["build", "--mode", "local", "--dry-run", "--project-dir", str(proj)]) == 0
     out = capsys.readouterr().out.strip()
-    assert out == "cd . && make build" and "docker" not in out
+    assert out == f"cd {proj} && make build" and "docker" not in out
 
 
 def test_verbs_local_build_runs_toolchain(monkeypatch, tmp_path):
@@ -61,6 +70,7 @@ def test_verbs_local_build_runs_toolchain(monkeypatch, tmp_path):
         "subprocess.run",
         lambda cmd, **kw: calls.append((cmd, kw)) or _Done(),
     )
+    _project(tmp_path)
     assert main(["build", "--mode", "local", "--project-dir", str(tmp_path)]) == 0
     assert calls == [(["make", "build"], {"cwd": str(tmp_path)})]
 
@@ -75,6 +85,7 @@ def test_verbs_local_build_rust_runs_cargo(monkeypatch, tmp_path):
         "subprocess.run",
         lambda cmd, **kw: calls.append((cmd, kw)) or _Done(),
     )
+    _project(tmp_path, stack="cargo-cortex")
     assert main(["build", "--lang", "rust", "--mode", "local",
                   "--project-dir", str(tmp_path)]) == 0
     assert calls == [(["cargo", "build"], {"cwd": str(tmp_path)})]
@@ -114,9 +125,10 @@ def test_verbs_unknown_language_is_usage_error(capsys):
     assert "unknown language" in capsys.readouterr().err
 
 
-def test_verbs_missing_runtime_fails_fast_with_hint(capsys, monkeypatch):
+def test_verbs_missing_runtime_fails_fast_with_hint(capsys, monkeypatch, tmp_path):
     monkeypatch.setattr("shutil.which", lambda _: None)
-    assert main(["build"]) == 1
+    proj = _project(tmp_path)
+    assert main(["build", "--project-dir", str(proj)]) == 1
     assert "not found" in capsys.readouterr().err
 
 
@@ -172,6 +184,7 @@ def test_verbs_probe_defaults_to_pack_backend(monkeypatch, tmp_path, capsys):
 def test_verbs_verbose_forwarded_into_container(capsys, tmp_path):
     proj = tmp_path / "proj"
     proj.mkdir()
+    _project(proj)
     assert main(
         ["flash", "--project-dir", str(proj), "--files", "a.elf", "--verbose", "--dry-run"]
     ) == 0
@@ -179,7 +192,7 @@ def test_verbs_verbose_forwarded_into_container(capsys, tmp_path):
     assert "--verbose" in out and "--files a.elf" in out
 
 
-def test_verbs_missing_image_names_make_images(capsys, monkeypatch):
+def test_verbs_missing_image_names_make_images(capsys, monkeypatch, tmp_path):
     import subprocess
 
     class _Proc:
@@ -192,7 +205,8 @@ def test_verbs_missing_image_names_make_images(capsys, monkeypatch):
         raise AssertionError(f"should stop before exec: {cmd}")
 
     monkeypatch.setattr(subprocess, "run", _fake_run)
-    code = main(["build", "--project-dir", "."])
+    proj = _project(tmp_path)
+    code = main(["build", "--project-dir", str(proj)])
     assert code == 1
     assert "make images" in capsys.readouterr().err
 
@@ -270,3 +284,21 @@ def test_verbs_debug_fails_when_backend_has_no_debug_port(monkeypatch, tmp_path,
     )
     assert code == 2
     assert "no debug port" in capsys.readouterr().err
+
+
+def test_verbs_build_uses_project_stack_not_language(monkeypatch, tmp_path):
+    """AD-11: the persisted stack — not --lang — selects the build command."""
+    calls: list = []
+
+    class _Done:
+        returncode = 0
+
+    monkeypatch.setattr("subprocess.run", lambda cmd, **kw: calls.append(cmd) or _Done())
+    _project(tmp_path, stack="cargo-cortex")
+    assert main(["build", "--lang", "c", "--mode", "local", "--project-dir", str(tmp_path)]) == 0
+    assert calls == [["cargo", "build"]]
+
+
+def test_verbs_build_without_a_stack_errors_clearly(capsys, tmp_path):
+    assert main(["build", "--mode", "local", "--project-dir", str(tmp_path)]) == 2
+    assert "no build stack" in capsys.readouterr().err

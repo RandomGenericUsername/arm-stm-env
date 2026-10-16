@@ -166,35 +166,35 @@ def get_adapter(name: str | None = None, **kwargs) -> FlashPort:
 
 
 class ImageLookup(ABC):
-    """Port mapping source language -> container image reference."""
+    """Port mapping a resolved build stack -> container image reference (AD-8)."""
 
     @abstractmethod
-    def image_for(self, lang: str) -> str:
-        """Return the image reference for ``lang``; unknown lang raises."""
+    def image_for(self, stack_id: str) -> str:
+        """Return the image reference for ``stack_id``; an unknown stack raises."""
 
     @abstractmethod
-    def supported_langs(self) -> tuple[str, ...]:
-        """Languages with a known image."""
+    def supported_stacks(self) -> tuple[str, ...]:
+        """Build stacks with a known image."""
 
 
 class DefaultImageLookup(ImageLookup):
-    """Core-owned default table (stdlib mapping, no device knowledge)."""
+    """Core-owned default: the registered build stacks (AD-8, AD-11).
 
-    TABLE: dict[str, str] = {
-        # Pinned refs (req-007). c shares the cpp image: one ARM GCC
-        # toolchain compiles both; a separate lang-c image would duplicate it.
-        "c": "ghcr.io/randomgenericusername/lang-cpp:15.3.rel2",
-        "cpp": "ghcr.io/randomgenericusername/lang-cpp:15.3.rel2",
-        "rust": "ghcr.io/randomgenericusername/lang-rust:1.99.0",
-    }
+    No toolchain data lives here — the toolchain adapters register their stacks
+    against the core registry (:mod:`engine.core.stacks`), so adding a stack is
+    a registration, never a core edit (AD-1).
+    """
 
-    def image_for(self, lang: str) -> str:
-        try:
-            return self.TABLE[lang]
-        except KeyError:
-            raise ValueError(
-                f"unknown language {lang!r}; supported: {sorted(self.TABLE)}"
-            ) from None
+    def image_for(self, stack_id: str) -> str:
+        from engine.adapters.toolchain import ensure_registered
+        from engine.core.stacks import stack_spec
 
-    def supported_langs(self) -> tuple[str, ...]:
-        return tuple(sorted(self.TABLE))
+        ensure_registered()
+        return stack_spec(stack_id).image
+
+    def supported_stacks(self) -> tuple[str, ...]:
+        from engine.adapters.toolchain import ensure_registered
+        from engine.core.stacks import registered_stacks
+
+        ensure_registered()
+        return registered_stacks()

@@ -301,6 +301,10 @@ class Device:
     openocd: OpenocdConfig | None = None
     provenance: Tuple[Tuple[str, str], ...] = ()
     facets: DeviceFacets | None = None
+    #: Frame ``stacks`` map (AD-11): source language -> build-stack id,
+    #: sorted by language. The resolved stack, never the language flag,
+    #: selects the template family, image, and build command.
+    stacks: Tuple[Tuple[str, str], ...] = ()
 
     def __init__(
         self,
@@ -315,6 +319,7 @@ class Device:
         provenance: dict[str, str] | Sequence[tuple[str, str] | list[str]] = (),
         facets: DeviceFacets | None = None,
         probe_backend: str | None = None,
+        stacks: Sequence[tuple[str, str]] | dict[str, str] = (),
     ) -> None:
         if not id:
             raise ValueError("Device.id must be non-empty")
@@ -357,6 +362,22 @@ class Device:
         object.__setattr__(self, "probe_backend", probe_backend)
         object.__setattr__(self, "facets", facets if facets is not None else DeviceFacets())
         object.__setattr__(self, "provenance", tuple(sorted(base.items())))
+        stack_pairs = (
+            tuple(sorted(stacks.items())) if isinstance(stacks, dict) else tuple(sorted(tuple(s) for s in stacks))
+        )
+        for lang, stack_id in stack_pairs:
+            if not isinstance(lang, str) or not lang:
+                raise ValueError("Device.stacks keys must be non-empty language strings")
+            if not isinstance(stack_id, str) or not stack_id:
+                raise ValueError("Device.stacks values must be non-empty stack ids")
+        object.__setattr__(self, "stacks", stack_pairs)
+
+    def stack_for(self, lang: str) -> str | None:
+        """Build-stack id the pack declares for ``lang`` (or ``None``)."""
+        for declared_lang, stack_id in self.stacks:
+            if declared_lang == lang:
+                return stack_id
+        return None
 
 
 # --- Adapter-facing reader views (facts only, no loader/pack-path access) ---

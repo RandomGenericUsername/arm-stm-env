@@ -23,6 +23,7 @@ BASE = {
     "memory": [{"name": "flash", "origin_hex": "0x08000000", "size": 524288}],
     "probe": {"transport": "stlink", "address": "openocd:stlink"},
     "proof_rung": "rung-1",
+    "stacks": {"c": "make-cmsis", "cpp": "make-cmsis", "rust": "cargo-cortex"},
     "blocks": {},
 }
 
@@ -109,6 +110,7 @@ def test_full_pack_with_all_family_blocks_loads():
 id: stm32wl55jc
 version: '1.0.0'
 family: stm32wl
+stacks: {c: make-cmsis, cpp: make-cmsis, rust: cargo-cortex}
 cores:
   - {name: M4, arch: thumbv7em-none-eabihf}
   - {name: M0+, arch: thumbv6m-none-eabi}
@@ -130,7 +132,7 @@ blocks:
 
 
 @pytest.mark.parametrize(
-    "missing", ["id", "version", "family", "cores", "memory", "probe", "proof_rung"]
+    "missing", ["id", "version", "family", "cores", "memory", "probe", "proof_rung", "stacks"]
 )
 def test_frame_missing_field_rejects_naming_it(missing):
     with pytest.raises(FrameError, match=missing):

@@ -1,5 +1,7 @@
 """Port conformance tests (req-005, group 1.1): stubs honor the ABCs."""
 
+import pytest
+
 from engine.adapters import (
     DebugHandle,
     DefaultImageLookup,
@@ -38,9 +40,10 @@ def test_ports_debug_returns_handle_bound_to_endpoint():
     assert stub.debugged == 1
 
 
-def test_ports_image_lookup_maps_languages():
+def test_ports_image_lookup_maps_stacks():
     lookup = DefaultImageLookup()
-    assert lookup.image_for("c")
-    assert lookup.image_for("cpp")
-    assert lookup.image_for("rust")
-    assert set(lookup.supported_langs()) == {"c", "cpp", "rust"}
+    assert lookup.image_for("make-cmsis")
+    assert lookup.image_for("cargo-cortex")
+    assert set(lookup.supported_stacks()) == {"make-cmsis", "cargo-cortex"}
+    with pytest.raises(ValueError):
+        lookup.image_for("nope")

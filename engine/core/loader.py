@@ -19,7 +19,7 @@ from engine.packs import ensure_registered
 
 __all__ = ["FRAME_KEYS", "FrameError", "load_file", "load_text", "validate_frame"]
 
-FRAME_KEYS = ("id", "version", "family", "cores", "memory", "probe", "proof_rung")
+FRAME_KEYS = ("id", "version", "family", "cores", "memory", "probe", "proof_rung", "stacks")
 
 
 class FrameError(ValueError):
@@ -48,6 +48,15 @@ def validate_frame(doc: dict) -> Device:
     family = doc["family"]
     if not isinstance(family, str) or not family:
         raise FrameError("pack 'family' must be a non-empty string")
+    # AD-11: the frame declares which build stack each source language uses.
+    stacks = doc["stacks"]
+    if not isinstance(stacks, dict) or not stacks:
+        raise FrameError("'stacks' must be a non-empty mapping of language -> build-stack id")
+    for lang, stack_id in stacks.items():
+        if not isinstance(lang, str) or not lang:
+            raise FrameError("'stacks' keys must be non-empty language strings")
+        if not isinstance(stack_id, str) or not stack_id:
+            raise FrameError(f"'stacks[{lang!r}]' must be a non-empty build-stack id")
     try:
         cores = tuple(Core(name=c["name"], arch=c["arch"]) for c in doc["cores"])
     except (TypeError, KeyError, AttributeError) as exc:
@@ -159,6 +168,7 @@ def validate_frame(doc: dict) -> Device:
         provenance={"pack_id": doc["id"], "pack_version": str(doc["version"])},
         facets=facets,
         probe_backend=doc.get("probe_backend"),
+        stacks=stacks,
     )
 
 

@@ -78,6 +78,8 @@ class ShimRequest:
     os_name: str = "linux"
     interactive: bool = False
     mcu_config: str | None = None
+    #: Resolved build stack (AD-11) — the image key; never the language flag.
+    stack: str = ""
 
 
 def engine_root() -> Path:
@@ -286,7 +288,9 @@ def _container_prefix(
         raise ValueError("local mode executes in-process; no container argv exists")
     if not request.verb:
         raise ValueError("verb must be non-empty")
-    image = (lookup or DefaultImageLookup()).image_for(request.lang)
+    if not request.stack:
+        raise ValueError("stack must be non-empty (resolve it from the pack or the project)")
+    image = (lookup or DefaultImageLookup()).image_for(request.stack)
     project_abs = Path(request.project_dir).resolve()
     # Probe resolution only for verbs that use the probe: build/create don't, and
     # forwarding --device into `build` is an unrecognised arg (bug-010).
