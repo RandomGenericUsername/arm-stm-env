@@ -121,10 +121,18 @@ carried ops-022/bug-023/bug-024 into `engine/templates/renderer.py` +
   `Verify: uvx esptool --port /dev/ttyUSB0 chip-id` (+ `flash-id`).
 - Wiring: `+5V→5V`, `GND→GND`, `TXD→GPIO3`, `RXD→GPIO1`; download mode by
   `GPIO0→GND` + RST pulse (this board has no auto-reset circuit). No probe.
+- **Write path proven (2026-10-16):** the full 4 MB image was written to `0x0`
+  with `write-flash` → esptool reported `Hash of data verified.`; an
+  independent `read-flash` + `cmp` came back byte-identical (sha256
+  `c34ef152…`). Backup taken first, so the operation is reversible and the
+  board's content is unchanged. Download mode must be re-entered per session —
+  the cable has no DTR/RTS wiring, so esptool's "hard reset" never reaches the
+  board.
+  `Verify: uvx esptool --port /dev/ttyUSB0 --baud 460800 write-flash 0x0 <backup>; uvx esptool … read-flash 0 0x400000 <out>; cmp <backup> <out>`
 - Caveat: the PL2303 is **not** in the planned `_PROBE_VIDS`
   (`engine/cli/shim.py:64` → 10C4/1A86) and threw transient `-71`/`EPROTO`
   control-transfer errors (`journalctl -k | rg pl2303`) before recovering —
   it works, but the planned CH340/CP210x bridges are the safer default.
 
-Still open: the first-slice implementation ticket; the Rust/esp-hal path (a
-real `write-flash` + verify on this board is the natural first-slice proof).
+Still open: the first-slice implementation ticket (pack YAML + esptool backend
+dry-run + docs, pinned to `espressif/idf:v6.1`); the Rust/esp-hal path.
