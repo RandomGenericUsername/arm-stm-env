@@ -58,8 +58,9 @@ app printed `mu/esp32cam: blink N` over UART0 @115200.
 
 ## Open (recorded, not papered over)
 
-- **Containerized UART tty passthrough** — the shim forwards a USB *node*; esptool needs
-  `/dev/ttyUSB*` (recorded in E2). Live flashing so far is host-side only.
+- **Containerized UART tty passthrough** — ADDRESSED by `task-017` (the shim now resolves and
+  forwards `/dev/ttyUSB*` for `uart-serial` packs). The *live* containerized flash still needs
+  the board attached; host-side flash was proven in spike-007.
 - The harness's **flash + boot-log** step for this cell runs once that gap closes and the board is
   attached.
 

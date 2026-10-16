@@ -86,6 +86,9 @@ class ShimRequest:
     mcu_config: str | None = None
     #: Resolved build stack (AD-11) — the image key; never the language flag.
     stack: str = ""
+    #: The pack's declared probe transport (AD-9): ``uart-serial`` needs its tty
+    #: forwarded; everything else keeps the USB-bus behaviour.
+    probe_transport: str = ""
 
 
 def engine_root() -> Path:
@@ -135,6 +138,54 @@ def _usb_device_node(entry: Path) -> str | None:
     return None
 
 
+def _tty_for_usb(entry: Path) -> str | None:
+    """``/dev/ttyUSB0`` when a USB device's interface bound a serial tty.
+
+    A USB-UART bridge is reached differently from a libusb probe: the kernel
+    creates a **tty** node (major 188) for it, and the container's private
+    ``/dev`` does not have that node — so it must be forwarded, unlike a
+    libusb device (major 189) reached through the USB bus. The tty's name is
+    whatever sysfs exposes under the interface's ``tty`` class dir.
+    """
+    for interface in sorted(entry.parent.glob(f"{entry.name}:*")):
+        for tty_class in sorted(interface.glob("tty*")):
+            tty_dir = tty_class / "tty"
+            if not tty_dir.is_dir():
+                continue
+            for name in sorted(tty_dir.iterdir()):
+                return f"/dev/{name.name}"
+    return None
+
+
+def _binding_from_entry(
+    entry: Path,
+    *,
+    is_mac: bool,
+    transport: str,
+    vid: str,
+    pid: str,
+    serial: str | None,
+) -> ProbeBinding:
+    """Binding for a matched USB device, per transport (AD-9).
+
+    A ``uart-serial`` device is reached through its tty (forwarded with
+    ``--device``); every other probe keeps the USB-node/bus behaviour.
+    """
+    if is_mac:
+        return ProbeBinding(selector=serial or f"{vid}:{pid}", host_devices=(), serial=serial or None)
+    if transport == "uart-serial":
+        tty = _tty_for_usb(entry)
+        if tty is not None:
+            # The tty is the backend's port *and* the node the container needs.
+            return ProbeBinding(selector=tty, host_devices=(tty,), serial=serial or None)
+    node = _usb_device_node(entry)
+    return ProbeBinding(
+        selector=serial or f"{vid}:{pid}",
+        host_devices=(node,) if node else (),
+        serial=serial or None,
+    )
+
+
 def _serial_for_usb_node(sysfs_root: Path, node: str) -> str | None:
     """USB serial for a ``/dev/bus/usb/<bus>/<dev>`` node (bug-018).
 
@@ -169,7 +220,9 @@ def _match_usb(sysfs_root: Path, vid: str | None, pid: str | None, serial: str |
     return None
 
 
-def _autodetect(*, is_mac: bool, sysfs_root: Path | str | None) -> ProbeBinding | None:
+def _autodetect(
+    *, is_mac: bool, sysfs_root: Path | str | None, transport: str = ""
+) -> ProbeBinding | None:
     """Binding for the single attached probe, or ``None`` when none is attached.
 
     Raises when more than one probe is attached (ambiguous — the caller must
@@ -196,9 +249,9 @@ def _autodetect(*, is_mac: bool, sysfs_root: Path | str | None) -> ProbeBinding 
     v = _read_text(entry / "idVendor").lower()
     p = _read_text(entry / "idProduct").lower()
     s = _read_text(entry / "serial")
-    node = _usb_device_node(entry)
-    host = () if is_mac else ((node,) if node else ())
-    return ProbeBinding(selector=s or f"{v}:{p}", host_devices=host, serial=s or None)
+    return _binding_from_entry(
+        entry, is_mac=is_mac, transport=transport, vid=v, pid=p, serial=s or None
+    )
 
 
 def resolve_probe_binding(
@@ -209,6 +262,7 @@ def resolve_probe_binding(
     pid: str | None = None,
     serial: str | None = None,
     sysfs_root: Path | str | None = None,
+    transport: str = "",
 ) -> ProbeBinding | None:
     """Resolve a probe selector to a binding (shim only).
 
@@ -231,7 +285,7 @@ def resolve_probe_binding(
             serial=None if is_mac else _serial_for_usb_node(root, device),
         )
     if not (vid or pid or serial):
-        return _autodetect(is_mac=is_mac, sysfs_root=sysfs_root)
+        return _autodetect(is_mac=is_mac, sysfs_root=sysfs_root, transport=transport)
     if is_mac and not serial:
         raise ValueError(
             "macOS probe limit: automatic VID/PID mapping unsupported; "
@@ -244,10 +298,9 @@ def resolve_probe_binding(
         selector = serial or (f"{vid}:{pid}" if vid and pid else (vid or pid or "probe"))
         return ProbeBinding(selector=selector, host_devices=(), serial=serial or None)
     entry, v, p, s = match
-    selector = s or f"{v}:{p}"
-    node = _usb_device_node(entry)
-    host = () if is_mac else ((node,) if node else ())
-    return ProbeBinding(selector=selector, host_devices=host, serial=s or None)
+    return _binding_from_entry(
+        entry, is_mac=is_mac, transport=transport, vid=v, pid=p, serial=s or None
+    )
 
 
 def probe_endpoint(
@@ -258,6 +311,7 @@ def probe_endpoint(
     pid: str | None = None,
     serial: str | None = None,
     sysfs_root: Path | str | None = None,
+    transport: str = "",
 ) -> Endpoint | None:
     """Prepare the endpoint struct handed to core/adapters (shim only).
 
@@ -271,6 +325,7 @@ def probe_endpoint(
         pid=pid,
         serial=serial,
         sysfs_root=sysfs_root,
+        transport=transport,
     )
     if binding is None:
         return None
@@ -307,6 +362,7 @@ def _container_prefix(
             vid=request.vid,
             pid=request.pid,
             serial=request.serial,
+            transport=request.probe_transport,
         )
         if request.verb in ("flash", "debug", "dev")
         else None
