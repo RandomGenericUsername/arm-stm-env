@@ -11,7 +11,7 @@ links:
     - _bmad-output/initiative-universal-mcu-env/spec-universal-mcu-env/spec-universal-mcu-env.md
 worktree: .worktrees/req-002/
 branch: ticket/req-002-distill-spec
-parent: ""
+parent: epic-001
 children: []
 ---
 

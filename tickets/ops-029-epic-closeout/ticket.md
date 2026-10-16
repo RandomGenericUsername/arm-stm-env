@@ -2,14 +2,14 @@
 id: ops-029
 title: "epic-001 closeout: reconcile children, add the rollup checklist, flip to done"
 kind: ops-task
-status: proposed
+status: done
 size: S
 lane: direct
 links:
   openspec: none
   bmad: none
-worktree: none
-branch: none
+worktree: .worktrees/ops-029/
+branch: ticket/ops-029-epic-closeout
 ---
 
 # epic-001 closeout: reconcile children, add the rollup checklist, flip to done
@@ -18,25 +18,37 @@ branch: none
 
 ## Work
 
-The V1 epic is still open and its rollup does not hold. Concretely:
+1. Reconciled the children list. `epic.md` declared **23** but **29** tickets
+   declared `parent: epic-001`; it also listed `req-001`/`req-002`, which carried
+   `parent: ""`. The list is now the full **31** children (the 29 + req-001 +
+   req-002, the latter two given `parent: epic-001`).
+2. Added the `## Children` checklist (one `- [x] <id> — <title>` per child), so
+   the `in-progress → done` gate passes (`tickets/LIFECYCLE.md:12`: checklist
+   count == `children:` count).
+3. Normalised the status: `decomposed` (not a lifecycle state, `LIFECYCLE.md:9`)
+   → `done`.
+4. Updated the INDEX rollup line and the nested children list (31) in the same
+   commit (`LIFECYCLE.md:3`); the section header `## Active epics` → `## Epics`.
 
-1. **Reconcile the children list (drift).** `tickets/epic-001-universal-framework/epic.md`
-   declares **23** children, but **29** tickets declare `parent: epic-001`. The
-   list is missing `req-012`, `req-014`–`req-020` (8 items) and wrongly lists
-   `req-001`/`req-002`, which declare no parent.
-   Evidence: `grep -rl '^parent: epic-001' tickets/*/ticket.md` →
-   29 dirs; `sed -n '/^children:/,/^done-when:/p' tickets/epic-001-universal-framework/epic.md` → 23 ids.
-2. **Add the rollup checklist** — one `- [x] <id> — <title>` per child — so the
-   `in-progress → done` gate passes (`tickets/LIFECYCLE.md:12`: checklist count
-   must equal `children:` count). The epic currently has **0** such lines.
-3. **Normalise the status.** The epic is `decomposed`, which is not a lifecycle
-   state (`tickets/LIFECYCLE.md:9`: `proposed → in-progress → done`).
-4. **Flip to `done` only after** `ops-027`, `ops-028`, `ops-030` close and the
-   done-when (clean-machine create-build-flash-run per pack) actually holds —
-   not before. (`spike-008` is resolved: Rust is build-parity for V1.)
-5. **Update the INDEX rollup line in the same commit** (`tickets/LIFECYCLE.md:3`).
+## Evidence
+
+```
+# children reconcile: 23 -> 31, all done
+$ grep -c '^  - ' tickets/epic-001-universal-framework/epic.md        # frontmatter children
+31
+$ grep -c '^- \[x\] ' tickets/epic-001-universal-framework/epic.md    # checklist (gate)
+31
+$ rg -l '^parent: epic-001' tickets/*/ticket.md | wc -l               # declaring parent
+31
+
+# done-when holds
+- create->build: ops-023 (docs/e2e-evidence.md, 10/10)
+- flash->run per pack (clean machine): docs/flash-run-evidence.md
+  (F411RE + H755ZI-Q = ops-020; WL55JC = ops-027)
+- Rust = build-parity (spike-008 decision)
+```
 
 ## Done-when
 
 `tickets/epic-001-universal-framework/epic.md` children list == the actual
-children, checklist count == children count, status `done`, and INDEX agrees.
+children, checklist count == children count, status `done`, and INDEX agrees. ✅
