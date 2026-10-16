@@ -295,6 +295,8 @@ idf.py -p /dev/ttyUSB0 monitor --no-reset
 
 **Stop the monitor before flashing** (`Ctrl+]`): a monitor holds the serial port,
 and `Flash` then fails with `Could not open /dev/ttyUSB0, the port is busy`.
+Monitoring is deliberately its **own** task for that reason — a task that flashed
+and then monitored would leave the port held, blocking the next flash.
 
 ## Expected behaviour
 
@@ -1347,9 +1349,9 @@ def _vscode_files_idf(device: Device) -> dict[str, str]:
                 "problemMatcher": [],
             },
             {
-                "label": "Build + Flash + Monitor",
+                "label": "Build + Flash",
                 "type": "shell",
-                "command": f"idf.py build && {monitor}",
+                "command": f"idf.py build && idf.py -p {port} flash",
                 "problemMatcher": [],
             },
         ],
