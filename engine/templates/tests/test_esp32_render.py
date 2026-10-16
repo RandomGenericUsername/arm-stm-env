@@ -47,6 +47,15 @@ def test_idf_example_uses_the_pack_led_fact(tmp_path) -> None:
     assert "gpio_set_level(LED_GPIO, 1)" in main_c
 
 
+def test_idf_example_logs_every_blink(tmp_path) -> None:
+    """The monitor must show live output, not one line at boot."""
+    _render(tmp_path)
+    main_c = (tmp_path / "main" / "main.c").read_text()
+    assert 'printf("esp32cam: blink %d\\n", ++n)' in main_c
+    # the counter is declared and incremented inside the loop
+    assert "int n = 0;" in main_c
+
+
 def test_idf_sdkconfig_comes_from_the_pack(tmp_path) -> None:
     _render(tmp_path)
     sdk = (tmp_path / "sdkconfig.defaults").read_text()

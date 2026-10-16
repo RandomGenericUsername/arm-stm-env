@@ -112,6 +112,7 @@
 - [task-017-uart-tty-binding](./task-017-uart-tty-binding/ticket.md) — T17: bind UART probes to their tty (containerized serial flash) | `done` | parent req-022 | 345/345 tests, tty forwarded; live container flash proven (ops-024)
 - [task-018-esp32-vscode](./task-018-esp32-vscode/ticket.md) — ESP32 VS Code flow: build / flash / monitor | `done` | parent req-022 | 347/347 tests, no launch.json, tasks only
 - [task-019-dev-detach](./task-019-dev-detach/ticket.md) — mu dev --detach: attachable long-running dev container | `done` | parent req-022 | 354/354 tests, readiness-waited, env in every shell
+- [task-020-esp32-blink-log](./task-020-esp32-blink-log/ticket.md) — ESP32 example logs every blink (monitor was quiet after boot) | `done` | parent req-022 | 355/355 tests, live counter
 
 ## Done (links only, newest last)
 
