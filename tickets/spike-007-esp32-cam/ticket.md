@@ -20,7 +20,7 @@ answered:
   - "Q5 templates: NEW template family required — root CMakeLists.txt + main/CMakeLists.txt + sdkconfig.defaults (+ optional partitions.csv) instead of Makefile + linker/*.ld; xtensa toolchain via idf.py build|flash|monitor; no vendor/CMSIS, no startup/system/defines, no memory.x/link.x; new lang/kind key + image in DefaultImageLookup; new .vscode (no cortex-debug+openocd+SVD, no arm-none-eabi-gdb). Do NOT fork CPU_BY_CORE/Makefile/_LINKER/memory.x. Verdict: NEW-KIND."
   - "Q6 done criteria: NEW build_idf_cell in engine/verify — render CMake tree, docker run idf.py build in the IDF image, assert build/*.elf+*.bin exist + partition-table fit (offsets/sizes, not arm-none-eabi-size), optional esptool verify-flash as proof_rung, warn-only policy kept, evidence extended with idf cmd + bin sizes. e2e.py:57-62 CELLS gain (esp32cam,idf)."
   - "Q7 image pin (resolved 2026-10-16): espressif/idf ships BOTH linux/amd64 AND linux/arm64 (docker buildx imagetools inspect, cross-checked with the Hub tags API). Digest-pin candidate = v6.1 (docs /en/stable/ now serves v6.1), index sha256:81893c71…5edb18c. Fallbacks: v6.0.3 sha256:54278f2c…7a08f555, v5.5.6 sha256:bf72fe7a…614cac84. Per-arch digests + sources in the addendum."
-  - "Q8 hardware confirmation (2026-10-16, owner's bench): live UART link proven — esptool v6 via `uvx` over a generic PL2303 USB-TTL (067b:2303, /dev/ttyUSB0) reports Chip type ESP32-D0WD (revision v1.0), 240MHz dual-core Wi-Fi/BT, MAC 30:83:98:57:5f:c4; flash-id → manufacturer 5e device 4016, 4MB (matches Q1). No probe; manual GPIO0→GND + RST for download mode. Caveat: 067b is NOT in the planned _PROBE_VIDS (10C4/1A86); it also threw transient -71/EPROTO before recovering (flaky)."
+  - "Q8 hardware confirmation (2026-10-16, owner's bench): live UART link proven — esptool v5.6.0 via `uvx` over a generic PL2303 USB-TTL (067b:2303, /dev/ttyUSB0) reports Chip type ESP32-D0WD (revision v1.0), 240MHz dual-core Wi-Fi/BT, MAC 30:83:98:57:5f:c4; flash-id → manufacturer 5e device 4016, 4MB (matches Q1). No probe; manual GPIO0→GND + RST for download mode. Caveat: 067b is NOT in the planned _PROBE_VIDS (10C4/1A86); it also threw transient -71/EPROTO before recovering (flaky)."
 open:
   - "First-slice implementation ticket (suggested: pack YAML + esptool backend dry-run + docs, no image build yet) — follow-up req/task, out of spike scope."
   - "Rust via esp-hal 1.0 (no_std, supports classic ESP32) — noted as the future second-language path, not investigated."
@@ -113,7 +113,7 @@ carried ops-022/bug-023/bug-024 into `engine/templates/renderer.py` +
 
 **Hardware confirmation (2026-10-16, owner's bench — closes the last Q1 item):**
 
-- esptool v6 (run via `uvx esptool`, no host install) over a generic PL2303
+- esptool v5.6.0 (run via `uvx esptool`, no host install) over a generic PL2303
   USB-TTL dongle (`067b:2303`, `/dev/ttyUSB0`) talked to the board:
   `Chip type: ESP32-D0WD (revision v1.0)`, 240MHz, dual-core Wi-Fi/BT,
   `MAC 30:83:98:57:5f:c4`; `flash-id` → `Manufacturer 5e, Device 4016,
