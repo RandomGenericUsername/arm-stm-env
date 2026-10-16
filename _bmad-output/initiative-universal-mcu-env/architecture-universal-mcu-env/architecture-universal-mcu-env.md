@@ -45,7 +45,7 @@ flowchart LR
 
 - **Binds:** all
 - **Prevents:** vendor logic leaking into the core; STM32 becoming the core by accident
-- **Rule:** Only `core/` may define shared vocabulary. Packs, toolchains, and probes integrate exclusively as adapters behind port interfaces. A new brand ships an adapter plus pack sections; core diffs are forbidden for brand additions.
+- **Rule:** Only `core/` may define shared vocabulary. Packs, toolchains, and probes integrate exclusively as adapters behind port interfaces. A new brand ships an adapter plus pack sections; core diffs are forbidden for brand additions. Corollary: when a family cannot be added without touching `core/`, that is evidence the **engine must be generalised first** (a framework change, AD-16) — never a reason to special-case the family in the core.
 
 ### AD-2 — Core owns the device model; adapters render only
 

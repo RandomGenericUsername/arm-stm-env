@@ -2,7 +2,7 @@
 id: req-021
 title: "Architecture separation: pack-declared build stack + split probe ports"
 kind: requirement
-status: in-progress
+status: done
 size: M
 lane: bmad-advisory
 links:
@@ -36,8 +36,8 @@ model facts; and the verify matrix keys on `(pack, stack)`.
       ownership, AD-16 rewording, AD-17 added). Reviews under `reviews/`.
 - [x] Spec refreshed and adopts the spine as a companion (bmad-spec), AD ids stable.
       `Verify: _bmad-output/initiative-universal-mcu-env/spec-universal-mcu-env/spec-universal-mcu-env.md` (companions cite the spine; CAP-7/CAP-8 added; non-goal reversal logged)
-- [ ] Follow-up: the refactor slices R1–R6 and the ESP32 slices E1–E4 are ticketed
-      (`work-split-view.md`).
+- [x] Follow-up: the refactor slices R1–R6 and the ESP32 slices E1–E4 are ticketed
+      (`work-split-view.md`) → `task-007`…`task-012` (parent `req-021`), `req-022` + `task-013`…`task-016`.
 
 ## Evidence
 

@@ -37,8 +37,8 @@ A vision to realize: solo firmware developers re-derive the same MCU bring-up (t
   - **intent:** User declares C/C++ library dependencies reproducibly in a generated project.
   - **success:** Declared deps resolve pinned and rebuild offline from cache; mechanism chosen by evidence spike.
 - **CAP-7**
-  - **intent:** A new device family is added to the framework without changing the core.
-  - **success:** The ESP32 family (pack + `esptool` backend + `idf-cmake` template + verify cell) lands with **zero `engine/core` diffs** — the AD-1 acceptance test.
+  - **intent:** Adding a new device family forces the *engine to be improved*, not bent — and then the family lands as a pure addition.
+  - **success:** The ESP32 effort first generalises the engine (the R1–R6 refactor: stack axis, port split, validator relocation, artifact gating, verify axis — AD-11…AD-17), after which the ESP32 family (pack + `esptool` backend + `idf-cmake` template + verify cell) lands with **zero `engine/core` diffs** — the AD-1 acceptance test.
 - **CAP-8**
   - **intent:** A device with no debug-attach support still completes build, flash, and run proof.
   - **success:** `esptool` flashes an ESP32-D0WD over UART at the pack-declared offsets and reports an AD-10 proof with no DebugPort implemented.
