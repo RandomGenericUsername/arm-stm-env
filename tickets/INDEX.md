@@ -34,6 +34,9 @@
 
 (covered under epic-001 above; standalone entries appear here only for items without a parent epic)
 
+- [req-021-arch-separation](./req-021-arch-separation/ticket.md) — Architecture separation: pack-declared build stack + split probe ports | `done` | bmad-advisory, spine AD-8 amended + AD-11…AD-17; pre-ESP32 refactor gate; follow-ups ticketed
+- [req-022-esp32-family](./req-022-esp32-family/ticket.md) — ESP32 family support (first non-STM32 device) | `proposed` | bmad-advisory | 0/4 children done | parents req-021's refactor
+
 ## Bugs
 
 - [bug-001-xor-probe-selectors](./bug-001-xor-probe-selectors/ticket.md) — XOR rejects probe selectors combined with --mcu-config | `done` | S1, INDIVIDUAL_FLAGS narrowed
@@ -92,6 +95,16 @@
 - [task-004-narrow-mounts](./task-004-narrow-mounts/ticket.md) — Narrow container mounts to engine + packs | `done` | 184/184 tests, live ELF re-proof
 - [task-005-probe-default-proof-precheck](./task-005-probe-default-proof-precheck/ticket.md)
 - [task-006-backend-settings](./task-006-backend-settings/ticket.md) — Per-backend pack settings | `done` | 195/195 tests, chips verified — Pack-default probe, proof wiring, image pre-check | `done` | 191/191 tests
+- [task-007-split-probe-port](./task-007-split-probe-port/ticket.md) — R1: split the probe port into FlashPort + DebugPort | `proposed` | parent req-021
+- [task-008-validator-relocation](./task-008-validator-relocation/ticket.md) — R2: family block validators → packs/, (family, block) keys | `proposed` | parent req-021
+- [task-009-stack-axis](./task-009-stack-axis/ticket.md) — R3: pack-declared stacks map + toolchain registry | `proposed` | parent req-021
+- [task-010-artifact-gating](./task-010-artifact-gating/ticket.md) — R4: gate artifact emission on model facts; functional pack probe block | `proposed` | parent req-021
+- [task-011-verify-axis](./task-011-verify-axis/ticket.md) — R5: verify matrix (pack, stack) + shared evidence envelope | `proposed` | parent req-021
+- [task-012-operational-envelope](./task-012-operational-envelope/ticket.md) — R6: name the operational envelope as one owned contract | `proposed` | parent req-021
+- [task-013-esp32-pack](./task-013-esp32-pack/ticket.md) — E1: packs/esp32cam.yaml + esp32 family validators | `proposed` | parent req-022
+- [task-014-esptool-backend](./task-014-esptool-backend/ticket.md) — E2: esptool probe backend (FlashPort) + UART binding | `proposed` | parent req-022
+- [task-015-idf-template](./task-015-idf-template/ticket.md) — E3: idf-cmake template family | `proposed` | parent req-022
+- [task-016-idf-verify-cell](./task-016-idf-verify-cell/ticket.md) — E4: build_idf_cell in the verify harness | `proposed` | parent req-022
 
 ## Done (links only, newest last)
 

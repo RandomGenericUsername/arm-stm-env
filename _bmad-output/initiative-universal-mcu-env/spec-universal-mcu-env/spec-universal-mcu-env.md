@@ -14,7 +14,7 @@ sources:
 
 ## Why
 
-A vision to realize: solo firmware developers re-derive the same STM32 bring-up (toolchain install, CMSIS/linker/SVD hunting, probe config) per project, and existing tools either demand host-installed toolchains (PlatformIO, Arduino, Zephyr) or flash brilliantly but scaffold nothing (probe-rs). A single CLI owning scaffolding *and* zero-deps execution closes that gap, starting STM32 and designed vendor-neutral.
+A vision to realize: solo firmware developers re-derive the same MCU bring-up (toolchain install, CMSIS/linker/SVD hunting, probe config) per project, and existing tools either demand host-installed toolchains (PlatformIO, Arduino, Zephyr) or flash brilliantly but scaffold nothing (probe-rs). A single CLI owning scaffolding *and* zero-deps execution closes that gap, starting STM32 and designed vendor-neutral so a second vendor (ESP32 first) proves the core never became STM32.
 
 ## Capabilities
 
@@ -36,23 +36,34 @@ A vision to realize: solo firmware developers re-derive the same STM32 bring-up 
 - **CAP-6**
   - **intent:** User declares C/C++ library dependencies reproducibly in a generated project.
   - **success:** Declared deps resolve pinned and rebuild offline from cache; mechanism chosen by evidence spike.
+- **CAP-7**
+  - **intent:** Adding a new device family forces the *engine to be improved*, not bent — and then the family lands as a pure addition.
+  - **success:** The ESP32 effort first generalises the engine (the R1–R6 refactor: stack axis, port split, validator relocation, artifact gating, verify axis — AD-11…AD-17), after which the ESP32 family (pack + `esptool` backend + `idf-cmake` template + verify cell) lands with **zero `engine/core` diffs** — the AD-1 acceptance test.
+- **CAP-8**
+  - **intent:** A device with no debug-attach support still completes build, flash, and run proof.
+  - **success:** `esptool` flashes an ESP32-D0WD over UART at the pack-declared offsets and reports an AD-10 proof with no DebugPort implemented.
 
 ## Constraints
 
-- Hexagonal vendor-neutral core; hardware packs, toolchains, probe backends are adapters — STM32 is the reference pack, never the core.
-- Hardware pack (device truth) and run config (invocation) are strictly separated; language is top-level run config; project shape is derived from pack data.
+- Hexagonal vendor-neutral core; hardware packs, toolchains, probe backends are adapters — STM32 is the reference pack, never the core. A new brand ships an adapter plus pack sections; core diffs are forbidden for brand additions (AD-1, AD-13).
+- Hardware pack (device truth) and run config (invocation) are strictly separated; project shape is derived from pack data (AD-5).
+- The build stack is pack-declared and language-keyed (a `stacks` map in the shared frame); the resolved stack — never the language flag — selects the template family, toolchain image, and build command (AD-11, AD-8).
+- The probe port splits into FlashPort (programming) and DebugPort (sessions); a backend implements DebugPort only where the device supports attach, and the CLI fails a verb rather than fabricating a handle (AD-12).
 - Exactly one device-description source per invocation: `--mcu-config` XOR individual flags.
 - All toolchain/probe versions pinned; distribution is versioned OCI images plus thin host shim.
 - The CLI engine and shim are Python; `python3 >= 3.11` is the single host prerequisite, with `uv` managing self-contained dependencies. All toolchain dependencies stay containerized — "zero deps" means zero toolchain deps.
+- Operational envelope is named and owned: container runtime, host tools (git, network for vendoring), USB/sysfs access, and the pinned container platform (AD-17).
+- V1 scope is the three-STM32-board × three-language matrix. Non-STM32 families (ESP32 first) land **after V1** as the proof the engine is general (CAP-7); they are not a V1 gate.
 - Linux/macOS day one; Windows deferred but not designed out.
 - Evidence rule governs all product and technical claims.
 
 ## Non-goals
 
-- Non-STM32 vendors, Windows native support, pack validator tooling, cloud builds, team/enterprise features, IDE plugins.
+- Windows native support, pack validator tooling, cloud builds, team/enterprise features, IDE plugins.
+- For ESP32 bring-up specifically: bare-metal xtensa (no ESP-IDF), OpenOCD/JTAG debugging, and the Rust `esp-hal` path (AD-11 backends: `idf-cmake` only).
 
 ## Success signal
 
-From a clean machine, each matrix cell completes create → build → flash and the board runs its program with the pack-defined observable proof.
+From a clean machine, each **V1 matrix cell** (3 STM32 boards × 3 languages) completes create → build → flash and the board runs its program with the pack-defined observable proof. **After V1**, the first non-STM32 cell (ESP32-CAM: `idf-cmake` build, `esptool` UART flash, UART boot log) proves the engine is general — it must land without a single `engine/core` change.
 
 - Proof ladder for run verification: automated probe readback first, LED second, manual register inspection as accepted fallback; each pack declares its rung.
