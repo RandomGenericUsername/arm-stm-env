@@ -224,7 +224,7 @@ def _project_stack(project_dir: str) -> str | None:
     return None
 
 
-def _stack_id_for(args: argparse.Namespace) -> str:
+def _stack_id_for(args: argparse.Namespace) -> tuple[str, Device | None]:
     """Resolve the build stack for this invocation (AD-11, AD-8).
 
     A pack declares the stack per source language; a rendered project persists
@@ -240,14 +240,14 @@ def _stack_id_for(args: argparse.Namespace) -> str:
                 f"pack {device.id!r} declares no build stack for language {args.lang!r} "
                 f"(declared: {declared or 'none'})"
             )
-        return stack_id
+        return stack_id, device
     stack_id = _project_stack(args.project_dir)
     if stack_id is None:
         raise ValueError(
             f"no build stack for {args.project_dir!r}: not a mu project (no .mu/stack) "
             "and no --mcu-config; run `mu create` first"
         )
-    return stack_id
+    return stack_id, None
 
 
 def _stack_build_argv(stack_id: str) -> list[str]:
@@ -272,7 +272,7 @@ def _run_tool(cmd: list[str], cwd: str) -> int:
 
 def _run_build_local(args: argparse.Namespace) -> int:
     try:
-        stack_id = _stack_id_for(args)
+        stack_id, _device = _stack_id_for(args)
     except (ValueError, FileNotFoundError) as exc:
         print(f"mu: error: {exc}", file=sys.stderr)
         return 2
@@ -310,6 +310,7 @@ def _prepare_flash(args: argparse.Namespace) -> tuple[Device, Endpoint, FlashPor
             vid=getattr(args, "vid", None),
             pid=getattr(args, "pid", None),
             serial=getattr(args, "serial", None),
+            transport=device.probe_ref.transport,
         )
     except ValueError as exc:
         print(f"mu: error: {exc}", file=sys.stderr)
@@ -487,7 +488,7 @@ def _run_verb(args: argparse.Namespace) -> int:
             print(f"mu: error: {outside}", file=sys.stderr)
             return 2
     try:
-        stack_id = _stack_id_for(args)
+        stack_id, device = _stack_id_for(args)
     except (ValueError, FileNotFoundError) as exc:
         print(f"mu: error: {exc}", file=sys.stderr)
         return 2
@@ -514,6 +515,7 @@ def _run_verb(args: argparse.Namespace) -> int:
         interactive=(args.verb == "dev"),
         mcu_config=args.mcu_config,
         stack=stack_id,
+        probe_transport=device.probe_ref.transport if device is not None else "",
     )
     try:
         argv = build_container_argv(request, lookup=DefaultImageLookup())
