@@ -1293,6 +1293,55 @@ _IDF_SDKCONFIG = Template(
 )
 
 
+def _vscode_files_idf(device: Device) -> dict[str, str]:
+    """``.vscode/`` for the ESP-IDF flow (task-018): build / flash / monitor.
+
+    Deliberately **no launch.json**: the classic ESP32 has no attach without
+    external JTAG wired to the SD pins, so this flow is log-based
+    (``req-022`` non-goals). The tasks drive ``idf.py`` in the dev container,
+    which carries the IDF toolchain.
+    """
+    app = f"build/{device.id}.bin"
+
+    def j(obj: object) -> str:
+        return json.dumps(obj, indent=2) + "\n"
+
+    tasks = {
+        "version": "2.0.0",
+        "tasks": [
+            {
+                "label": "Build",
+                "type": "shell",
+                "command": "idf.py build",
+                "group": {"kind": "build", "isDefault": True},
+                "problemMatcher": [],
+            },
+            {
+                "label": "Flash",
+                "type": "shell",
+                "command": "idf.py flash",
+                "problemMatcher": [],
+            },
+            {
+                "label": "Monitor",
+                "type": "shell",
+                "command": "idf.py monitor",
+                "problemMatcher": [],
+            },
+            {
+                "label": "Build + Flash + Monitor",
+                "type": "shell",
+                "command": "idf.py build flash monitor",
+                "problemMatcher": [],
+            },
+        ],
+    }
+    return {
+        ".vscode/tasks.json": j(tasks),
+        ".vscode/extensions.json": j({"recommendations": ["ms-vscode.cpptools"]}),
+    }
+
+
 def render(
     pack_model: Device, lang: str, out_dir: str | Path, *, vscode: bool = False
 ) -> list[Path]:
@@ -1337,12 +1386,17 @@ def render(
             write("probe/dual-core.cfg", _dual_core_cfg(pack_model))
     if pack_model.facets.cpu2_boot:
         write("probe/cpu2-boot.cfg", _cpu2_boot_cfg(pack_model))
-    # The VS Code flow is cortex-debug + OpenOCD, so it needs the OpenOCD fact.
-    if vscode and lang in ("c", "cpp") and oc is not None:
-        written.extend(fetch_svds(pack_model, out))
-        write("probe/resume-on-detach.cfg", _resume_on_detach(pack_model))
-        for rel, text in _vscode_files(pack_model).items():
-            write(rel, text)
+    # The VS Code flow is cortex-debug + OpenOCD for the Cortex stacks; the
+    # ESP-IDF stack gets its own build/flash/monitor tasks (no debug).
+    if vscode and lang in ("c", "cpp"):
+        if oc is not None:
+            written.extend(fetch_svds(pack_model, out))
+            write("probe/resume-on-detach.cfg", _resume_on_detach(pack_model))
+            for rel, text in _vscode_files(pack_model).items():
+                write(rel, text)
+        elif stack.template_family == "idf-cmake":
+            for rel, text in _vscode_files_idf(pack_model).items():
+                write(rel, text)
     # Config headers are a family-declared fact (the pack's config_headers block).
     if pack_model.facets.block_for("config_headers") is not None:
         write("config/OVERRIDES.md", _OVERRIDES.substitute(cfg))

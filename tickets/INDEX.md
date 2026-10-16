@@ -109,7 +109,8 @@
 - [task-014-esptool-backend](./task-014-esptool-backend/ticket.md) — E2: esptool probe backend (FlashPort only) + UART binding | `done` | parent req-022 | 329/329 tests, argv verified; containerized tty passthrough still open
 - [task-015-idf-template](./task-015-idf-template/ticket.md) — E3: idf-cmake template family | `done` | parent req-022 | 335/335 tests, idf.py build green in the pinned image (triple produced)
 - [task-016-idf-verify-cell](./task-016-idf-verify-cell/ticket.md) — E4: build_idf_cell in the verify harness | `done` | parent req-022 | 338/338 tests, esp32cam cell GREEN in the harness
-- [task-017-uart-tty-binding](./task-017-uart-tty-binding/ticket.md) — T17: bind UART probes to their tty (containerized serial flash) | `done` | parent req-022 | 345/345 tests, tty forwarded; live container flash open
+- [task-017-uart-tty-binding](./task-017-uart-tty-binding/ticket.md) — T17: bind UART probes to their tty (containerized serial flash) | `done` | parent req-022 | 345/345 tests, tty forwarded; live container flash proven (ops-024)
+- [task-018-esp32-vscode](./task-018-esp32-vscode/ticket.md) — ESP32 VS Code flow: build / flash / monitor | `done` | parent req-022 | 347/347 tests, no launch.json, tasks only
 
 ## Done (links only, newest last)
 
