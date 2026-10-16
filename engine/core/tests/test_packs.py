@@ -76,7 +76,7 @@ def test_pack_probe_backend_absent_is_none():
     from engine.core.loader import load_text
 
     dev = load_text(
-        "id: x\nversion: '1'\nfamily: stm32f4\n"
+        "id: x\nversion: '1'\nfamily: stm32f4\nstacks: {c: make-cmsis}\n"
         "cores: [{name: A, arch: B}]\n"
         "memory: [{name: flash, origin_hex: '0x0', size: 1024}]\n"
         "probe: {transport: t, address: a}\n"
@@ -115,7 +115,7 @@ def test_new_family_needs_no_core_change():
     registry.register("widgets", _validate_widgets, families=("acme",))
 
     dev = load_text(
-        "id: acme-1\nversion: '1'\nfamily: acme\n"
+        "id: acme-1\nversion: '1'\nfamily: acme\nstacks: {c: cargo-cortex}\n"
         "cores: [{name: C0, arch: generic}]\n"
         "memory: [{name: flash, origin_hex: '0x0', size: 1024}]\n"
         "probe: {transport: t, address: a}\n"
@@ -128,7 +128,7 @@ def test_new_family_needs_no_core_change():
     # and the family's blocks do not leak into another family
     with pytest.raises(UnknownBlockError, match="widgets"):
         load_text(
-            "id: acme-2\nversion: '1'\nfamily: stm32f4\n"
+            "id: acme-2\nversion: '1'\nfamily: stm32f4\nstacks: {c: make-cmsis}\n"
             "cores: [{name: C0, arch: generic}]\n"
             "memory: [{name: flash, origin_hex: '0x0', size: 1024}]\n"
             "probe: {transport: t, address: a}\n"

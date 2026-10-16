@@ -1,6 +1,10 @@
 id: stm32wl55jc
 version: "1.0.0"
 family: stm32wl
+stacks:
+  c: make-cmsis
+  cpp: make-cmsis
+  rust: cargo-cortex
 cores:
   - name: M4
     arch: thumbv7em-none-eabihf

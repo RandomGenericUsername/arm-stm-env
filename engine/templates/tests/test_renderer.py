@@ -115,6 +115,7 @@ def _synthetic_device() -> Device:
         probe_ref=Endpoint(transport="stlink", address="openocd:stlink"),
         proof_rung="readback",
         openocd=OpenocdConfig(interface="stlink.cfg", target="board.cfg", board="synth.cfg"),
+        stacks=(("c", "make-cmsis"), ("cpp", "make-cmsis"), ("rust", "cargo-cortex")),
         facets=DeviceFacets(
             fpu_mode="hard",
             fpu_variant="fpv4-sp-d16",
@@ -141,6 +142,34 @@ def test_renderer_consumes_model_only(lang: str, tmp_path) -> None:
     else:
         assert "0x08000000" in (tmp_path / "memory.x").read_text()
         assert 'name = "synthetic"' in (tmp_path / "Cargo.toml").read_text()
+
+
+def test_render_persists_resolved_stack(tmp_path) -> None:
+    """AD-11: the rendered tree records its build stack for pack-less verbs."""
+    device = load_file(PACKS_DIR / "stm32f411re.yaml")
+    render(device, "rust", tmp_path)
+    assert (tmp_path / ".mu" / "stack").read_text().strip() == "cargo-cortex"
+
+
+def test_render_uses_pack_declared_stack_not_language(tmp_path) -> None:
+    """AD-11: a pack may map language 'c' to a non-C stack; the stack decides."""
+    import dataclasses
+
+    device = load_file(PACKS_DIR / "stm32f411re.yaml")
+    dev = dataclasses.replace(device, stacks=(("c", "cargo-cortex"),))
+    written = render(dev, "c", tmp_path)
+    names = [p.relative_to(tmp_path).as_posix() for p in written]
+    assert "Cargo.toml" in names and "memory.x" in names
+    assert "Makefile" not in names
+
+
+def test_render_errors_when_pack_declares_no_stack_for_language(tmp_path) -> None:
+    import dataclasses
+
+    device = load_file(PACKS_DIR / "stm32f411re.yaml")
+    dev = dataclasses.replace(device, stacks=(("rust", "cargo-cortex"),))
+    with pytest.raises(ValueError, match="no build stack for language 'c'"):
+        render(dev, "c", tmp_path)
 
 
 def test_renderer_writes_project_readme(tmp_path) -> None:

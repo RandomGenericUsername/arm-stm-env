@@ -329,7 +329,8 @@ def run_all(root: str | Path, lookup: ImageLookup | None = None) -> list[CellRes
     results = []
     for pack_id, lang in CELLS:
         device, out = render_cell(pack_id, lang, root)
-        image = lookup.image_for(lang)
+        # AD-11: the pack-declared stack resolves the toolchain image.
+        image = lookup.image_for(device.stack_for(lang))
         try:
             if lang in ("c", "cpp"):
                 res = build_cpp_cell(device, out, image)

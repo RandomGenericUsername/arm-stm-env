@@ -25,6 +25,8 @@ import sys
 from pathlib import Path
 
 from engine.adapters import DebugPort, DefaultImageLookup, FlashPort, get_adapter
+from engine.adapters.toolchain import ensure_registered as _ensure_stacks
+from engine.core.stacks import stack_spec
 from engine.cli.shim import (
     MODES,
     ShimRequest,
@@ -213,11 +215,44 @@ def _run_create(args: argparse.Namespace) -> int:
     return 0
 
 
-def _local_tool_cmd(lang: str) -> list[str]:
-    """Toolchain command implementing ``build`` for ``lang`` (local exec)."""
-    if lang in ("c", "cpp"):
-        return ["make", "build"]
-    return ["cargo", "build"]
+def _project_stack(project_dir: str) -> str | None:
+    """Resolved build stack persisted in a rendered tree (AD-11), or ``None``."""
+    path = Path(project_dir) / ".mu" / "stack"
+    if path.is_file():
+        return path.read_text().strip() or None
+    return None
+
+
+def _stack_id_for(args: argparse.Namespace) -> str:
+    """Resolve the build stack for this invocation (AD-11, AD-8).
+
+    A pack declares the stack per source language; a rendered project persists
+    its resolved stack, so verbs that load no pack resolve identically. Never
+    derived from the language flag.
+    """
+    if args.mcu_config is not None:
+        device = _resolve_pack(args.mcu_config)
+        stack_id = device.stack_for(args.lang)
+        if stack_id is None:
+            declared = [lang for lang, _ in device.stacks]
+            raise ValueError(
+                f"pack {device.id!r} declares no build stack for language {args.lang!r} "
+                f"(declared: {declared or 'none'})"
+            )
+        return stack_id
+    stack_id = _project_stack(args.project_dir)
+    if stack_id is None:
+        raise ValueError(
+            f"no build stack for {args.project_dir!r}: not a mu project (no .mu/stack) "
+            "and no --mcu-config; run `mu create` first"
+        )
+    return stack_id
+
+
+def _stack_build_argv(stack_id: str) -> list[str]:
+    """The stack's build command (AD-8); toolchain adapters own the spec."""
+    _ensure_stacks()
+    return list(stack_spec(stack_id).build_argv)
 
 
 def _run_tool(cmd: list[str], cwd: str) -> int:
@@ -235,7 +270,12 @@ def _run_tool(cmd: list[str], cwd: str) -> int:
 
 
 def _run_build_local(args: argparse.Namespace) -> int:
-    cmd = _local_tool_cmd(args.lang)
+    try:
+        stack_id = _stack_id_for(args)
+    except (ValueError, FileNotFoundError) as exc:
+        print(f"mu: error: {exc}", file=sys.stderr)
+        return 2
+    cmd = _stack_build_argv(stack_id)
     if args.dry_run:
         print(f"cd {args.project_dir} && {format_argv(cmd)}")
         return 0
@@ -425,11 +465,6 @@ def _mcu_config_outside_project(args: argparse.Namespace) -> str | None:
 
 
 def _run_verb(args: argparse.Namespace) -> int:
-    try:
-        DefaultImageLookup().image_for(args.lang)
-    except ValueError as exc:
-        print(f"mu: error: {exc}", file=sys.stderr)
-        return 2
     violation = _one_source_violation(args)
     if violation is not None:
         build_parser().print_usage(sys.stderr)
@@ -437,12 +472,26 @@ def _run_verb(args: argparse.Namespace) -> int:
         return 2
     if args.verb == "create":
         return _run_create(args)
+    if args.lang not in SUPPORTED_LANGS:
+        print(
+            f"mu: error: unknown language {args.lang!r}; supported: {sorted(SUPPORTED_LANGS)}",
+            file=sys.stderr,
+        )
+        return 2
+    # AD-11: resolve the build stack (pack-declared, or the project's persisted
+    # stack) — the language flag never selects the toolchain.
+    if args.mode != "local":
+        outside = _mcu_config_outside_project(args)
+        if outside is not None:
+            print(f"mu: error: {outside}", file=sys.stderr)
+            return 2
+    try:
+        stack_id = _stack_id_for(args)
+    except (ValueError, FileNotFoundError) as exc:
+        print(f"mu: error: {exc}", file=sys.stderr)
+        return 2
     if args.mode == "local":
         return _run_local(args)
-    outside = _mcu_config_outside_project(args)
-    if outside is not None:
-        print(f"mu: error: {outside}", file=sys.stderr)
-        return 2
     extra: list[str] = []
     if args.verb == "flash" and getattr(args, "files", None):
         extra = ["--files", *args.files]
@@ -463,6 +512,7 @@ def _run_verb(args: argparse.Namespace) -> int:
         os_name=probe_os(),
         interactive=(args.verb == "dev"),
         mcu_config=args.mcu_config,
+        stack=stack_id,
     )
     try:
         argv = build_container_argv(request, lookup=DefaultImageLookup())
@@ -479,7 +529,7 @@ def _run_verb(args: argparse.Namespace) -> int:
             file=sys.stderr,
         )
         return 1
-    image = DefaultImageLookup().image_for(args.lang)
+    image = DefaultImageLookup().image_for(stack_id)
     inspected = subprocess.run(
         ["docker", "image", "inspect", image],
         capture_output=True,
