@@ -51,6 +51,7 @@ __all__ = [
     "ElfInfo",
     "assert_fits",
     "build_cpp_cell",
+    "build_idf_cell",
     "build_rust_cell",
     "check_memory_x",
     "docker_run",
@@ -62,12 +63,29 @@ __all__ = [
     "run_all",
     "write_evidence",
 ]
-PACK_IDS = ("stm32f411re", "stm32h755", "stm32wl55jc")
+PACK_IDS = ("stm32f411re", "stm32h755", "stm32wl55jc", "esp32cam")
 LANGS = ("c", "cpp", "rust")
-CELLS = tuple((p, l) for p in PACK_IDS for l in LANGS)
 
 PACKS_DIR = Path(__file__).resolve().parents[2] / "packs"
 DEFAULT_EVIDENCE = Path(__file__).resolve().parents[2] / "docs" / "e2e-evidence.md"
+
+
+def _declared_cells() -> tuple[tuple[str, str], ...]:
+    """(pack, language) for every language a pack declares a stack for (AD-11).
+
+    Derived from the packs' ``stacks`` maps rather than a fixed language list,
+    so a pack that ships one language contributes one cell.
+    """
+    cells: list[tuple[str, str]] = []
+    for pack_id in PACK_IDS:
+        device = load_file(PACKS_DIR / f"{pack_id}.yaml")
+        for lang in LANGS:
+            if device.stack_for(lang):
+                cells.append((pack_id, lang))
+    return tuple(cells)
+
+
+CELLS = _declared_cells()
 
 DOCKER_PLATFORM = CONTAINER_PLATFORM
 DOCKER_TIMEOUT_S = 1200  # amd64 emulation on ARM64 hosts is slow; per-cell budget
@@ -337,11 +355,79 @@ def build_rust_cell(device: Device, out: Path, image: str) -> CellResult:
     return res
 
 
+#: IDF reports the factory partition size in its build output; that is the
+#: authoritative fit bound (no ``arm-none-eabi-size`` for an xtensa app).
+_APP_PARTITION_RE = re.compile(r"Smallest app partition is (0x[0-9A-Fa-f]+) bytes")
+
+
+def build_idf_cell(device: Device, out: Path, image: str) -> CellResult:
+    """Build an ESP-IDF app in its stack image (AD-15): assert the triple + fit.
+
+    The ESP32 artifacts are ``.bin`` images, so the fit check is partition
+    offsets/sizes (from IDF's own report), never ELF section sizes.
+    """
+    res = CellResult(pack=device.id, lang="", image=image)
+    proc = docker_run(image, out, ["bash", "-lc", "idf.py build"])
+    res.commands.append(f"idf.py build (in {image})")
+    res.exits.append(proc.returncode)
+    combined = _combined(proc)
+    res.warnings.extend(_warnings(combined))
+    if proc.returncode != 0:
+        res.note = f"BUILD FAILED:\n{combined.strip()[-3000:]}"
+        return res
+
+    artifacts = {
+        "bootloader": out / "build" / "bootloader" / "bootloader.bin",
+        "partition_table": out / "build" / "partition_table" / "partition-table.bin",
+        "app": out / "build" / f"{device.id}.bin",
+    }
+    for name, path in artifacts.items():
+        if not path.is_file():
+            raise CellFailure(
+                f"{device.id}: expected {name} artifact missing: "
+                f"{path.relative_to(out).as_posix()}"
+            )
+
+    match = _APP_PARTITION_RE.search(combined)
+    if match is None:
+        raise CellFailure(f"{device.id}: IDF did not report the app partition size")
+    app_avail = int(match.group(1), 16)
+    app_size = artifacts["app"].stat().st_size
+    if app_size > app_avail:
+        raise CellFailure(
+            f"{device.id}: app overflow: {app_size} > {app_avail} (factory partition)"
+        )
+
+    for name, path in artifacts.items():
+        rel = path.relative_to(out).as_posix()
+        size = path.stat().st_size
+        if name == "app":
+            res.elfs.append(
+                ElfInfo(
+                    path=rel,
+                    text=size,
+                    file_bytes=size,
+                    flash_used=size,
+                    flash_avail=app_avail,
+                    flash_region="factory",
+                )
+            )
+        else:
+            res.elfs.append(ElfInfo(path=rel, file_bytes=size))
+    res.note = (
+        f"app {app_size} B / {app_avail} B factory partition; "
+        f"triple: {', '.join(path.name for path in artifacts.values())}"
+    )
+    res.ok = True
+    return res
+
+
 # AD-15: the shipped stacks register their builders — the harness owns the build
 # mechanics, core owns the registry. A third build system registers here (or in
 # its own module) and never edits ``run_all``.
 register_build_cell("c-cmsis", build_cpp_cell)
 register_build_cell("rust-cortex", build_rust_cell)
+register_build_cell("idf-cmake", build_idf_cell)
 
 
 def _envelope(res: CellResult, stack_id: str, template_family: str) -> BuildEvidence:
@@ -370,11 +456,18 @@ def _envelope(res: CellResult, stack_id: str, template_family: str) -> BuildEvid
     )
 
 
-def run_all(root: str | Path, lookup: ImageLookup | None = None) -> list[CellResult]:
+def run_all(
+    root: str | Path,
+    lookup: ImageLookup | None = None,
+    *,
+    only: tuple[str, ...] | None = None,
+) -> list[CellResult]:
     lookup = lookup or DefaultImageLookup()
     _ensure_stacks()
     results = []
     for pack_id, lang in CELLS:
+        if only is not None and pack_id not in only:
+            continue
         device, out = render_cell(pack_id, lang, root)
         # AD-11: the pack-declared stack resolves the toolchain image.
         stack_id = device.stack_for(lang)
@@ -451,13 +544,17 @@ def write_evidence(results: list[CellResult], path: str | Path) -> Path:
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="req-009 e2e build proof: render 9 cells, compile in images")
+    parser = argparse.ArgumentParser(
+        description="e2e build proof: render every declared cell, compile in its stack image"
+    )
     parser.add_argument("--workdir", default=None, help="scratch root (default: fresh mkdtemp)")
+    parser.add_argument("--only", default=None, help="comma-separated pack ids to run")
     parser.add_argument("--evidence", default=str(DEFAULT_EVIDENCE), help="evidence markdown path")
     parser.add_argument("--keep", action="store_true", help="keep scratch trees")
     args = parser.parse_args(argv)
     tmp = args.workdir or tempfile.mkdtemp(prefix="req009-e2e-")
-    results = run_all(tmp)
+    only = tuple(p for p in (args.only or "").split(",") if p) or None
+    results = run_all(tmp, only=only)
     write_evidence(results, args.evidence)
     for res in results:
         print(f"[{'PASS' if res.ok else 'FAIL'}] {res.pack}/{res.lang} "
@@ -468,7 +565,7 @@ def main(argv: list[str] | None = None) -> int:
     if failed:
         print(f"FAILED cells: {', '.join(failed)}", file=sys.stderr)
         return 1
-    print(f"9/9 green; evidence -> {args.evidence}")
+    print(f"{len(results)}/{len(results)} green; evidence -> {args.evidence}")
     return 0
 
 

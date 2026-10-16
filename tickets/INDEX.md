@@ -35,7 +35,7 @@
 (covered under epic-001 above; standalone entries appear here only for items without a parent epic)
 
 - [req-021-arch-separation](./req-021-arch-separation/ticket.md) — Architecture separation: pack-declared build stack + split probe ports | `done` | bmad-advisory, spine AD-8 amended + AD-11…AD-17; pre-ESP32 refactor gate; follow-ups ticketed
-- [req-022-esp32-family](./req-022-esp32-family/ticket.md) — ESP32 family support (first non-STM32 device) | `in-progress` | bmad-advisory | 3/4 children done | parents req-021's refactor
+- [req-022-esp32-family](./req-022-esp32-family/ticket.md) — ESP32 family support (first non-STM32 device) | `done` | bmad-advisory | 4/4 children done | post-V1 generality proof; containerized UART passthrough open
 - [req-023-ad15-refinement](./req-023-ad15-refinement/ticket.md) — Reconcile AD-15 with the R5 verify implementation | `done` | bmad-advisory | spine wording fix, lint clean
 
 ## Bugs
@@ -106,7 +106,7 @@
 - [task-013-esp32-pack](./task-013-esp32-pack/ticket.md) — E1: packs/esp32cam.yaml + esp32 family validators | `done` | parent req-022 | 319/319 tests, pack loads, ZERO core diffs
 - [task-014-esptool-backend](./task-014-esptool-backend/ticket.md) — E2: esptool probe backend (FlashPort only) + UART binding | `done` | parent req-022 | 329/329 tests, argv verified; containerized tty passthrough still open
 - [task-015-idf-template](./task-015-idf-template/ticket.md) — E3: idf-cmake template family | `done` | parent req-022 | 335/335 tests, idf.py build green in the pinned image (triple produced)
-- [task-016-idf-verify-cell](./task-016-idf-verify-cell/ticket.md) — E4: build_idf_cell in the verify harness | `proposed` | parent req-022
+- [task-016-idf-verify-cell](./task-016-idf-verify-cell/ticket.md) — E4: build_idf_cell in the verify harness | `done` | parent req-022 | 338/338 tests, esp32cam cell GREEN in the harness
 
 ## Done (links only, newest last)
 
