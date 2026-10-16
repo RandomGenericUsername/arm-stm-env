@@ -157,12 +157,13 @@ docker exec mu-f411 bash -lc 'cd /project && make flash'
 
 Then attach VS Code to the container (§3) and `F5`.
 
-**Expected** (verified 2026-10-14, NUCLEO-F411RE + NUCLEO-H755ZI-Q, both attached):
+**Expected** (NUCLEO-F411RE + NUCLEO-H755ZI-Q verified 2026-10-14; WL55JC verified 2026-10-16):
 
 | Board | openocd picks | flash | runs |
 | --- | --- | --- | --- |
 | F411RE | `0483:3752` | `Verified OK` | LD2 toggles (~1 Hz), PC in `delay_half_period` |
 | H755ZI-Q | `0483:3754` | `Verified OK` ×2 (both banks) | M7 LD2 toggles; M4 `counter` increments |
+| WL55JC | `0483:374e` | `Verified OK` ×2 (M0+ then M4) | M4 LD1 (PB15) toggles; `GPIOB_ODR` bit 15 flips |
 
 Each container sees **both** probes and still selects the right one — that is
 `MU_PROBE_SERIAL` → `probe/probe-serial.cfg` → `adapter serial` (§5).
