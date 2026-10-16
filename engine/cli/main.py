@@ -19,9 +19,11 @@ from __future__ import annotations
 import argparse
 import os
 import platform
+import re
 import shutil
 import subprocess
 import sys
+import time
 from pathlib import Path
 
 from engine.adapters import DebugPort, DefaultImageLookup, FlashPort, get_adapter
@@ -140,6 +142,11 @@ def build_parser() -> argparse.ArgumentParser:
             # Probe selectors so the dev container gets the probe's USB node
             # (req-019) — same resolution flash/debug use.
             _add_probe_selectors(sub)
+            sub.add_argument(
+                "--detach",
+                action="store_true",
+                help="start an attachable dev container and exit (for an editor to attach to)",
+            )
         if verb == "flash":
             sub.add_argument(
                 "--files",
@@ -344,6 +351,110 @@ def _verbose_log_path(args: argparse.Namespace) -> str:
     return str(logdir / f"{args.verb}-{stamp}.log")
 
 
+def _dev_container_name(project_dir: str) -> str:
+    """Stable container name for ``dev --detach`` (one per project)."""
+    base = Path(project_dir).resolve().name or "project"
+    return "mu-dev-" + re.sub(r"[^A-Za-z0-9_.-]", "-", base)
+
+
+def _stack_env_setup(stack_id: str) -> str:
+    """Shell fragment that enables the stack's toolchain (from StackSpec)."""
+    _ensure_stacks()
+    return stack_spec(stack_id).env_setup
+
+
+def _wait_dev_ready(name: str, binary: str, *, timeout_s: float = 30.0) -> bool:
+    """Wait until a login shell in the container resolves the stack's build tool.
+
+    ``docker run -d`` returns the moment the container starts, which can be
+    before the entrypoint has finished enabling the toolchain — attaching then
+    would show a shell without ``idf.py``/``make``/``cargo``.
+    """
+    deadline = time.time() + timeout_s
+    while time.time() < deadline:
+        probe = subprocess.run(
+            [CONTAINER_RUNTIME, "exec", name, "bash", "-lc", f"command -v {binary}"],
+            capture_output=True,
+        )
+        if probe.returncode == 0:
+            return True
+        time.sleep(0.5)
+    return False
+
+
+def _run_dev_detach(args: argparse.Namespace, stack_id: str, device: Device | None) -> int:
+    """Start an attachable dev container (``-d``, kept alive) and report how to attach."""
+    if args.mode != "auto":
+        print(
+            "mu: error: --detach starts a container; --mode local has none",
+            file=sys.stderr,
+        )
+        return 2
+    name = _dev_container_name(args.project_dir)
+    request = ShimRequest(
+        verb="dev",
+        lang=args.lang,
+        mode=args.mode,
+        project_dir=args.project_dir,
+        device=getattr(args, "device", None),
+        vid=getattr(args, "vid", None),
+        pid=getattr(args, "pid", None),
+        serial=getattr(args, "serial", None),
+        os_name=probe_os(),
+        interactive=False,
+        mcu_config=args.mcu_config,
+        stack=stack_id,
+        probe_transport=device.probe_ref.transport if device is not None else "",
+        detach=True,
+        name=name,
+        env_setup=_stack_env_setup(stack_id),
+    )
+    try:
+        argv = build_container_argv(request, lookup=DefaultImageLookup())
+    except ValueError as exc:
+        print(f"mu: error: {exc}", file=sys.stderr)
+        return 2
+    if args.dry_run:
+        print(format_argv(argv))
+        return 0
+    if shutil.which(CONTAINER_RUNTIME) is None:
+        print(
+            f"mu: error: container runtime '{CONTAINER_RUNTIME}' not found; "
+            "install it or re-run with --dry-run",
+            file=sys.stderr,
+        )
+        return 1
+    image = DefaultImageLookup().image_for(stack_id)
+    if subprocess.run(
+        [CONTAINER_RUNTIME, "image", "inspect", image], capture_output=True
+    ).returncode != 0:
+        print(
+            f"mu: error: image {image} not present locally; "
+            f"run `make images` or `docker pull {image}` first",
+            file=sys.stderr,
+        )
+        return 1
+    # One dev container per project: replace any previous one so re-running works.
+    subprocess.run([CONTAINER_RUNTIME, "rm", "-f", name], capture_output=True)
+    completed = subprocess.run(argv, capture_output=True, text=True)
+    if completed.returncode != 0:
+        sys.stderr.write(completed.stderr or "")
+        return completed.returncode
+    binary = _stack_build_argv(stack_id)[0]
+    if not _wait_dev_ready(name, binary):
+        print(
+            f"mu: warning: '{name}' is up but a shell did not resolve {binary!r} "
+            f"within 30s; attach anyway and check the log: "
+            f"{CONTAINER_RUNTIME} logs {name}",
+            file=sys.stderr,
+        )
+    print(f"dev container '{name}' is running and attachable.")
+    print("  VS Code: Command Palette -> Dev Containers: Attach to Running Container")
+    print(f"           -> {name}  (then File > Open Folder > /project)")
+    print(f"  stop it: docker rm -f {name}")
+    return 0
+
+
 def _run_flash_local(args: argparse.Namespace) -> int:
     prepared = _prepare_flash(args)
     if prepared is None:
@@ -492,6 +603,8 @@ def _run_verb(args: argparse.Namespace) -> int:
     except (ValueError, FileNotFoundError) as exc:
         print(f"mu: error: {exc}", file=sys.stderr)
         return 2
+    if args.verb == "dev" and getattr(args, "detach", False):
+        return _run_dev_detach(args, stack_id, device)
     if args.mode == "local":
         return _run_local(args)
     extra: list[str] = []

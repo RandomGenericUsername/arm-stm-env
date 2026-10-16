@@ -89,6 +89,13 @@ class ShimRequest:
     #: The pack's declared probe transport (AD-9): ``uart-serial`` needs its tty
     #: forwarded; everything else keeps the USB-bus behaviour.
     probe_transport: str = ""
+    #: ``dev`` only: start a **detached**, long-running container (``-d --name``)
+    #: so an editor can attach to it, instead of an interactive shell.
+    detach: bool = False
+    #: Container name used when ``detach`` is set.
+    name: str = ""
+    #: Shell fragment enabling the toolchain in shells we start (from the stack).
+    env_setup: str = ""
 
 
 def engine_root() -> Path:
@@ -389,11 +396,13 @@ def _container_prefix(
     if binding is not None and binding.serial:
         # The container sees every probe; the serial is how the backend picks ours.
         env_args += ["-e", f"MU_PROBE_SERIAL={binding.serial}"]
+    detach = request.detach and request.verb == "dev"
+    if detach and not request.name:
+        raise ValueError("detached dev requires a container name")
     prefix = [
         CONTAINER_RUNTIME,
         "run",
-        "--rm",
-        *interactive_args(request),
+        *(["-d", "--name", request.name] if detach else ["--rm", *interactive_args(request)]),
         *docker_devices,
         "-v",
         f"{project_abs}:{CONTAINER_PROJECT}:rw",
@@ -406,6 +415,25 @@ def _container_prefix(
         CONTAINER_PROJECT,
     ]
     return prefix, image, binding
+
+
+def detach_command(env_setup: str) -> str:
+    """Shell that keeps the container up **and** gives every shell the toolchain.
+
+    ``sleep infinity`` is only a liveness placeholder: an editor attaches by
+    exec-ing into the container, and an exec'd shell never runs the image's
+    ENTRYPOINT — so a stack whose image sets its toolchain up there (rather than
+    on PATH) must expose it through the shell profile instead.
+    """
+    setup = ""
+    if env_setup:
+        setup = (
+            "mkdir -p /etc/profile.d; "
+            f"printf '%s\\n' '{env_setup} >/dev/null 2>&1' > /etc/profile.d/zz-mu-env.sh; "
+            "if [ -f /root/.bashrc ] && ! grep -q zz-mu-env /root/.bashrc; then "
+            "printf '%s\\n' '. /etc/profile.d/zz-mu-env.sh' >> /root/.bashrc; fi; "
+        )
+    return setup + "exec sleep infinity"
 
 
 def build_container_argv(
@@ -427,7 +455,11 @@ def build_container_argv(
     prefix, image, binding = _container_prefix(request, lookup=lookup)
     inner: list[str] = ["python3", "-m", "engine"]
     if request.verb == "dev":
-        inner = ["/bin/bash"]
+        inner = (
+            ["bash", "-lc", detach_command(request.env_setup)]
+            if request.detach
+            else ["/bin/bash"]
+        )
     else:
         inner += [request.verb, "--lang", request.lang, "--mode", "local"]
         inner += ["--project-dir", CONTAINER_PROJECT]
@@ -451,7 +483,9 @@ def build_probe_argv(
     blocklists, no guessing which roots a runtime shares. ``local`` mode,
     unknown mode/lang raise :class:`ValueError` like the run argv.
     """
-    prefix, image, _ = _container_prefix(replace(request, interactive=False), lookup=lookup)
+    prefix, image, _ = _container_prefix(
+        replace(request, interactive=False, detach=False), lookup=lookup
+    )
     return [*prefix, image, "true"]
 
 
