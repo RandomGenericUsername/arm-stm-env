@@ -285,6 +285,14 @@ mu flash --project-dir . \\
           build/{device.id}.bin
 ```
 
+To watch the log, read the port as-is (`--no-reset`): this board has no
+auto-reset circuit, so `idf.py monitor`'s reset attempt fails against a running
+app. Press **RST** yourself to catch the boot banner:
+
+```sh
+idf.py -p /dev/ttyUSB0 monitor --no-reset
+```
+
 ## Expected behaviour
 
 - The on-board LED blinks at ~2 Hz.
@@ -1303,7 +1311,12 @@ def _vscode_files_idf(device: Device) -> dict[str, str]:
     (``req-022`` non-goals). The tasks drive ``idf.py`` in the dev container,
     which carries the IDF toolchain.
     """
-    app = f"build/{device.id}.bin"
+    port = device.probe_ref.address
+    # This board class has no auto-reset circuit, so `idf.py monitor`'s attempt
+    # to reset the chip through the ROM fails and aborts the task (the sync gets
+    # no answer while the app is running). Read the port as-is instead and press
+    # RST yourself to catch the boot log.
+    monitor = f"idf.py -p {port} monitor --no-reset"
 
     def j(obj: object) -> str:
         return json.dumps(obj, indent=2) + "\n"
@@ -1321,19 +1334,19 @@ def _vscode_files_idf(device: Device) -> dict[str, str]:
             {
                 "label": "Flash",
                 "type": "shell",
-                "command": "idf.py flash",
+                "command": f"idf.py -p {port} flash",
                 "problemMatcher": [],
             },
             {
                 "label": "Monitor",
                 "type": "shell",
-                "command": "idf.py monitor",
+                "command": monitor,
                 "problemMatcher": [],
             },
             {
                 "label": "Build + Flash + Monitor",
                 "type": "shell",
-                "command": "idf.py build flash monitor",
+                "command": f"idf.py build && {monitor}",
                 "problemMatcher": [],
             },
         ],
