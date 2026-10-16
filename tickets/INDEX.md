@@ -34,6 +34,8 @@
 
 (covered under epic-001 above; standalone entries appear here only for items without a parent epic)
 
+- [req-021-arch-separation](./req-021-arch-separation/ticket.md) — Architecture separation: pack-declared build stack + split probe ports | `in-progress` | bmad-advisory, spine AD-8 amended + AD-11…AD-17; pre-ESP32 refactor gate
+
 ## Bugs
 
 - [bug-001-xor-probe-selectors](./bug-001-xor-probe-selectors/ticket.md) — XOR rejects probe selectors combined with --mcu-config | `done` | S1, INDIVIDUAL_FLAGS narrowed
