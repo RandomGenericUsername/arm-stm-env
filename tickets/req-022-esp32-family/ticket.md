@@ -58,11 +58,12 @@ app printed `mu/esp32cam: blink N` over UART0 @115200.
 
 ## Open (recorded, not papered over)
 
-- **Containerized UART tty passthrough** — ADDRESSED by `task-017` (the shim now resolves and
-  forwards `/dev/ttyUSB*` for `uart-serial` packs). The *live* containerized flash still needs
-  the board attached; host-side flash was proven in spike-007.
-- The harness's **flash + boot-log** step for this cell runs once that gap closes and the board is
-  attached.
+- ~~Containerized UART tty passthrough~~ — **CLOSED**: `task-017` forwards `/dev/ttyUSB*`, and
+  `ops-024` proves the live containerized flash + boot log on the bench
+  (`flash verdict: 3/3 OK`; `esp32cam: blink on GPIO33`).
+- ~~The harness's flash + boot-log step~~ — the *build* cell is green (`task-016`); the live
+  flash/run proof is captured in `ops-024` (run manually on the bench, not yet automated into the
+  harness).
 
 ## Non-goals
 
