@@ -10,16 +10,16 @@ questions:
   - "Does probe-rs (pinned 0.32.0) flash + run the generated Rust images on NUCLEO-F411RE and NUCLEO-H755ZI-Q?"
   - "If required, what is the concrete per-board proof command, and does the pack already declare the probe-rs chip?"
 answered:
+  - "Q1 (gate): NO — for V1, Rust is build-parity only; the flash/run gate rests on the C/C++ LED proof per board. User decision 2026-10-16 (option c)."
   - "Q2: YES — probe-rs 0.32.0 flashes, verifies and runs the generated Rust ELFs on both boards."
   - "Q3: proof command is `probe-rs run --chip <CHIP> --probe <VID:PID:SERIAL> <elf>`; both chips are pack-declared."
-  - "Blocker: `mu build` (Rust) omits `--target`, so the documented build command fails; filed as bug-025."
-open:
-  - "Q1 (gate): the generated Rust example has no observable run proof (bare `wfi` loop — no LED/RTT/UART), and `mu build` needs a workaround, so Rust cannot satisfy the pack proof ritual today. Needs a product call."
+  - "Blocker: `mu build` (Rust) omits `--target`; filed as bug-025 and still needed so build-parity actually works."
+open: []
 links:
   openspec: none
   bmad: none
 worktree: .worktrees/spike-008/
-branch: ticket/spike-008-rust-flash-run
+branch: ticket/spike-008-rust-flash-decision
 ---
 
 # Rust live flash/run: is it a V1 gate, and does probe-rs flash F411RE/H755?
@@ -63,26 +63,31 @@ because it passes `--target` itself (`engine/verify/e2e.py:340`). Filed as
 `bug-025`; ELFs here were produced with the harness command
 `cargo build --target thumbv7em-none-eabihf`.
 
-### Open
+### Resolved (decision 2026-10-16)
 
-- **Q1 (the gate question) — Rust has no observable run proof.** The generated
-  `src/main.rs` is `#[entry] fn main() -> ! { loop { cortex_m::asm::wfi() } }`
-  (`engine/templates/renderer.py:670-…`): no LED, no RTT, no UART. The pack proof
-  ritual accepts LED/RTT/UART (`device-matrix.md:14`, `spec:69`), so "the board
-  runs" is not observable from the Rust image as generated — and `mu build`
-  needs the bug-025 workaround first. Options for the user:
-  (a) port the LED example to Rust (like C/C++ req-014/req-015) **and** fix
-  bug-025, making Rust flash a first-class ritual; (b) accept a weaker Rust proof
-  rung (debug-attach / `probe-rs` run staying attached, as recorded here);
-  (c) scope Rust to build-parity only (as `ops-023` recorded) and gate V1 on the
-  C/C++ LED proof per board.
-  Related: the generated Rust `README.md` claims "on-board LED PA5 … blinking on
-  M4", which does not match the `wfi` code.
-- **Nuance:** after a *detached* run (`probe-rs reset`, session torn down), a
-  reconnect on F411RE failed with `JtagNoDeviceConnected` — consistent with the
-  bare `wfi` sleep stopping the core clock with default DBGMCU. `probe-rs run`
-  (which stays attached) works; a first-class flow should keep the session or
-  configure DBGMCU.
+- **Q1 (the gate question) — answered: Rust is build-parity only for V1 (option c).**
+  Rationale on record: the generated `src/main.rs` is a bare
+  `#[entry] fn main() -> ! { loop { cortex_m::asm::wfi() } }`
+  (`engine/templates/renderer.py:670`) — no LED/RTT/UART — so "the board runs" is
+  not observable from the Rust image, and the pack proof ritual wants LED/RTT/UART
+  (`device-matrix.md:14`, `spec:69`). Making Rust a first-class flash ritual would
+  need both an LED port (like C/C++ req-014/req-015) *and* the bug-025 fix; the
+  user chose to keep V1's flash/run gate on the C/C++ LED proof per board and
+  scope Rust to build-to-ELF parity (as `ops-023` recorded). Revisit as a
+  post-V1 follow-up.
+- **Consequence:** `bug-025` still matters — build-parity is the Rust V1 evidence,
+  and `mu build` currently fails without a workaround. Fix it so the documented
+  path matches the harness.
+- **Discrepancy to reconcile (flagged, not edited here):** the spec success signal
+  ("each matrix cell ... flash and the board runs", `spec:65-67`) and the generated
+  Rust `README.md` ("on-board LED PA5 … blinking on M4") both overstate Rust's V1
+  scope — the README is aspirational vs the `wfi` code. Needs a spec/README
+  clarification (BMAD/OpenSpec territory).
+- **Nuance (debug attach):** after a *detached* run (`probe-rs reset`, session torn
+  down), a reconnect on F411RE failed with `JtagNoDeviceConnected` — consistent
+  with the bare `wfi` sleep stopping the core clock with default DBGMCU.
+  `probe-rs run` (which stays attached) works; a post-V1 Rust flow should keep the
+  session or configure DBGMCU.
 
 > Spike stops at the box. No implementation here beyond the workaround builds;
 > the `mu build` fix is `bug-025` (separate ticket).

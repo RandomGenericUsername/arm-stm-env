@@ -28,8 +28,8 @@ build).
   `docs/e2e-evidence.md`) with, per V1 pack: board, probe id, openocd target,
   `flash` verdict, and the run proof (LED / RTT / UART per the pack ritual).
 - Source F411RE + H755ZI-Q from `tickets/ops-020-clean-test-doc/ticket.md` /
-  `docs/vscode-debug.md:156-161`; WL55JC from `ops-027`; Rust, if gated in, from
-  `spike-008`.
+  `docs/vscode-debug.md:156-161`; WL55JC from `ops-027`. Rust is **out of scope**
+  (build-parity only for V1 — `spike-008` decision, option c).
 
 ## Done-when
 
