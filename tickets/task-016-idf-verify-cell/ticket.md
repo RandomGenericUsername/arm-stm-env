@@ -49,7 +49,6 @@ The `(esp32cam, idf-cmake)` cell is green in the harness; the flash + boot-log p
   `… artifacts=build/bootloader/bootloader.bin=26176,build/partition_table/partition-table.bin=3072,build/esp32cam.bin=149120; fits=factory=149120/1048576`
 - Warnings are recorded and never fail the cell (warn-only policy, unchanged).
 
-**Open (recorded, not claimed done):** the *flash + boot-log* proof of the done-when is not
-produced by this harness run — it needs the owner's board plus E2's open containerized-UART-tty
-gap. Live host-side flash + boot log already exist from **spike-007**; what remains is proving the
-same through the container path.
+**The flash + boot-log proof is captured** in `ops-024` (2026-10-16): containerized `mu flash`
+wrote 3/3 pieces through the forwarded tty and the flashed app booted — `esp32cam: blink on
+GPIO33`. It was run on the bench rather than automated into this harness.
