@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from engine.core.stacks import StackSpec, register_stack
 
-__all__ = ["CARGO_CORTEX", "MAKE_CMSIS", "ensure_registered"]
+__all__ = ["CARGO_CORTEX", "IDF_CMAKE", "MAKE_CMSIS", "ensure_registered"]
 
 #: ARM GCC + CMSIS device trees, built with make (C and C++).
 MAKE_CMSIS = StackSpec(
@@ -28,7 +28,20 @@ CARGO_CORTEX = StackSpec(
     image="ghcr.io/randomgenericusername/lang-rust:1.99.0",
 )
 
-_SHIPPED = (MAKE_CMSIS, CARGO_CORTEX)
+#: ESP-IDF (xtensa + CMake/Ninja), built with ``idf.py``. Image digest pinned
+#: from spike-007 (``docker buildx imagetools inspect espressif/idf:v6.1``,
+#: amd64 + arm64); the template family renders in E3.
+IDF_CMAKE = StackSpec(
+    stack_id="idf-cmake",
+    template_family="idf-cmake",
+    build_argv=("idf.py", "build"),
+    image=(
+        "espressif/idf:v6.1"
+        "@sha256:81893c71bb5e570088901f21def8684c25cd2a9020281bd01b843a7655edb18c"
+    ),
+)
+
+_SHIPPED = (MAKE_CMSIS, CARGO_CORTEX, IDF_CMAKE)
 
 
 def ensure_registered() -> None:

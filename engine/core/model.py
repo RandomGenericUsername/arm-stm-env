@@ -436,6 +436,12 @@ class DeviceView:
     probe_settings: Tuple[Tuple[str, Tuple[Tuple[str, str], ...]], ...] = ()
     example_led: ExampleLed | None = None
     svd: Tuple[Tuple[str, str], ...] = ()
+    #: Frame family id (AD-13/AD-14) — family-owned facts key off this.
+    family: str = ""
+    #: Validated family blocks, passed through generically (AD-2/AD-13): an
+    #: adapter renders the facts *its* family declares, without core knowing
+    #: those block names.
+    blocks: Tuple[Tuple[str, Any], ...] = ()
 
     def probe_setting(self, backend: str, key: str) -> str | None:
         for name, settings in self.probe_settings:
@@ -443,6 +449,13 @@ class DeviceView:
                 for k, v in settings:
                     if k == key:
                         return v
+        return None
+
+    def block_for(self, name: str) -> Any | None:
+        """Validated payload for family block ``name`` (or ``None``)."""
+        for block_name, payload in self.blocks:
+            if block_name == name:
+                return payload
         return None
 
     @classmethod
@@ -464,6 +477,8 @@ class DeviceView:
             probe_settings=device.facets.probe_settings if device.facets else (),
             example_led=device.facets.example_led if device.facets else None,
             svd=device.facets.svd if device.facets else (),
+            family=device.family,
+            blocks=device.facets.blocks if device.facets else (),
         )
 
     def __iter__(self) -> Iterator[str]:

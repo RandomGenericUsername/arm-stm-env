@@ -144,6 +144,10 @@ def _ensure_builtin_backends() -> None:
         from engine.adapters.probe_rs import ProbeRsAdapter
 
         _BACKEND_FACTORIES["probe-rs"] = ProbeRsAdapter
+    if "esptool" not in _BACKEND_FACTORIES:
+        from engine.adapters.esptool import EsptoolAdapter
+
+        _BACKEND_FACTORIES["esptool"] = EsptoolAdapter
 
 
 def get_adapter(name: str | None = None, **kwargs) -> FlashPort:
