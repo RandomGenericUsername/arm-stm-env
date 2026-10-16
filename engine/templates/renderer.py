@@ -30,6 +30,11 @@ __all__ = [
 
 SUPPORTED_LANGS = ("c", "cpp", "rust")
 
+#: Template families this renderer implements (AD-11): a stack whose family is
+#: not here is a recognised stack awaiting its template slice (e.g. ESP32's
+#: ``idf-cmake`` until E3), not a broken pack.
+SUPPORTED_TEMPLATE_FAMILIES = ("c-cmsis", "rust-cortex")
+
 # Core name -> gcc -mcpu value (renderer-owned map, no template fork).
 CPU_BY_CORE = {
     "M4": "cortex-m4",

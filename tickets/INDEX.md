@@ -35,7 +35,7 @@
 (covered under epic-001 above; standalone entries appear here only for items without a parent epic)
 
 - [req-021-arch-separation](./req-021-arch-separation/ticket.md) — Architecture separation: pack-declared build stack + split probe ports | `done` | bmad-advisory, spine AD-8 amended + AD-11…AD-17; pre-ESP32 refactor gate; follow-ups ticketed
-- [req-022-esp32-family](./req-022-esp32-family/ticket.md) — ESP32 family support (first non-STM32 device) | `proposed` | bmad-advisory | 0/4 children done | parents req-021's refactor
+- [req-022-esp32-family](./req-022-esp32-family/ticket.md) — ESP32 family support (first non-STM32 device) | `in-progress` | bmad-advisory | 1/4 children done | parents req-021's refactor
 - [req-023-ad15-refinement](./req-023-ad15-refinement/ticket.md) — Reconcile AD-15 with the R5 verify implementation | `done` | bmad-advisory | spine wording fix, lint clean
 
 ## Bugs
@@ -103,7 +103,7 @@
 - [task-010-artifact-gating](./task-010-artifact-gating/ticket.md) — R4: gate artifact emission on model facts; probe ids from the family | `done` | parent req-021 | 300/300 tests, STM32 tree byte-identical, no hardcoded probe VID
 - [task-011-verify-axis](./task-011-verify-axis/ticket.md) — R5: verify matrix dispatches by stack; shared build-evidence envelope | `done` | parent req-021 | 305/305 tests, 9 cells resolve via the registry
 - [task-012-operational-envelope](./task-012-operational-envelope/ticket.md) — R6: name the operational envelope as one owned contract | `done` | parent req-021 | 309/309 tests, no scattered literal, ownership proven | ← refactor gate complete
-- [task-013-esp32-pack](./task-013-esp32-pack/ticket.md) — E1: packs/esp32cam.yaml + esp32 family validators | `proposed` | parent req-022
+- [task-013-esp32-pack](./task-013-esp32-pack/ticket.md) — E1: packs/esp32cam.yaml + esp32 family validators | `done` | parent req-022 | 319/319 tests, pack loads, ZERO core diffs
 - [task-014-esptool-backend](./task-014-esptool-backend/ticket.md) — E2: esptool probe backend (FlashPort) + UART binding | `proposed` | parent req-022
 - [task-015-idf-template](./task-015-idf-template/ticket.md) — E3: idf-cmake template family | `proposed` | parent req-022
 - [task-016-idf-verify-cell](./task-016-idf-verify-cell/ticket.md) — E4: build_idf_cell in the verify harness | `proposed` | parent req-022

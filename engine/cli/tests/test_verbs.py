@@ -3,6 +3,7 @@
 import pytest
 
 from engine.cli.main import VERBS, build_parser, main
+from engine.cli.tests.packs import first_supported_pack
 
 
 def _project(tmp_path, stack="make-cmsis"):
@@ -40,9 +41,7 @@ def test_verbs_dry_run_prints_container_argv_without_runtime(capsys, monkeypatch
 def test_verbs_create_dry_run_renders_locally_without_runtime(capsys, monkeypatch, tmp_path):
     from pathlib import Path
 
-    from engine.cli.main import PACKS_DIR
-
-    pack = sorted(Path(PACKS_DIR).glob("*.yaml"))[0]
+    _, pack = first_supported_pack()
     monkeypatch.setattr("shutil.which", lambda _: None)
     assert (
         main(["create", "--name", "demo", "--mcu-config", str(pack), "--path", str(tmp_path), "--dry-run"])
@@ -108,9 +107,7 @@ def test_verbs_flash_missing_config_is_usage_error(capsys):
 def test_verbs_flash_files_forwarded_into_container(capsys, tmp_path):
     from pathlib import Path
 
-    from engine.cli.main import PACKS_DIR
-
-    pack = sorted(Path(PACKS_DIR).glob("*.yaml"))[0].stem
+    pack = first_supported_pack()[0]
     proj = tmp_path / "proj"
     proj.mkdir()
     assert main(["flash", "--mcu-config", pack,
@@ -135,9 +132,7 @@ def test_verbs_missing_runtime_fails_fast_with_hint(capsys, monkeypatch, tmp_pat
 def test_verbs_probe_unknown_backend_is_usage_error(capsys, tmp_path):
     from pathlib import Path
 
-    from engine.cli.main import PACKS_DIR
-
-    pack = sorted(Path(PACKS_DIR).glob("*.yaml"))[0]
+    _, pack = first_supported_pack()
     code = main(["flash", "--mcu-config", str(pack), "--probe", "nope",
                  "--device", "/dev/x", "--files", "a.elf",
                  "--mode", "local", "--project-dir", str(tmp_path)])
@@ -152,7 +147,7 @@ def test_verbs_probe_defaults_to_pack_backend(monkeypatch, tmp_path, capsys):
     import sys
     from engine.cli.main import PACKS_DIR, load_file, main
 
-    pack = sorted(Path(PACKS_DIR).glob("*.yaml"))[0]
+    _, pack = first_supported_pack()
     expected = load_file(pack).probe_backend
     assert expected, "shipped pack must declare a probe default for this test"
     seen: list = []
@@ -219,7 +214,7 @@ def test_verbs_verbose_creates_log_dir(monkeypatch, tmp_path, capsys):
     from engine.adapters import PieceResult
     from engine.cli.main import PACKS_DIR, load_file
 
-    pack = sorted(Path(PACKS_DIR).glob("*.yaml"))[0]
+    _, pack = first_supported_pack()
     seen: list = []
 
     class _Fake:
@@ -255,9 +250,7 @@ def test_verbs_debug_fails_when_backend_has_no_debug_port(monkeypatch, tmp_path,
     from pathlib import Path
 
     from engine.adapters import FlashPort, PieceResult
-    from engine.cli.main import PACKS_DIR
-
-    pack = sorted(Path(PACKS_DIR).glob("*.yaml"))[0]
+    _, pack = first_supported_pack()
 
     class _FlashOnly(FlashPort):
         last_transcript = None
