@@ -12,7 +12,7 @@ no loader reference.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Iterator, Sequence, Tuple
+from typing import Any, Iterator, Sequence, Tuple
 
 __all__ = [
     "Core",
@@ -230,6 +230,18 @@ class DeviceFacets:
     cpu2_boot: Tuple[Tuple[int, int, int | None], ...] = ()
     #: Per-core SVD source paths for the register view (req-017): (core, path).
     svd: Tuple[Tuple[str, str], ...] = ()
+    #: Every validated family block, generically attached (task-008, AD-13):
+    #: ``(block_name, payload)`` pairs sorted by name. A new family's blocks —
+    #: validated by that family's own module — reach renderers/adapters here
+    #: without any ``core/`` change.
+    blocks: Tuple[Tuple[str, Any], ...] = ()
+
+    def block_for(self, name: str) -> Any | None:
+        """Validated payload for family block ``name`` (or ``None``)."""
+        for block_name, payload in self.blocks:
+            if block_name == name:
+                return payload
+        return None
 
     def linker_for(self, core_name: str, device_id: str) -> str:
         # No invented fallback (startup lesson): an undeclared core is a loud

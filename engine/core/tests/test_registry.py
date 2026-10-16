@@ -5,26 +5,30 @@ import pytest
 import engine.core.registry as registry
 
 
+def _vb(block_name, payload, *, family="stm32f4"):
+    registry.validate_block(block_name, payload, family=family)
+
+
 def test_register_and_lookup_roundtrip():
-    registry.register("demo", lambda payload: None)
-    assert registry.get("demo") is not None
-    assert "demo" in registry.registered_blocks()
+    registry.register("demo", lambda payload: None, families=("testfam",))
+    assert registry.get("testfam", "demo") is not None
+    assert "demo" in registry.registered_blocks(family="testfam")
 
 
 def test_lookup_unknown_names_the_block():
     with pytest.raises(registry.UnknownBlockError, match="nope_block"):
-        registry.get("nope_block")
+        registry.get("stm32f4", "nope_block")
 
 
 def test_validate_block_unknown_names_the_block():
     with pytest.raises(registry.UnknownBlockError, match="mystery_block"):
-        registry.validate_block("mystery_block", {"a": 1})
+        _vb("mystery_block", {"a": 1})
 
 
 def test_validate_block_runs_registered_validator():
     seen = []
-    registry.register("demo", seen.append)
-    registry.validate_block("demo", {"x": 1})
+    registry.register("demo_runs", seen.append, families=("testfam",))
+    _vb("demo_runs", {"x": 1}, family="testfam")
     assert seen == [{"x": 1}]
 
 
@@ -39,8 +43,8 @@ def _led(**over):
 
 
 def test_example_block_accepts_led_fact():
-    registry.validate_block("example", _led())
-    registry.validate_block("example", _led(active="low"))  # active optional/varied
+    _vb("example", _led())
+    _vb("example", _led(active="low"))  # active optional/varied
 
 
 @pytest.mark.parametrize(
@@ -60,26 +64,26 @@ def test_example_block_accepts_led_fact():
 )
 def test_example_block_rejects_bad(payload, match):
     with pytest.raises(ValueError, match=match):
-        registry.validate_block("example", payload)
+        _vb("example", payload)
 
 
 def test_svd_block_validates():
-    registry.validate_block("svd", {"M4": "stm32f4/STM32F411.svd"})
+    _vb("svd", {"M4": "stm32f4/STM32F411.svd"})
     with pytest.raises(ValueError, match="path"):
-        registry.validate_block("svd", {"M4": ""})
+        _vb("svd", {"M4": ""})
     with pytest.raises(ValueError, match="non-empty"):
-        registry.validate_block("svd", {})
+        _vb("svd", {})
 
 
 def test_register_rejects_empty_name_and_non_callable():
     with pytest.raises(ValueError, match="non-empty"):
-        registry.register("", lambda p: None)
+        registry.register("", lambda p: None, families=("testfam",))
     with pytest.raises(TypeError, match="callable"):
-        registry.register("demo", "not-a-fn")
+        registry.register("demo", "not-a-fn", families=("testfam",))
 
 
 def test_builtin_openocd_block_registered():
-    assert "openocd" in registry.registered_blocks()
-    registry.validate_block("openocd", {"interface": "stlink.cfg", "board": "x"})
+    assert "openocd" in registry.registered_blocks(family="stm32f4")
+    _vb("openocd", {"interface": "stlink.cfg", "board": "x"})
     with pytest.raises(ValueError, match="interface"):
-        registry.validate_block("openocd", {"board": "x"})
+        _vb("openocd", {"board": "x"})
