@@ -1,5 +1,6 @@
 """ESP-IDF template-family render tests (task-015, E3; AD-11, AD-14)."""
 
+import json
 from pathlib import Path
 
 from engine.core.loader import load_file
@@ -65,3 +66,27 @@ def test_idf_root_cmake_names_the_project(tmp_path) -> None:
     root = (tmp_path / "CMakeLists.txt").read_text()
     assert "project(esp32cam)" in root
     assert "$ENV{IDF_PATH}/tools/cmake/project.cmake" in root
+
+
+def test_idf_vscode_flow_has_build_flash_monitor(tmp_path) -> None:
+    device = load_file(PACKS_DIR / "esp32cam.yaml")
+    render(device, "c", tmp_path, vscode=True)
+    tasks = json.loads((tmp_path / ".vscode" / "tasks.json").read_text())
+    labels = [t["label"] for t in tasks["tasks"]]
+    assert labels == ["Build", "Flash", "Monitor", "Build + Flash + Monitor"]
+    commands = {t["label"]: t["command"] for t in tasks["tasks"]}
+    assert commands["Build"] == "idf.py build"
+    assert commands["Flash"] == "idf.py flash"
+    assert commands["Monitor"] == "idf.py monitor"
+    assert (tmp_path / ".vscode" / "extensions.json").is_file()
+
+
+def test_idf_vscode_flow_has_no_cortex_debug_or_launch(tmp_path) -> None:
+    """No attach without external JTAG (req-022 non-goals) — log-based only."""
+    device = load_file(PACKS_DIR / "esp32cam.yaml")
+    render(device, "c", tmp_path, vscode=True)
+    assert not (tmp_path / ".vscode" / "launch.json").exists()
+    vscode = tmp_path / ".vscode"
+    blob = "".join(p.read_text() for p in vscode.iterdir())
+    assert "cortex-debug" not in blob and "openocd" not in blob.lower()
+    assert not (tmp_path / "probe").exists()
