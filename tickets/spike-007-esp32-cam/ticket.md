@@ -19,16 +19,16 @@ answered:
   - "Q4 image: ESP-IDF effectively mandatory (bare-metal xtensa void consensus: loses WiFi/BT/camera/flash-mmap/PSRAM init). Pin e.g. espressif/idf:v6.0.3 (stable v6.1 per docs; maintained v6.0.3/v5.5.5/v5.4.4) — official docker image with pinned tags exists (espressif/idf:vX.Y). Containerized per framework philosophy (AGENTS.md dual-mode spine): zero host deps preserved; host-transparent build/flash runs IDF image + device forwarding. Flash triple: 0x1000 bootloader.bin + 0x8000 partition-table.bin + 0x10000 app.bin; write-flash always MD5-verifies; verify-flash/read-flash available. OpenOCD/JTAG explicitly OUT of scope for bring-up."
   - "Q5 templates: NEW template family required — root CMakeLists.txt + main/CMakeLists.txt + sdkconfig.defaults (+ optional partitions.csv) instead of Makefile + linker/*.ld; xtensa toolchain via idf.py build|flash|monitor; no vendor/CMSIS, no startup/system/defines, no memory.x/link.x; new lang/kind key + image in DefaultImageLookup; new .vscode (no cortex-debug+openocd+SVD, no arm-none-eabi-gdb). Do NOT fork CPU_BY_CORE/Makefile/_LINKER/memory.x. Verdict: NEW-KIND."
   - "Q6 done criteria: NEW build_idf_cell in engine/verify — render CMake tree, docker run idf.py build in the IDF image, assert build/*.elf+*.bin exist + partition-table fit (offsets/sizes, not arm-none-eabi-size), optional esptool verify-flash as proof_rung, warn-only policy kept, evidence extended with idf cmd + bin sizes. e2e.py:57-62 CELLS gain (esp32cam,idf)."
+  - "Q7 image pin (resolved 2026-10-16): espressif/idf ships BOTH linux/amd64 AND linux/arm64 (docker buildx imagetools inspect, cross-checked with the Hub tags API). Digest-pin candidate = v6.1 (docs /en/stable/ now serves v6.1), index sha256:81893c71…5edb18c. Fallbacks: v6.0.3 sha256:54278f2c…7a08f555, v5.5.6 sha256:bf72fe7a…614cac84. Per-arch digests + sources in the addendum."
 open:
   - "Hardware-in-hand UART flash confirmation (physical board + FTDI on the owner's bench) — the only Q1 item still pending owner action."
-  - "espressif/idf image arch support (linux/amd64 only, or arm64 too?) + digest pin — verify at build time on this Mac (cf. bug-022 preflight)."
   - "First-slice implementation ticket (suggested: pack YAML + esptool backend dry-run + docs, no image build yet) — follow-up req/task, out of spike scope."
   - "Rust via esp-hal 1.0 (no_std, supports classic ESP32) — noted as the future second-language path, not investigated."
 links:
   openspec: none
   bmad: none
 worktree: none
-branch: none
+branch: ticket/spike-007-esp32-cam
 ---
 
 # First non-STM32 board: ESP32-CAM
@@ -62,3 +62,54 @@ Suggested first slice (follow-up ticket): pack YAML + esptool backend dry-run
 + docs, no image build yet.
 
 > Spike stops at the box and reports `answered:` / `open:`. Implementation output from a spike is a failure. No second box without an explicit user call.
+
+## Addendum (2026-10-16) — main sync + open-item resolution
+
+Branch state fixed first: `ticket/spike-007-esp32-cam` was 3 ahead / 6 behind
+`main`, synced by merge `1eb9407` (`origin/main` `3ea9fac` is now an ancestor),
+`make test` → **276 passed**. No source changes on this branch — the sync only
+carried ops-022/bug-023/bug-024 into `engine/templates/renderer.py` +
+`packs/stm32wl55jc.yaml`, none of which the ESP32 work touches.
+`Verify: git log --oneline -1 && make test`.
+
+**Resolved — IDF image arch + digest pin (was `open:` #2):**
+
+- `espressif/idf` publishes **both** `linux/amd64` and `linux/arm64`.
+  `Evidence:` `docker buildx imagetools inspect espressif/idf:v6.1` →
+  `MediaType: application/vnd.oci.image.index.v1+json` with `Platform:
+  linux/amd64` + `Platform: linux/arm64`; the Hub tags API reports the same for
+  v6.1 / v6.0.3 / v5.5.6 (`curl https://hub.docker.com/v2/repositories/espressif/idf/tags/`).
+  `Verify: docker buildx imagetools inspect espressif/idf:v6.1`
+- Docs `/en/stable/` now serves **v6.1** (footer `esp32 v6.1`, source
+  `espressif/esp-idf/blob/v6.1/docs/en/versions.rst`) ⇒ pin candidate `v6.1`.
+  `Evidence:` `docs.espressif.com/projects/esp-idf/en/stable/esp32/versions.html`.
+- Digests (index + per-arch), cross-checked with `docker buildx imagetools inspect`:
+
+  | tag | index digest | linux/amd64 | linux/arm64 |
+  |---|---|---|---|
+  | `v6.1` | `sha256:81893c71…5edb18c` | `sha256:f81b6e07…94f218a` | `sha256:a460b1c8…4a3d0bf` |
+  | `v6.0.3` | `sha256:54278f2c…7a08f555` | `sha256:01ab23e2…ade05a1e` | `sha256:da1f22c1…299f0fa` |
+  | `v5.5.6` | `sha256:bf72fe7a…614cac84` | `sha256:851f136a…e78cfb3` | `sha256:26776964…5b223c112` |
+
+- Caveat: verified from the registry, not from a local pull/build. A real
+  `docker pull`/build that records `RepoDigests` is still owed when the IDF
+  image is added (cf. bug-022 preflight).
+
+**Re-verified supporting facts (sources):**
+
+- esptool argv + verify: `esptool --port <PORT> [-b BAUD] write-flash <addr>
+  <file> …`; post-write MD5 check, `verify-flash`, and `merge-bin` for a single
+  image. `Evidence:` `docs.espressif.com/projects/esptool/en/latest/esp32/esptool/basic-commands.html`.
+- Serial: 115200, 8-N-1, flow control none, **3.3V only**.
+  `Evidence:` `.../esptool/serial-connection.html`.
+- ESP32-CAM (AI-Thinker class): GPIO33 red LED **active-low**, GPIO4 flash LED,
+  GPIO1/3 = UART0 TX/RX, GPIO0→GND = download mode.
+  `Evidence:` `randomnerdtutorials.com/esp32-cam-ai-thinker-pinout/` +
+  `SeeedDocument/forum_doc/reg/ESP32_CAM_V1.6.pdf`.
+- Autodetect gap in this repo: `engine/cli/shim.py:64` is `_PROBE_VIDS =
+  ("0483",)` (ST-Link only), so esptool UART autodetect will need `10C4`
+  (CP210x) + `1A86` (CH340) added.
+  `Evidence:` `engine/cli/shim.py:61-64`.
+
+Still open: physical-board UART flash confirmation on the owner's bench; the
+first-slice implementation ticket; the Rust/esp-hal second-language path.
