@@ -125,11 +125,11 @@ flowchart LR
 - **Prevents:** STM32 artifacts (`openocd.cfg`, CMSIS config headers, vendor trees) leaking into non-STM32 trees; dead pack `probe:` facts; a hardcoded probe VID list in `cli/`
 - **Rule:** A renderer emits a tool artifact only when the model carries the corresponding fact (an `openocd` block → `openocd.cfg`; a **family-declared vendor-source fact** → vendor tree — never inferred from a pack-id prefix). The pack's `probe:` block declares the connection requirements; an explicit CLI selector **replaces** them as a whole source (AD-5 — never a field-level merge; the CLI wins when present), and the family registers autodetect IDs (no hardcoded list in `cli/`).
 
-### AD-15 — Verification matrix is (pack, stack) [ADOPTED]
+### AD-15 — Verification dispatches by build stack [ADOPTED]
 
 - **Binds:** CAP-3; AD-10, AD-11
 - **Prevents:** a per-language builder assumption that cannot host a third build system; evidence keys that do not compare across stacks
-- **Rule:** The verify harness enumerates **`(pack, stack)`** cells — the cell id is the deduped `(pack, stack)` pair, not `(pack, language)`. Each stack registers its build command and its size/fit check, and returns them in a **shared, stack-neutral build-evidence envelope** (stack, command, exit, artifact path, size/fit verdict). Flash-proof keys remain the AD-10 SUBSET-comparable set (`pieces`, `verified`); build-evidence keys and flash-proof keys never mix.
+- **Rule:** The verify harness enumerates cells and **dispatches the builder by the resolved stack's template family** — a stack registers its build command and its size/fit check, so a third build system joins by registration (AD-1). The cell key stays `(pack, language)`: one stack may serve several languages whose rendered trees differ (`c` vs `cpp`), so deduping to `(pack, stack)` would drop that coverage; each cell reports its resolved `stack`. Evidence is returned in a **shared, stack-neutral build-evidence envelope** (`stack`, `template_family`, `commands`, `exits`, `artifacts`, `fits`). Flash-proof keys remain the AD-10 SUBSET-comparable set (`pieces`, `verified`); the two never mix.
 
 ### AD-16 — Seam refactors precede new-device work [ADOPTED]
 

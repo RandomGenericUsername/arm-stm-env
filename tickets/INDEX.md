@@ -36,6 +36,7 @@
 
 - [req-021-arch-separation](./req-021-arch-separation/ticket.md) — Architecture separation: pack-declared build stack + split probe ports | `done` | bmad-advisory, spine AD-8 amended + AD-11…AD-17; pre-ESP32 refactor gate; follow-ups ticketed
 - [req-022-esp32-family](./req-022-esp32-family/ticket.md) — ESP32 family support (first non-STM32 device) | `proposed` | bmad-advisory | 0/4 children done | parents req-021's refactor
+- [req-023-ad15-refinement](./req-023-ad15-refinement/ticket.md) — Reconcile AD-15 with the R5 verify implementation | `done` | bmad-advisory | spine wording fix, lint clean
 
 ## Bugs
 

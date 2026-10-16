@@ -21,7 +21,7 @@ Behavior-preserving: suite green, rendered output unchanged. **These land before
 | R2 | Relocate family block validators `core/` → `packs/`; registry keys qualified by (family, block); loader attaches blocks generically | AD-13 | tests prove a pure move + no key collisions |
 | R3 | Pack-declared `stacks` map (in the shared frame) + toolchain registry (image + build command keyed by stack); rendered tree persists its stack id | AD-11, AD-8 | language no longer selects toolchain |
 | R4 | Gate artifact emission on model facts; pack `probe:` block becomes functional (CLI replaces pack requirements wholesale; per-family VID registration) | AD-14, AD-9 | STM32 trees byte-identical |
-| R5 | Verify matrix → `(pack, stack)`; per-stack build + fit check in a shared build-evidence envelope | AD-15, AD-10 | a third build system can register |
+| R5 | Verify dispatches the builder by the resolved stack (cell key stays `(pack, language)`); shared stack-neutral build-evidence envelope | AD-15, AD-10 | a third build system can register |
 | R6 | Name the operational envelope (container runtime, host git/network, USB + cgroup model, platform) as one owned contract | AD-17 | the envelope is stated, not per-lane |
 
 ## New-device slice — ESP32 (first non-STM32 board)
