@@ -78,6 +78,7 @@
 - [ops-019-vscode-debug-docs](./ops-019-vscode-debug-docs/ticket.md) — Document the VS Code debug flow (docs/vscode-debug.md) | `done`
 - [ops-020-clean-test-doc](./ops-020-clean-test-doc/ticket.md) — Document the clean from-zero test (docs/vscode-debug.md §9) | `done`
 - [ops-021-project-readme](./ops-021-project-readme/ticket.md) — Generated project README.md (each project documents its own flow) | `done`
+- [ops-022-f5-prelaunch](./ops-022-f5-prelaunch/ticket.md) — F5 = build + flash + debug (preLaunchTask in the generated launch configs) | `done`
 
 ## Spikes
 

@@ -1076,6 +1076,13 @@ def _vscode_files(device: Device) -> dict[str, str]:
         if attach_only:
             config["request"] = "attach"
             del config["runToEntryPoint"]
+        # ops-022: F5 = build (+ flash) + debug. The primary does the real work —
+        # attach configs never program the target, so they run the Flash task
+        # first (its reset also releases the sibling); launch configs flash via
+        # gdb `load` and only need a build. Siblings only build: they are also the
+        # compound's chained children, and a chained child runs its own
+        # preLaunchTask, so a Flash there would re-program and disturb the parent.
+        config["preLaunchTask"] = ("Flash" if attach_only else "Build") if index == 0 else "Build"
         if multi_core:
             # bug-013: OpenOCD exposes one gdb server per core (…cpu0, …cpu1);
             # cortex-debug connects to the port for `targetProcessor`, so a
