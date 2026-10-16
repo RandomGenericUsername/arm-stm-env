@@ -86,6 +86,7 @@
 - [ops-023-e2e-matrix](./ops-023-e2e-matrix/ticket.md) — Record the full e2e matrix (10 cells, both families) | `done` | 10/10 green, evidence recorded
 - [ops-024-esp32-live-proof](./ops-024-esp32-live-proof/ticket.md) — Record the live ESP32-CAM proof: containerized flash + boot log | `done` | 3/3 pieces, boot log + app output captured
 - [ops-025-monitor-port-note](./ops-025-monitor-port-note/ticket.md) — Document that a running monitor owns the serial port | `done` | README + test
+- [ops-026-esp32-wrapup](./ops-026-esp32-wrapup/ticket.md) — ESP32-CAM wrap-up: final state + prune merged branches | `done` | req-022 §Final state; origin pruned
 
 ## Spikes
 
