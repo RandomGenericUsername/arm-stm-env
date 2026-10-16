@@ -31,8 +31,16 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from engine.adapters import DefaultImageLookup, ImageLookup
+from engine.adapters.toolchain import ensure_registered as _ensure_stacks
+from engine.core.build_cells import (
+    BuildEvidence,
+    UnknownBuildCellError,
+    build_cell_for,
+    register_build_cell,
+)
 from engine.core.loader import load_file
 from engine.core.model import Device, MemoryRegion
+from engine.core.stacks import stack_spec
 from engine.templates.renderer import core_context, render
 
 __all__ = [
@@ -53,7 +61,6 @@ __all__ = [
     "run_all",
     "write_evidence",
 ]
-
 PACK_IDS = ("stm32f411re", "stm32h755", "stm32wl55jc")
 LANGS = ("c", "cpp", "rust")
 CELLS = tuple((p, l) for p in PACK_IDS for l in LANGS)
@@ -92,6 +99,11 @@ class CellResult:
     pack: str
     lang: str
     image: str
+    #: Resolved build stack + its template family (AD-11/AD-15).
+    stack: str = ""
+    template_family: str = ""
+    #: Shared, stack-neutral build evidence (AD-15); None until a build runs.
+    build_evidence: "BuildEvidence | None" = None
     commands: list[str] = field(default_factory=list)
     exits: list[int] = field(default_factory=list)
     elfs: list[ElfInfo] = field(default_factory=list)
@@ -324,23 +336,68 @@ def build_rust_cell(device: Device, out: Path, image: str) -> CellResult:
     return res
 
 
+# AD-15: the shipped stacks register their builders — the harness owns the build
+# mechanics, core owns the registry. A third build system registers here (or in
+# its own module) and never edits ``run_all``.
+register_build_cell("c-cmsis", build_cpp_cell)
+register_build_cell("rust-cortex", build_rust_cell)
+
+
+def _envelope(res: CellResult, stack_id: str, template_family: str) -> BuildEvidence:
+    """Assemble the shared, stack-neutral build evidence for a cell (AD-15)."""
+    artifacts = tuple(
+        (elf.path, elf.file_bytes)
+        for elf in res.elfs
+        if elf.file_bytes is not None
+    )
+    fits = tuple(
+        (elf.flash_region, f"{elf.flash_used}/{elf.flash_avail}")
+        for elf in res.elfs
+        if elf.flash_avail
+    ) + tuple(
+        (elf.ram_region, f"{elf.ram_used}/{elf.ram_avail}")
+        for elf in res.elfs
+        if elf.ram_avail
+    )
+    return BuildEvidence(
+        stack=stack_id,
+        template_family=template_family,
+        commands=tuple(res.commands),
+        exits=tuple(res.exits),
+        artifacts=artifacts,
+        fits=fits,
+    )
+
+
 def run_all(root: str | Path, lookup: ImageLookup | None = None) -> list[CellResult]:
     lookup = lookup or DefaultImageLookup()
+    _ensure_stacks()
     results = []
     for pack_id, lang in CELLS:
         device, out = render_cell(pack_id, lang, root)
         # AD-11: the pack-declared stack resolves the toolchain image.
-        image = lookup.image_for(device.stack_for(lang))
+        stack_id = device.stack_for(lang)
+        image = lookup.image_for(stack_id)
+        template_family = stack_spec(stack_id).template_family
         try:
-            if lang in ("c", "cpp"):
-                res = build_cpp_cell(device, out, image)
-            else:
-                res = build_rust_cell(device, out, image)
+            # AD-15: the builder is selected by the stack's template family, so
+            # a third build system registers rather than editing this dispatch.
+            builder = build_cell_for(template_family)
+            res = builder(device, out, image)
             res.lang = lang
+            res.stack = stack_id
+            res.template_family = template_family
+            if res.ok:
+                res.build_evidence = _envelope(res, stack_id, template_family)
         except CellFailure as exc:
-            res = CellResult(pack=pack_id, lang=lang, image=image, ok=False, note=str(exc))
+            res = CellResult(pack=pack_id, lang=lang, image=image, stack=stack_id,
+                             template_family=template_family, ok=False, note=str(exc))
+        except UnknownBuildCellError as exc:
+            res = CellResult(pack=pack_id, lang=lang, image=image, stack=stack_id,
+                             template_family=template_family, ok=False, note=str(exc))
         except subprocess.TimeoutExpired:
-            res = CellResult(pack=pack_id, lang=lang, image=image, ok=False,
+            res = CellResult(pack=pack_id, lang=lang, image=image, stack=stack_id,
+                             template_family=template_family, ok=False,
                              note=f"cell timed out after {DOCKER_TIMEOUT_S}s")
         results.append(res)
     return results
@@ -365,6 +422,11 @@ def write_evidence(results: list[CellResult], path: str | Path) -> Path:
         status = "PASS" if res.ok else "FAIL"
         lines += [f"## {res.pack} / {res.lang} — {status}", ""]
         lines += [f"- image: `{res.image}`"]
+        if res.stack:
+            lines.append(f"- stack: `{res.stack}` (template family `{res.template_family}`)")
+        if res.build_evidence is not None:
+            evidence = "; ".join(f"{k}={v}" for k, v in res.build_evidence.as_dict().items())
+            lines.append(f"- build evidence: `{evidence}`")
         for cmd, code in zip(res.commands, res.exits):
             lines.append(f"- cmd `{cmd}` -> exit {code}")
         if res.note:
