@@ -26,6 +26,9 @@ children:
 Add ESP32 (ESP32-CAM / ESP32-D0WD) as the first non-STM32 family: ESP-IDF build via `idf-cmake`,
 `esptool` UART flashing at the pack-declared offsets, and an AD-10 proof with no DebugPort.
 
+**Timing: post-V1.** V1 is the three-STM32-board × three-language matrix (spec Constraint); ESP32 is
+the proof the engine is general, not a V1 gate.
+
 This is **not** a drop-in — the needs it surfaced (build-stack axis, programming-only devices,
 non-CMSIS templates, a third verify stack) require the **engine to be generalised first**
 (`req-021`, slices R1–R6, AD-16). Only then does the family land as a pure addition, which is

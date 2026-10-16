@@ -53,6 +53,7 @@ A vision to realize: solo firmware developers re-derive the same MCU bring-up (t
 - All toolchain/probe versions pinned; distribution is versioned OCI images plus thin host shim.
 - The CLI engine and shim are Python; `python3 >= 3.11` is the single host prerequisite, with `uv` managing self-contained dependencies. All toolchain dependencies stay containerized — "zero deps" means zero toolchain deps.
 - Operational envelope is named and owned: container runtime, host tools (git, network for vendoring), USB/sysfs access, and the pinned container platform (AD-17).
+- V1 scope is the three-STM32-board × three-language matrix. Non-STM32 families (ESP32 first) land **after V1** as the proof the engine is general (CAP-7); they are not a V1 gate.
 - Linux/macOS day one; Windows deferred but not designed out.
 - Evidence rule governs all product and technical claims.
 
@@ -63,10 +64,6 @@ A vision to realize: solo firmware developers re-derive the same MCU bring-up (t
 
 ## Success signal
 
-From a clean machine, each matrix cell completes create → build → flash and the board runs its program with the pack-defined observable proof — including the first non-STM32 cell (ESP32-CAM: `idf-cmake` build, `esptool` UART flash, UART boot log), which must land without a single `engine/core` change.
+From a clean machine, each **V1 matrix cell** (3 STM32 boards × 3 languages) completes create → build → flash and the board runs its program with the pack-defined observable proof. **After V1**, the first non-STM32 cell (ESP32-CAM: `idf-cmake` build, `esptool` UART flash, UART boot log) proves the engine is general — it must land without a single `engine/core` change.
 
 - Proof ladder for run verification: automated probe readback first, LED second, manual register inspection as accepted fallback; each pack declares its rung.
-
-## Open Questions
-
-- Is the ESP32 cell a V1-matrix commitment or a post-V1 proof-of-generality? The architecture (AD-16) sequences the refactor first; the ESP32 slices (E1–E4) are ticketed separately.
