@@ -85,14 +85,16 @@ def test_idf_vscode_flow_has_build_flash_monitor(tmp_path) -> None:
     render(device, "c", tmp_path, vscode=True)
     tasks = json.loads((tmp_path / ".vscode" / "tasks.json").read_text())
     labels = [t["label"] for t in tasks["tasks"]]
-    assert labels == ["Build", "Flash", "Monitor", "Build + Flash + Monitor"]
+    assert labels == ["Build", "Flash", "Monitor", "Build + Flash"]
     commands = {t["label"]: t["command"] for t in tasks["tasks"]}
     assert commands["Build"] == "idf.py build"
     assert commands["Flash"] == "idf.py -p /dev/ttyUSB0 flash"
     # No auto-reset circuit: monitor must not try to reset through the ROM
     # (that aborts against a running app) and must name the port.
     assert commands["Monitor"] == "idf.py -p /dev/ttyUSB0 monitor --no-reset"
-    assert "--no-reset" in commands["Build + Flash + Monitor"]
+    # A task must never flash *and* monitor: the monitor would hold the port and
+    # block the next flash.
+    assert "monitor" not in commands["Build + Flash"]
     assert (tmp_path / ".vscode" / "extensions.json").is_file()
 
 
