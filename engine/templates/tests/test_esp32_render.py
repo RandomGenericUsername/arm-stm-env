@@ -68,6 +68,9 @@ def test_idf_readme_documents_uart_not_openocd(tmp_path) -> None:
     readme = (tmp_path / "README.md").read_text()
     assert "GPIO0" in readme and "download mode" in readme
     assert "OpenOCD" not in readme and "VS Code" not in readme
+    # a running monitor owns the serial port, so flashing needs it stopped
+    assert "Stop the monitor before flashing" in readme
+    assert "port is busy" in readme
 
 
 def test_idf_root_cmake_names_the_project(tmp_path) -> None:

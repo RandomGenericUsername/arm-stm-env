@@ -293,6 +293,9 @@ app. Press **RST** yourself to catch the boot banner:
 idf.py -p /dev/ttyUSB0 monitor --no-reset
 ```
 
+**Stop the monitor before flashing** (`Ctrl+]`): a monitor holds the serial port,
+and `Flash` then fails with `Could not open /dev/ttyUSB0, the port is busy`.
+
 ## Expected behaviour
 
 - The on-board LED blinks at ~2 Hz.

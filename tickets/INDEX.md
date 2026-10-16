@@ -85,6 +85,7 @@
 - [ops-022-f5-prelaunch](./ops-022-f5-prelaunch/ticket.md) — F5 = build + flash + debug (preLaunchTask in the generated launch configs) | `done`
 - [ops-023-e2e-matrix](./ops-023-e2e-matrix/ticket.md) — Record the full e2e matrix (10 cells, both families) | `done` | 10/10 green, evidence recorded
 - [ops-024-esp32-live-proof](./ops-024-esp32-live-proof/ticket.md) — Record the live ESP32-CAM proof: containerized flash + boot log | `done` | 3/3 pieces, boot log + app output captured
+- [ops-025-monitor-port-note](./ops-025-monitor-port-note/ticket.md) — Document that a running monitor owns the serial port | `done` | README + test
 
 ## Spikes
 
