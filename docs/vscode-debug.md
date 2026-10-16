@@ -151,6 +151,10 @@ docker run -d --name mu-f411 \
 docker exec mu-f411 bash -lc 'cd /project && make flash'
 ```
 
+> The image is pulled from `ghcr.io` (an **auth-required** package — `ops-030`):
+> `docker login ghcr.io` first (token with `read:packages`), or build it locally
+> with `make images`.
+
 Then attach VS Code to the container (§3) and `F5`.
 
 **Expected** (verified 2026-10-14, NUCLEO-F411RE + NUCLEO-H755ZI-Q, both attached):
