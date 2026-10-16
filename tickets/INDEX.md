@@ -89,7 +89,7 @@
 - [ops-025-monitor-port-note](./ops-025-monitor-port-note/ticket.md) — Document that a running monitor owns the serial port | `done` | README + test
 - [ops-026-esp32-wrapup](./ops-026-esp32-wrapup/ticket.md) — ESP32-CAM wrap-up: final state + prune merged branches | `done` | req-022 §Final state; origin pruned
 - [ops-027-wl55-clean-run](./ops-027-wl55-clean-run/ticket.md) — WL55JC clean-from-zero flash/run ritual + CM0+ scope | `done` | M4 LED proven (ODR readback); CM0+ = limitation (spike-006)
-- [ops-028-flash-run-evidence](./ops-028-flash-run-evidence/ticket.md) — Record a flash-run evidence artifact for the V1 packs | `proposed` | V1 closeout
+- [ops-028-flash-run-evidence](./ops-028-flash-run-evidence/ticket.md) — Record a flash-run evidence artifact for the V1 packs | `done` | docs/flash-run-evidence.md (3 packs)
 - [ops-029-epic-closeout](./ops-029-epic-closeout/ticket.md) — epic-001 closeout: reconcile children, rollup checklist, flip to done | `proposed` | V1 closeout
 - [ops-030-image-distribution](./ops-030-image-distribution/ticket.md) — Confirm image distribution for a clean machine (registry push state) | `done` | images pushed to ghcr (auth-required); login or `make images`
 
