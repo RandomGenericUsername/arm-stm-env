@@ -22,7 +22,13 @@ recommendations), fetches the pack's pinned SVD(s) into `probe/`, and writes
 
 ```sh
 mu dev --project-dir ~/Desktop/my-project        # interactive shell
+mu dev --detach --project-dir ~/Desktop/my-project  # attachable, long-running
 ```
+
+`--detach` starts the same container **detached and named** (`mu-dev-<project>`),
+kept alive so an editor can attach to it, and waits until a shell inside resolves
+the stack's build tool. Use it for the VS Code flow; plain `mu dev` is for
+working in the shell. Stop it with `docker rm -f mu-dev-<project>`.
 
 The container gets the **whole USB bus** (`--device-cgroup-rule 'c 189:* rmw'`
 + `-v /dev/bus/usb`) rather than one device node, so replugging a board does not

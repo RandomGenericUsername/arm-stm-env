@@ -28,6 +28,10 @@ class StackSpec:
     template_family: str
     build_argv: tuple[str, ...]
     image: str
+    #: Shell fragment enabling the toolchain in a fresh shell (e.g.
+    #: ``. /opt/esp/idf/export.sh``). Empty when the image already puts its
+    #: toolchain on PATH for every shell.
+    env_setup: str = ""
 
     def __post_init__(self) -> None:
         for name in ("stack_id", "template_family", "image"):
