@@ -34,7 +34,8 @@ model facts; and the verify matrix keys on `(pack, stack)`.
 - [x] Reviewer gate run (rubric + web-verify + adversary, parallel); findings applied (AD-8/AD-11
       contradiction, validator-key collision, `stacks`-location question resolved, per-port rung
       ownership, AD-16 rewording, AD-17 added). Reviews under `reviews/`.
-- [ ] Spec refreshed and adopts the spine as a companion (bmad-spec), AD ids stable.
+- [x] Spec refreshed and adopts the spine as a companion (bmad-spec), AD ids stable.
+      `Verify: _bmad-output/initiative-universal-mcu-env/spec-universal-mcu-env/spec-universal-mcu-env.md` (companions cite the spine; CAP-7/CAP-8 added; non-goal reversal logged)
 - [ ] Follow-up: the refactor slices R1–R6 and the ESP32 slices E1–E4 are ticketed
       (`work-split-view.md`).
 
