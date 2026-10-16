@@ -15,10 +15,11 @@ import yaml
 
 from engine.core.model import Core, Device, DeviceFacets, Endpoint, ExampleLed, MemoryRegion, OpenocdConfig
 from engine.core.registry import UnknownBlockError, validate_block
+from engine.packs import ensure_registered
 
 __all__ = ["FRAME_KEYS", "FrameError", "load_file", "load_text", "validate_frame"]
 
-FRAME_KEYS = ("id", "version", "cores", "memory", "probe", "proof_rung")
+FRAME_KEYS = ("id", "version", "family", "cores", "memory", "probe", "proof_rung")
 
 
 class FrameError(ValueError):
@@ -42,6 +43,11 @@ def validate_frame(doc: dict) -> Device:
     for key in FRAME_KEYS:
         if key not in doc:
             raise FrameError(f"pack missing required frame key: {key!r}")
+    # Shipped families register their own block validators (task-008, AD-13).
+    ensure_registered()
+    family = doc["family"]
+    if not isinstance(family, str) or not family:
+        raise FrameError("pack 'family' must be a non-empty string")
     try:
         cores = tuple(Core(name=c["name"], arch=c["arch"]) for c in doc["cores"])
     except (TypeError, KeyError, AttributeError) as exc:
@@ -67,7 +73,7 @@ def validate_frame(doc: dict) -> Device:
         raise FrameError("'blocks' must be a mapping of block_name -> payload")
     for name, payload in blocks.items():
         try:
-            validate_block(name, payload)
+            validate_block(name, payload, family=family)
         except UnknownBlockError:
             raise
         except ValueError as exc:
@@ -137,6 +143,9 @@ def validate_frame(doc: dict) -> Device:
         example_led=example_led,
         cpu2_boot=cpu2_boot,
         svd=tuple(sorted(svd_block.items())),
+        # Every validated block, generically attached (task-008, AD-13): a new
+        # family's blocks reach consumers without a core change.
+        blocks=tuple(sorted(blocks.items())),
     )
     return Device(
         id=doc["id"],

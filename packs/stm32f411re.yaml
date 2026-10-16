@@ -2,6 +2,7 @@
 # Values: spike-001-corrected (NOT sibling-copied). Single Cortex-M4.
 id: stm32f411re
 version: "1.0.0"
+family: stm32f4
 cores:
   - name: M4
     arch: thumbv7em-none-eabihf
