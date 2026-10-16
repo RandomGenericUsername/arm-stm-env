@@ -26,7 +26,8 @@ open:
   - "Rust via esp-hal 1.0 (no_std, supports classic ESP32) — noted as the future second-language path, not investigated."
 links:
   openspec: none
-  bmad: none
+  bmad:
+    - _bmad-output/initiative-universal-mcu-env/architecture-universal-mcu-env/architecture-universal-mcu-env.md
 worktree: none
 branch: ticket/spike-007-esp32-cam
 ---
@@ -145,4 +146,6 @@ carried ops-022/bug-023/bug-024 into `engine/templates/renderer.py` +
   bridge; do **not** add `067b`. CH340/CP210x remain the default.
 
 Still open: the first-slice implementation ticket (pack YAML + esptool backend
-dry-run + docs, pinned to `espressif/idf:v6.1`); the Rust/esp-hal path.
+dry-run + docs, pinned to `espressif/idf:v6.1`); the Rust/esp-hal path. The
+framework separation this spike's findings forced is tracked in `req-021`
+(spine AD-8 amended, AD-11…AD-17) — the pre-ESP32 refactor gate.
