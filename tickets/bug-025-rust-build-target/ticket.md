@@ -2,14 +2,14 @@
 id: bug-025
 title: "mu build for Rust omits --target: compiles for the host and fails to link"
 kind: bug
-status: triage
+status: done
 lane: direct
 severity: S1
 links:
   openspec: none
   bmad: none
 worktree: .worktrees/bug-025/
-branch: ticket/bug-025-rust-build-target
+branch: ticket/bug-025-rust-build-config
 repro: "uv run mu create --mcu-config stm32f411re --lang rust --name x --path /tmp/opencode/rustflash && uv run mu build --project-dir /tmp/opencode/rustflash/x"
 observed: "rust-lld: error: undefined symbol: Reset ... collect2: error: ld returned 1 exit status (cargo compiled for the x86_64 host, not thumbv7em-none-eabihf)"
 expected: "builds target/thumbv7em-none-eabihf/debug/<pack-id>, as the verify harness does with `cargo build --target thumbv7em-none-eabihf`"
@@ -61,5 +61,32 @@ carries `.cargo/config.toml` with the pack arch (and that `mu build`-equivalent
 `cargo build` selects the target).
 
 Related: the generated Rust `README.md` claims a PA5 LED blink, but `src/main.rs`
-is a `wfi` loop (`engine/templates/renderer.py:670`) — reconcile the README text
-in the same change.
+is a `wfi` loop (`engine/templates/renderer.py:670`) — reconciled in this fix.
+
+## Fix
+
+- `engine/templates/renderer.py`: new `_CARGO_CONFIG` template; the `rust-cortex`
+  branch writes `.cargo/config.toml` with `[build] target = "<cores[0].arch>"`.
+- `engine/templates/renderer.py` (`_readme`): the LED / sibling-core bullet lines
+  are now emitted only for `c`/`cpp` — the Rust README no longer claims an LED.
+- Tests: `test_cells.py` asserts `.cargo/config.toml` exists with the pack arch
+  (and lists it in `expected_files`); `test_renderer.py` asserts the Rust README
+  has no `on-board LED` claim.
+
+## Evidence
+
+```
+$ cat .cargo/config.toml
+[build]
+target = "thumbv7em-none-eabihf"
+
+$ uv run mu build --project-dir /tmp/opencode/rustfix/fix-f411   # no --target
+   Finished `dev` profile [unoptimized + debuginfo] target(s) in 7.38s
+
+$ readelf -h target/thumbv7em-none-eabihf/debug/stm32f411re
+ELF 32-bit LSB executable, ARM, EABI5 version 1 (SYSV), statically linked
+
+$ make test  →  355 passed
+```
+
+Verify: `uv run mu create --mcu-config stm32f411re --lang rust --name x --path /tmp/rustfix && uv run mu build --project-dir /tmp/rustfix/x`
