@@ -129,10 +129,20 @@ carried ops-022/bug-023/bug-024 into `engine/templates/renderer.py` +
   the cable has no DTR/RTS wiring, so esptool's "hard reset" never reaches the
   board.
   `Verify: uvx esptool --port /dev/ttyUSB0 --baud 460800 write-flash 0x0 <backup>; uvx esptool … read-flash 0 0x400000 <out>; cmp <backup> <out>`
+- **Target stack proven end-to-end (2026-10-16):** in `espressif/idf:v6.1`,
+  `idf.py build` produced the ESP32 triple — bootloader 26176 B @`0x1000`,
+  partition-table 3072 B @`0x8000`, app (`esp32cam_blink`) 149088 B @`0x10000`
+  (86% of the 1 MB app partition free). All three flashed with `write-flash` →
+  `Hash of data verified.` each; the app booted and printed
+  `mu/esp32cam: blink N` over UART0 @115200 (captured live; GPIO33 red LED
+  blinking). This is the concrete **ESP32 "cell green"** reference for the
+  future verify cell.
+  `Verify: docker run --rm -v <proj>:/project -w /project espressif/idf:v6.1 bash -lc "idf.py set-target esp32 && idf.py build"` then `uvx esptool --chip esp32 -p /dev/ttyUSB0 -b 460800 write-flash --flash-mode dio --flash-size 4MB 0x1000 build/bootloader/bootloader.bin 0x8000 build/partition_table/partition-table.bin 0x10000 build/<app>.bin`
 - Caveat: the PL2303 is **not** in the planned `_PROBE_VIDS`
-  (`engine/cli/shim.py:64` → 10C4/1A86) and threw transient `-71`/`EPROTO`
-  control-transfer errors (`journalctl -k | rg pl2303`) before recovering —
-  it works, but the planned CH340/CP210x bridges are the safer default.
+  (`engine/cli/shim.py:64` → 10C4/1A86). It repeatedly wedge-dumped into
+  `-71`/`EPROTO` control-transfer errors (`journalctl -k | rg pl2303`) that only
+  a **physical USB replug** cleared (observed twice) — a working but unreliable
+  bridge; do **not** add `067b`. CH340/CP210x remain the default.
 
 Still open: the first-slice implementation ticket (pack YAML + esptool backend
 dry-run + docs, pinned to `espressif/idf:v6.1`); the Rust/esp-hal path.
