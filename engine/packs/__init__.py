@@ -13,6 +13,8 @@ __all__ = ["ensure_registered"]
 
 def ensure_registered() -> None:
     """Register every shipped family (idempotent; safe after ``registry.clear``)."""
+    from engine.packs.esp32 import register_esp32_families
     from engine.packs.stm32 import register_stm32_families
 
     register_stm32_families()
+    register_esp32_families()

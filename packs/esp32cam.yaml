@@ -1,0 +1,45 @@
+# ESP32-CAM device pack (task-013, E1; AD-13, AD-14).
+# Board facts from spike-007 (live bring-up, 2026-10-16): ESP32-D0WD rev1.0,
+# 240 MHz dual-core, 520 KB internal SRAM, 4 MB external flash/PSRAM,
+# USB-UART only (no probe), red status LED on GPIO33, ACTIVE LOW.
+id: esp32cam
+version: "1.0.0"
+family: esp32
+stacks:
+  c: idf-cmake
+cores:
+  - name: PRO
+    arch: xtensa-lx6
+  - name: APP
+    arch: xtensa-lx6
+memory:
+  - name: sram
+    origin_hex: "0x3FFB0000"
+    size: 532480 # 520K internal SRAM (usable DRAM window)
+  - name: psram
+    origin_hex: "0x3F800000"
+    size: 4194304 # 4M external PSRAM (spike-007 flash-id)
+probe:
+  # No JTAG/probe: the ROM serial bootloader over UART0 (spike-007 Q1/Q3).
+  transport: uart-serial
+  address: uart0
+probe_backend: esptool
+proof_rung: uart-boot-log
+blocks:
+  esptool:
+    flash_mode: dio
+    flash_size: 4MB
+    flash_freq: 40m
+    baud: "460800"
+  # Offsets verified live in spike-007 (idf.py build output).
+  partitions:
+    bootloader: "0x1000"
+    partition_table: "0x8000"
+    app: "0x10000"
+  sdkconfig:
+    target: esp32
+    flash_size: 4MB
+  # On-board red status LED (AI-Thinker class), inverted logic.
+  example_led:
+    gpio: 33
+    active: low

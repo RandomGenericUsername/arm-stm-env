@@ -7,6 +7,7 @@ import pytest
 import yaml
 
 from engine.cli.main import PACKS_DIR, main
+from engine.cli.tests.packs import first_supported_pack
 
 PLACEHOLDER = re.compile(r"\$\{|\$[A-Za-z_]")
 
@@ -19,12 +20,10 @@ def _stub_vendoring(monkeypatch) -> None:
 
 
 def _first_pack() -> tuple[str, Path]:
-    """A shipped pack (id, yaml path); id is read at runtime so this file
-    carries no hardware knowledge (see test_no_hardware_knowledge)."""
-    packs = sorted(PACKS_DIR.glob("*.yaml"))
-    assert packs, "no shipped packs found"
-    doc = yaml.safe_load(packs[0].read_text())
-    return doc["id"], packs[0]
+    """A shipped pack the CLI can fully drive (id, yaml path); selected by
+    capability at runtime, so this file carries no hardware knowledge (see
+    test_no_hardware_knowledge)."""
+    return first_supported_pack()
 
 
 def _rendered_texts(root: Path) -> list[str]:
