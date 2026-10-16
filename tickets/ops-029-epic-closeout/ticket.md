@@ -31,9 +31,9 @@ The V1 epic is still open and its rollup does not hold. Concretely:
    must equal `children:` count). The epic currently has **0** such lines.
 3. **Normalise the status.** The epic is `decomposed`, which is not a lifecycle
    state (`tickets/LIFECYCLE.md:9`: `proposed → in-progress → done`).
-4. **Flip to `done` only after** `ops-027`, `ops-028`, `spike-008`, `ops-030`
-   close and the done-when (clean-machine create-build-flash-run per pack)
-   actually holds — not before.
+4. **Flip to `done` only after** `ops-027`, `ops-028`, `ops-030` close and the
+   done-when (clean-machine create-build-flash-run per pack) actually holds —
+   not before. (`spike-008` is resolved: Rust is build-parity for V1.)
 5. **Update the INDEX rollup line in the same commit** (`tickets/LIFECYCLE.md:3`).
 
 ## Done-when
