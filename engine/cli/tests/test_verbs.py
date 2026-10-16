@@ -233,3 +233,40 @@ def test_verbs_verbose_creates_log_dir(monkeypatch, tmp_path, capsys):
     assert (proj / ".mu" / "logs").is_dir()
     assert seen and seen[0].get("stream") is True
     assert str(seen[0].get("log_path", "")).startswith(str(proj / ".mu" / "logs"))
+
+
+def test_verbs_debug_fails_when_backend_has_no_debug_port(monkeypatch, tmp_path, capsys):
+    """AD-12: a programming-only backend fails the debug verb, no fake handle."""
+    import sys as _sys
+    from pathlib import Path
+
+    from engine.adapters import FlashPort, PieceResult
+    from engine.cli.main import PACKS_DIR
+
+    pack = sorted(Path(PACKS_DIR).glob("*.yaml"))[0]
+
+    class _FlashOnly(FlashPort):
+        last_transcript = None
+
+        def render_argv(self, device, endpoint, pieces):
+            return ["program-only", *pieces]
+
+        def flash(self, device, endpoint, pieces):
+            return [PieceResult(name=p, ok=True) for p in pieces]
+
+        def proof_for(self, device, results, transcript):
+            from engine.core.model import ProofResult
+
+            return ProofResult(rung=device.proof_rung, payload={})
+
+    monkeypatch.setattr(
+        _sys.modules["engine.cli.main"],
+        "get_adapter",
+        lambda name=None, **kwargs: _FlashOnly(),
+    )
+    code = main(
+        ["debug", "--mcu-config", str(pack), "--device", "/dev/x",
+         "--mode", "local", "--project-dir", str(tmp_path)]
+    )
+    assert code == 2
+    assert "no debug port" in capsys.readouterr().err

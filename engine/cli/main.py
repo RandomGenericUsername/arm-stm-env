@@ -24,7 +24,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-from engine.adapters import DefaultImageLookup, ProbeAdapter, get_adapter
+from engine.adapters import DebugPort, DefaultImageLookup, FlashPort, get_adapter
 from engine.cli.shim import (
     MODES,
     ShimRequest,
@@ -254,7 +254,7 @@ def _load_pack_or_exit(ref: str) -> Device | None:
         return None
 
 
-def _prepare_flash(args: argparse.Namespace) -> tuple[Device, Endpoint, ProbeAdapter] | None:
+def _prepare_flash(args: argparse.Namespace) -> tuple[Device, Endpoint, FlashPort] | None:
     """Resolve pack + endpoint for flash/debug; None means already reported."""
     if args.mcu_config is None:
         print("mu: error: this verb requires --mcu-config <pack-id-or-file>", file=sys.stderr)
@@ -330,6 +330,16 @@ def _run_debug_local(args: argparse.Namespace) -> int:
     if prepared is None:
         return 2
     device, endpoint, adapter = prepared
+    # AD-12: a backend that implements no DebugPort (a programming-only
+    # device, no attach) must fail the verb rather than fabricate a handle.
+    if not isinstance(adapter, DebugPort):
+        print(
+            f"mu: error: backend {args.probe or device.probe_backend or 'default'!r} "
+            "implements no debug port (AD-12); this device has no attach — "
+            "use `mu flash` to program it",
+            file=sys.stderr,
+        )
+        return 2
     view = DeviceView.of(device)
     if args.dry_run:
         print(format_argv(adapter.render_argv(view, endpoint, ())))

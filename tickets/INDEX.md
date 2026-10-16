@@ -95,7 +95,7 @@
 - [task-004-narrow-mounts](./task-004-narrow-mounts/ticket.md) — Narrow container mounts to engine + packs | `done` | 184/184 tests, live ELF re-proof
 - [task-005-probe-default-proof-precheck](./task-005-probe-default-proof-precheck/ticket.md)
 - [task-006-backend-settings](./task-006-backend-settings/ticket.md) — Per-backend pack settings | `done` | 195/195 tests, chips verified — Pack-default probe, proof wiring, image pre-check | `done` | 191/191 tests
-- [task-007-split-probe-port](./task-007-split-probe-port/ticket.md) — R1: split the probe port into FlashPort + DebugPort | `proposed` | parent req-021
+- [task-007-split-probe-port](./task-007-split-probe-port/ticket.md) — R1: split the probe port into FlashPort + DebugPort | `done` | parent req-021 | 278/278 tests, argv unchanged, renderer untouched
 - [task-008-validator-relocation](./task-008-validator-relocation/ticket.md) — R2: family block validators → packs/, (family, block) keys | `proposed` | parent req-021
 - [task-009-stack-axis](./task-009-stack-axis/ticket.md) — R3: pack-declared stacks map + toolchain registry | `proposed` | parent req-021
 - [task-010-artifact-gating](./task-010-artifact-gating/ticket.md) — R4: gate artifact emission on model facts; functional pack probe block | `proposed` | parent req-021
