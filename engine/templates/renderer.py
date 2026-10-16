@@ -1043,13 +1043,13 @@ def _vscode_files(device: Device) -> dict[str, str]:
     cores = list(device.cores)
     multi_core = len(cores) > 1
 
-    # bug-023: a sibling that the primary must *release* (cpu2_boot) cannot be
-    # launched. cortex-debug's launch does `monitor reset halt`, which resets the
-    # system and leaves cpu1 'unknown' ("AP write error, reset will not halt") —
-    # verified on the WL55JC. Attach instead: the primary has already released it
-    # (the release is a constructor), and `monitor halt` leaves it stopped for
-    # the maskisr workaround.
-    attach_siblings = bool(device.facets.cpu2_boot)
+    # bug-023/024: a pack that must *release* its sibling (cpu2_boot) is debugged
+    # by **attach only**. Launching runs `monitor reset halt`, and a system reset
+    # cannot halt the sibling (`AP write error, reset will not halt`) — OpenOCD
+    # then errors the whole command, and cortex-debug aborts with
+    # 'Protocol error with Rcmd'. Attach (`monitor halt`) touches neither core's
+    # reset state, so the released sibling stays accessible.
+    attach_only = bool(device.facets.cpu2_boot)
 
     configurations = []
     for index, core in enumerate(device.cores):
@@ -1073,7 +1073,7 @@ def _vscode_files(device: Device) -> dict[str, str]:
             "openocdPath": openocd,
             "gdbPath": gdb,
         }
-        if attach_siblings and index > 0:
+        if attach_only:
             config["request"] = "attach"
             del config["runToEntryPoint"]
         if multi_core:
@@ -1123,7 +1123,7 @@ def _vscode_files(device: Device) -> dict[str, str]:
                     "name": f"Debug {core.name} (OpenOCD)",
                     # bug-023: give the primary a moment to release the sibling
                     # before its attach config runs.
-                    **({"delayMs": 1000} if attach_siblings else {}),
+                    **({"delayMs": 1000} if attach_only else {}),
                 }
                 for core in cores[1:]
             ],
