@@ -32,6 +32,7 @@ from pathlib import Path
 
 from engine.adapters import DefaultImageLookup, ImageLookup
 from engine.adapters.toolchain import ensure_registered as _ensure_stacks
+from engine.core.envelope import CONTAINER_PLATFORM, CONTAINER_RUNTIME
 from engine.core.build_cells import (
     BuildEvidence,
     UnknownBuildCellError,
@@ -68,7 +69,7 @@ CELLS = tuple((p, l) for p in PACK_IDS for l in LANGS)
 PACKS_DIR = Path(__file__).resolve().parents[2] / "packs"
 DEFAULT_EVIDENCE = Path(__file__).resolve().parents[2] / "docs" / "e2e-evidence.md"
 
-DOCKER_PLATFORM = "linux/amd64"
+DOCKER_PLATFORM = CONTAINER_PLATFORM
 DOCKER_TIMEOUT_S = 1200  # amd64 emulation on ARM64 hosts is slow; per-cell budget
 
 WARNING_RE = re.compile(r"warning", re.IGNORECASE)
@@ -264,7 +265,7 @@ def check_memory_x(device: Device, memx_text: str) -> list[str]:
 def docker_run(image: str, project_dir: str | Path, args: list[str],
                timeout: int = DOCKER_TIMEOUT_S) -> subprocess.CompletedProcess[str]:
     cmd = [
-        "docker", "run", "--rm", "--platform", DOCKER_PLATFORM,
+        CONTAINER_RUNTIME, "run", "--rm", "--platform", DOCKER_PLATFORM,
         "-v", f"{Path(project_dir).resolve()}:/work", "-w", "/work", image, *args,
     ]
     return subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)

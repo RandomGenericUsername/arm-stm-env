@@ -26,6 +26,7 @@ from pathlib import Path
 
 from engine.adapters import DebugPort, DefaultImageLookup, FlashPort, get_adapter
 from engine.adapters.toolchain import ensure_registered as _ensure_stacks
+from engine.core.envelope import CONTAINER_RUNTIME, HOST_GIT
 from engine.core.stacks import stack_spec
 from engine.cli.shim import (
     MODES,
@@ -522,7 +523,7 @@ def _run_verb(args: argparse.Namespace) -> int:
     if args.dry_run:
         print(format_argv(argv))
         return 0
-    if args.mode != "local" and shutil.which("docker") is None:
+    if args.mode != "local" and shutil.which(CONTAINER_RUNTIME) is None:
         print(
             "mu: error: container runtime 'docker' not found; "
             "install it or re-run with --dry-run to review the command",
@@ -531,7 +532,7 @@ def _run_verb(args: argparse.Namespace) -> int:
         return 1
     image = DefaultImageLookup().image_for(stack_id)
     inspected = subprocess.run(
-        ["docker", "image", "inspect", image],
+        [CONTAINER_RUNTIME, "image", "inspect", image],
         capture_output=True,
     )
     if inspected.returncode != 0:

@@ -29,6 +29,12 @@ from pathlib import Path
 
 import engine
 from engine.adapters import DefaultImageLookup, ImageLookup
+from engine.core.envelope import (
+    CONTAINER_RUNTIME,
+    SYSFS_USB,
+    USB_BUS_ROOT,
+    USB_CGROUP_RULE,
+)
 from engine.core.model import Endpoint
 
 __all__ = [
@@ -55,7 +61,7 @@ CONTAINER_REPO = "/opt/mu"
 CONTAINER_PROJECT = "/project"
 
 #: Default sysfs root for USB device enumeration (overridable in tests).
-_SYSFS_USB = Path("/sys/bus/usb/devices")
+_SYSFS_USB = Path(SYSFS_USB)
 
 from engine.core.probe_ids import known_probe_vids
 
@@ -125,7 +131,7 @@ def _usb_device_node(entry: Path) -> str | None:
     """``/dev/bus/usb/<bus>/<dev>`` for a sysfs USB device dir, if resolvable."""
     bus, dev = _read_text(entry / "busnum"), _read_text(entry / "devnum")
     if bus.isdigit() and dev.isdigit():
-        return f"/dev/bus/usb/{int(bus):03d}/{int(dev):03d}"
+        return f"{USB_BUS_ROOT}/{int(bus):03d}/{int(dev):03d}"
     return None
 
 
@@ -312,13 +318,13 @@ def _container_prefix(
         # moment the board is replugged (the node number changes) and the
         # backend cannot open the probe (bug-018). With the bus visible,
         # MU_PROBE_SERIAL is what selects the right probe.
-        usb_nodes = [n for n in binding.host_devices if n.startswith("/dev/bus/usb/")]
+        usb_nodes = [n for n in binding.host_devices if n.startswith(USB_BUS_ROOT + "/")]
         if usb_nodes:
             docker_devices += [
                 "--device-cgroup-rule",
-                "c 189:* rmw",
+                USB_CGROUP_RULE,
                 "-v",
-                "/dev/bus/usb:/dev/bus/usb",
+                f"{USB_BUS_ROOT}:{USB_BUS_ROOT}",
             ]
         for node in binding.host_devices:
             if node not in usb_nodes:  # non-USB (e.g. a serial tty) keeps --device
@@ -328,7 +334,7 @@ def _container_prefix(
         # The container sees every probe; the serial is how the backend picks ours.
         env_args += ["-e", f"MU_PROBE_SERIAL={binding.serial}"]
     prefix = [
-        "docker",
+        CONTAINER_RUNTIME,
         "run",
         "--rm",
         *interactive_args(request),
