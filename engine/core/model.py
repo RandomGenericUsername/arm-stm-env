@@ -305,6 +305,10 @@ class Device:
     #: sorted by language. The resolved stack, never the language flag,
     #: selects the template family, image, and build command.
     stacks: Tuple[Tuple[str, str], ...] = ()
+    #: Frame ``family`` (AD-13/AD-14): the device family id the pack declares.
+    #: Family-owned facts (vendor sources, probe ids) key off this, never a
+    #: pack-id prefix.
+    family: str = ""
 
     def __init__(
         self,
@@ -320,6 +324,7 @@ class Device:
         facets: DeviceFacets | None = None,
         probe_backend: str | None = None,
         stacks: Sequence[tuple[str, str]] | dict[str, str] = (),
+        family: str = "",
     ) -> None:
         if not id:
             raise ValueError("Device.id must be non-empty")
@@ -371,6 +376,7 @@ class Device:
             if not isinstance(stack_id, str) or not stack_id:
                 raise ValueError("Device.stacks values must be non-empty stack ids")
         object.__setattr__(self, "stacks", stack_pairs)
+        object.__setattr__(self, "family", family)
 
     def stack_for(self, lang: str) -> str | None:
         """Build-stack id the pack declares for ``lang`` (or ``None``)."""

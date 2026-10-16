@@ -41,7 +41,7 @@ EXPECTED_OC = {
 def _stub_vendoring(monkeypatch) -> None:
     """req-011: render() strictly vendors C/C++ via git; unit renders stub it
     (tmp dirs are non-repos, no network). Wiring is covered in test_vendoring."""
-    monkeypatch.setattr("engine.templates.renderer.vendor", lambda _pack_id, _out: [])
+    monkeypatch.setattr("engine.templates.renderer.vendor", lambda _pack_id, _family, _out: [])
 
 
 def _pack_doc(pack_id: str) -> dict:

@@ -57,11 +57,11 @@ CONTAINER_PROJECT = "/project"
 #: Default sysfs root for USB device enumeration (overridable in tests).
 _SYSFS_USB = Path("/sys/bus/usb/devices")
 
-#: Debug-probe USB vendor IDs (host/probe knowledge — the shim is the host
-#: layer, AD-9). STMicroelectronics probes all share 0483 (ST-Link V2-1,
-#: STLINK-V3). Used only to auto-detect a *single* attached probe when no
-#: selector is given (req-020).
-_PROBE_VIDS = ("0483",)
+from engine.core.probe_ids import known_probe_vids
+
+#: USB vendor ids treated as probes come from the device families (AD-14),
+#: not a hardcoded list here: an unknown id is never silently claimed.
+_PROBE_VIDS = known_probe_vids
 
 
 @dataclass(frozen=True)
@@ -173,7 +173,7 @@ def _autodetect(*, is_mac: bool, sysfs_root: Path | str | None) -> ProbeBinding 
     found = []
     if root.is_dir():
         for entry in sorted(root.iterdir()):
-            if (entry / "idVendor").is_file() and _read_text(entry / "idVendor").lower() in _PROBE_VIDS:
+            if (entry / "idVendor").is_file() and _read_text(entry / "idVendor").lower() in _PROBE_VIDS():
                 found.append(entry)
     if not found:
         return None

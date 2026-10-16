@@ -30,7 +30,7 @@ from engine.templates.vendoring import (
 from .test_cells import PACKS_DIR
 
 PACK_IDS = ("stm32f411re", "stm32h755", "stm32wl55jc")
-EXPECTED_FAMILY = {"stm32f411re": "f4", "stm32h755": "h7", "stm32wl55jc": "wl"}
+EXPECTED_FAMILY = {"stm32f411re": "stm32f4", "stm32h755": "stm32h7", "stm32wl55jc": "stm32wl"}
 
 
 def _ok(args, cwd):
@@ -73,7 +73,7 @@ def test_vendor_relative_project_dir_uses_absolute_paths(monkeypatch, tmp_path) 
     monkeypatch.chdir(tmp_path)
     (tmp_path / "proj").mkdir()
     fake = FakeGit(monkeypatch)
-    vendor("stm32f411re", "proj")
+    vendor("stm32f411re", "stm32f4", "proj")
     cfg = next(c for c in fake.calls if "config" in c)
     assert cfg[cfg.index("-C") + 1] == str(tmp_path / "proj")
     assert str(tmp_path / "proj" / ".gitmodules") in cfg
@@ -82,32 +82,32 @@ def test_vendor_relative_project_dir_uses_absolute_paths(monkeypatch, tmp_path) 
 
 def test_pins_match_verified_upstream_tags() -> None:
     assert PINS["CMSIS_5"] == ("https://github.com/ARM-software/CMSIS_5.git", "5.9.0")
-    assert FAMILY_REPOS["f4"][1] == "v2.6.9"
-    assert FAMILY_REPOS["h7"][1] == "v1.9.0"
-    assert FAMILY_REPOS["wl"][1] == "v1.4.0"
+    assert FAMILY_REPOS["stm32f4"][1] == "v2.6.9"
+    assert FAMILY_REPOS["stm32h7"][1] == "v1.9.0"
+    assert FAMILY_REPOS["stm32wl"][1] == "v1.4.0"
     for fam, (url, _tag) in FAMILY_REPOS.items():
-        assert url == f"https://github.com/STMicroelectronics/cmsis_device_{fam}.git"
+        assert url == f"https://github.com/STMicroelectronics/cmsis_device_{fam.removeprefix('stm32')}.git"
 
 
 @pytest.mark.parametrize("pack_id", PACK_IDS)
-def test_family_repo_from_pack_prefix(pack_id: str) -> None:
-    url, tag, dest = family_repo(pack_id)
+def test_family_repo_from_declared_family(pack_id: str) -> None:
+    url, tag, dest = family_repo(pack_id, EXPECTED_FAMILY[pack_id])
     fam = EXPECTED_FAMILY[pack_id]
     assert (url, tag) == FAMILY_REPOS[fam]
     assert dest == f"vendor/cmsis-device-{pack_id}"
 
 
-def test_family_repo_unknown_pack_names_pack_id() -> None:
-    with pytest.raises(VendorError, match="synthetic"):
-        family_repo("synthetic")
+def test_family_repo_unknown_family_names_it() -> None:
+    with pytest.raises(VendorError, match="nope-family"):
+        family_repo("synthetic", "nope-family")
 
 
 @pytest.mark.parametrize("pack_id", PACK_IDS)
 def test_vendor_partial_sparse_clone_per_pin(pack_id: str, tmp_path: Path, monkeypatch) -> None:
     """ops-014: each pin is a partial + sparse shallow clone, then a native submodule."""
     fake = FakeGit(monkeypatch)
-    got = vendor(pack_id, tmp_path)
-    url, tag, dest = family_repo(pack_id)
+    got = vendor(pack_id, EXPECTED_FAMILY[pack_id], tmp_path)
+    url, tag, dest = family_repo(pack_id, EXPECTED_FAMILY[pack_id])
     clones = _clones(fake)
     assert len(clones) == 2
     cmsis, family = clones
@@ -135,7 +135,7 @@ def test_vendor_offline_unreachable_remote_fails_loud(tmp_path: Path, monkeypatc
         fail={("git", "clone"): (128, "", "fatal: unable to connect to github.com")},
     )
     with pytest.raises(VendorError, match="github.com/STMicroelectronics|github.com/ARM-software"):
-        vendor("stm32f411re", tmp_path)
+        vendor("stm32f411re", "stm32f4", tmp_path)
     assert fake.calls[1][:2] == ["git", "clone"]
 
 
@@ -145,13 +145,13 @@ def test_vendor_sparse_checkout_failure_names_subtree(tmp_path: Path, monkeypatc
         fail={("git", "-C", VENDOR_CORE_PATH, "sparse-checkout"): (128, "", "error: pathspec did not match")},
     )
     with pytest.raises(VendorError, match="subtree"):
-        vendor("stm32f411re", tmp_path)
+        vendor("stm32f411re", "stm32f4", tmp_path)
 
 
 def test_vendor_missing_git_names_git(tmp_path: Path, monkeypatch) -> None:
     monkeypatch.setattr(shutil, "which", lambda _cmd: None)
     with pytest.raises(VendorError, match="git"):
-        vendor("stm32f411re", tmp_path)
+        vendor("stm32f411re", "stm32f4", tmp_path)
 
 
 def test_vendor_non_repo_out_dir_runs_git_init(tmp_path: Path, monkeypatch) -> None:
@@ -159,7 +159,7 @@ def test_vendor_non_repo_out_dir_runs_git_init(tmp_path: Path, monkeypatch) -> N
     out = tmp_path / "proj"
     out.mkdir()
     fake = FakeGit(monkeypatch, inside=False)
-    vendor("stm32f411re", out)
+    vendor("stm32f411re", "stm32f4", out)
     assert ["git", "init"] in fake.calls
     assert len(_clones(fake)) == 2
 
@@ -169,13 +169,13 @@ def test_vendor_init_failure_names_path(tmp_path: Path, monkeypatch) -> None:
     out.mkdir()
     FakeGit(monkeypatch, inside=False, fail={("git", "init"): (128, "", "fatal: cannot init")})
     with pytest.raises(VendorError, match="git init"):
-        vendor("stm32f411re", out)
+        vendor("stm32f411re", "stm32f4", out)
 
 
 def test_vendor_missing_out_dir_names_path(tmp_path: Path, monkeypatch) -> None:
     FakeGit(monkeypatch)
     with pytest.raises(VendorError, match="does not exist"):
-        vendor("stm32f411re", tmp_path / "nope")
+        vendor("stm32f411re", "stm32f4", tmp_path / "nope")
 
 
 @pytest.mark.parametrize("pack_id", PACK_IDS)

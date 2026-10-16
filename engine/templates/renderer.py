@@ -1222,23 +1222,28 @@ def render(
     write(".mu/stack", stack_id + "\n")
     write(".gitignore", _GITIGNORE)
     write("README.md", _readme(pack_model, lang))
-    write("probe/openocd.cfg", _render_openocd(pack_model))
-    # bug-018: containers pass the whole USB bus (replugs no longer break them),
-    # so the probe is selected by serial from MU_PROBE_SERIAL. Written for every
-    # project — the Makefile flash targets source it too.
-    write("probe/probe-serial.cfg", _probe_serial(pack_model))
+    # AD-14: emit a tool artifact only when the model carries the fact.
     oc = pack_model.openocd
-    if oc is not None and oc.dual_core and not oc.board:
-        write("probe/dual-core.cfg", _dual_core_cfg(pack_model))
+    if oc is not None:
+        write("probe/openocd.cfg", _render_openocd(pack_model))
+        # bug-018: containers pass the whole USB bus (replugs no longer break
+        # them), so the probe is selected by serial from MU_PROBE_SERIAL. The
+        # Makefile flash targets source it too.
+        write("probe/probe-serial.cfg", _probe_serial(pack_model))
+        if oc.dual_core and not oc.board:
+            write("probe/dual-core.cfg", _dual_core_cfg(pack_model))
     if pack_model.facets.cpu2_boot:
         write("probe/cpu2-boot.cfg", _cpu2_boot_cfg(pack_model))
-    if vscode and lang in ("c", "cpp"):
+    # The VS Code flow is cortex-debug + OpenOCD, so it needs the OpenOCD fact.
+    if vscode and lang in ("c", "cpp") and oc is not None:
         written.extend(fetch_svds(pack_model, out))
         write("probe/resume-on-detach.cfg", _resume_on_detach(pack_model))
         for rel, text in _vscode_files(pack_model).items():
             write(rel, text)
-    write("config/OVERRIDES.md", _OVERRIDES.substitute(cfg))
-    write(f"config/{cfg['config_header']}", _CONFIG_H.substitute(cfg))
+    # Config headers are a family-declared fact (the pack's config_headers block).
+    if pack_model.facets.block_for("config_headers") is not None:
+        write("config/OVERRIDES.md", _OVERRIDES.substitute(cfg))
+        write(f"config/{cfg['config_header']}", _CONFIG_H.substitute(cfg))
 
     if stack.template_family == "c-cmsis":
         ext = "c"  # cpp shares the c template set; flag delta lives in context
@@ -1277,10 +1282,10 @@ def render(
             clean_targets=" ".join(f"clean-{c.name}" for c in pack_model.cores),
         ))
         write("Startup/NOTE.md", _STARTUP_NOTE.substitute(project=pack_model.id, rows="\n".join(rows) + "\n"))
-        # Pinned CMSIS submodules for C/C++ only (strict: VendorError
-        # propagates so `create` fails loud with no partial tree — spec
-        # "No network means clear error"; Rust carries no vendor tree).
-        vendor(pack_model.id, out)
+        # Vendor tree only when the pack declares vendored vendor files (a
+        # family-declared fact, AD-14) — never inferred from the pack-id prefix.
+        if pack_model.facets.startup:
+            vendor(pack_model.id, pack_model.family, out)
     elif stack.template_family == "rust-cortex":  # single tree; memory.x covers every region
         arch = pack_model.cores[0].arch
         write(
