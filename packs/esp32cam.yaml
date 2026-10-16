@@ -21,8 +21,10 @@ memory:
     size: 4194304 # 4M external PSRAM (spike-007 flash-id)
 probe:
   # No JTAG/probe: the ROM serial bootloader over UART0 (spike-007 Q1/Q3).
+  # The address is the conventional Linux UART-bridge node; macOS uses
+  # /dev/cu.usbserial-* — override it in the generated tasks there.
   transport: uart-serial
-  address: uart0
+  address: /dev/ttyUSB0
 probe_backend: esptool
 proof_rung: uart-boot-log
 blocks:
