@@ -42,7 +42,7 @@
 - [epic-002-post-v1](./epic-002-post-v1/epic.md) — Post-V1 roadmap | `proposed` | 1/4 children done | done-when: every post-V1 track shipped or declined | exec: BMAD advisory
   - [req-024-dep-integration](./req-024-dep-integration/ticket.md) — C/C++ dependency integration (Conan 2 / CPM) | `proposed`
   - [req-025-windows-lane](./req-025-windows-lane/ticket.md) — Windows native lane | `proposed`
-  - [req-026-wl55-cm0p-bringup](./req-026-wl55-cm0p-bringup/ticket.md) — WL55JC CM0+ dual-core bring-up | `proposed`
+  - [req-026-wl55-cm0p-bringup](./req-026-wl55-cm0p-bringup/ticket.md) — WL55JC CM0+ dual-core bring-up | `in-progress`
   - [req-027-cubeclt-verdict](./req-027-cubeclt-verdict/ticket.md) — STM32CubeCLT verdict | `done`
 
 ## Requirements
@@ -54,7 +54,7 @@
 - [req-023-ad15-refinement](./req-023-ad15-refinement/ticket.md) — Reconcile AD-15 with the R5 verify implementation | `done` | bmad-advisory | spine wording fix, lint clean
 - [req-024-dep-integration](./req-024-dep-integration/ticket.md) — C/C++ dependency integration (Conan 2 / CPM) | `proposed` | bmad-advisory, parent epic-002 | post-V1 (spike-002); Conan ecosystem measured empty
 - [req-025-windows-lane](./req-025-windows-lane/ticket.md) — Windows native lane | `proposed` | bmad-advisory, parent epic-002 | deferred, not designed out
-- [req-026-wl55-cm0p-bringup](./req-026-wl55-cm0p-bringup/ticket.md) — WL55JC CM0+ dual-core bring-up | `proposed` | bmad-advisory, parent epic-002 | from spike-006; investigation dispatched
+- [req-026-wl55-cm0p-bringup](./req-026-wl55-cm0p-bringup/ticket.md) — WL55JC CM0+ dual-core bring-up | `in-progress` | bmad-advisory, parent epic-002 | bug-026 fixed (ctor now linked); residual = bug-029
 - [req-027-cubeclt-verdict](./req-027-cubeclt-verdict/ticket.md) — STM32CubeCLT verdict | `done` | bmad-advisory, parent epic-002 | VERDICT: exclude from images, optional host tool (SLA0048 permitted-with-conditions)
 
 ## Bugs
@@ -84,7 +84,8 @@
 - [bug-023-sibling-attach](./bug-023-sibling-attach/ticket.md) — WL55JC: released sibling can't be launched, primary's reset hides it, flash order boots it into an unflashed image | `done` | S2, M4+CM0+ run; compound sequence fragile
 - [bug-024-no-reset-for-released-siblings](./bug-024-no-reset-for-released-siblings/ticket.md) — cortex-debug launch fails on a released-sibling pack: 'monitor reset halt' errors (Protocol error with Rcmd) | `done` | S1, attach-only for cpu2_boot packs
 - [bug-025-rust-build-target](./bug-025-rust-build-target/ticket.md) — mu build for Rust omits --target: compiles for the host and fails to link | `done` | S1, render .cargo/config.toml + README fix; 355 tests
-- [bug-026-linker-init-array](./bug-026-linker-init-array/ticket.md) — Generated linker script drops .init_array, so the sibling-release constructor is discarded (WL55 CM0+ never runs) | `in-progress` | S1, spike-006 finding; init_array fix in (C2BOOT=0x8000 proven 3/6 resets), CM0+ counter still frozen → see bug-027/028
+- [bug-026-linker-init-array](./bug-026-linker-init-array/ticket.md) — Generated linker script drops .init_array, so the sibling-release constructor is discarded (WL55 CM0+ never runs) | `done` | S1, init_array/fini_array + PROVIDE_HIDDEN symbols; release ctor back in the ELF; 357 tests
+- [bug-029-cm0p-released-not-running](./bug-029-cm0p-released-not-running/ticket.md) — CM0+ is released (C2BOOT=0x8000) but still does not run — sibling counter stays 0 | `triage` | S1, residual of the bug-026 fix; investigation dispatched
 - [bug-027-intermittent-reset-boot](./bug-027-intermittent-reset-boot/ticket.md) — M4 app starts only ~2/6 times after an OpenOCD reset (sits in ROM at 0x1fff2cc0) | `triage` | S2, spike-006 finding; needs NRST test
 - [bug-028-cpu2boot-cfg-premise](./bug-028-cpu2boot-cfg-premise/ticket.md) — cpu2-boot.cfg asserts a false premise (CPU2 clears C2BOOT) and clobbers PWR_CR4 | `done` | S3, masked `mmw` + correct C2BOOT premise; 357 tests, no hw re-flash needed
 
