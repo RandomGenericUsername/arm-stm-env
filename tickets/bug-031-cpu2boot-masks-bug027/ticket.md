@@ -2,7 +2,7 @@
 id: bug-031
 title: "probe/cpu2-boot.cfg writes C2BOOT on examine-end, masking bug-027 and invalidating sibling-release measurements"
 kind: bug
-status: in-progress
+status: done
 lane: direct
 severity: S3
 links:

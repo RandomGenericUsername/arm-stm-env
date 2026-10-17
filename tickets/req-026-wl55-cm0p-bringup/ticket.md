@@ -2,7 +2,7 @@
 id: req-026
 title: "WL55JC CM0+ dual-core bring-up"
 kind: requirement
-status: in-progress
+status: done
 size: M
 lane: bmad-advisory
 parent: epic-002
@@ -33,5 +33,5 @@ standalone bring-up is open (`spike-006`). V1 treats this as a documented limita
 
 ## Acceptance
 
-- [ ] The CM0+ boots and runs from `0x08020000` (probe readback / its counter advances),
+- [x] The CM0+ boots and runs from `0x08020000` (probe readback / its counter advances),
       and debug attach works — proven live on NUCLEO-WL55JC.

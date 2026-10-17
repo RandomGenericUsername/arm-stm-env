@@ -2,7 +2,7 @@
 id: bug-030
 title: "WL55JC flash path never creates stm32wlx.cpu1; no generated way to attach the M0+ after make flash"
 kind: bug
-status: in-progress
+status: done
 lane: direct
 severity: S2
 links:

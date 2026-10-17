@@ -39,7 +39,7 @@
   - [task-005-probe-default-proof-precheck](./task-005-probe-default-proof-precheck/ticket.md) — Pack-default probe, proof wiring, image pre-check | `done`
   - [task-006-backend-settings](./task-006-backend-settings/ticket.md) — Per-backend pack settings (probe chip strings etc.) | `done`
 
-- [epic-002-post-v1](./epic-002-post-v1/epic.md) — Post-V1 roadmap | `proposed` | 1/4 children done | done-when: every post-V1 track shipped or declined | exec: BMAD advisory
+- [epic-002-post-v1](./epic-002-post-v1/epic.md) — Post-V1 roadmap | `proposed` | 2/4 children done | done-when: every post-V1 track shipped or declined | exec: BMAD advisory
   - [req-024-dep-integration](./req-024-dep-integration/ticket.md) — C/C++ dependency integration (Conan 2 / CPM) | `proposed`
   - [req-025-windows-lane](./req-025-windows-lane/ticket.md) — Windows native lane | `proposed`
   - [req-026-wl55-cm0p-bringup](./req-026-wl55-cm0p-bringup/ticket.md) — WL55JC CM0+ dual-core bring-up | `in-progress`
@@ -54,7 +54,7 @@
 - [req-023-ad15-refinement](./req-023-ad15-refinement/ticket.md) — Reconcile AD-15 with the R5 verify implementation | `done` | bmad-advisory | spine wording fix, lint clean
 - [req-024-dep-integration](./req-024-dep-integration/ticket.md) — C/C++ dependency integration (Conan 2 / CPM) | `proposed` | bmad-advisory, parent epic-002 | post-V1 (spike-002); Conan ecosystem measured empty
 - [req-025-windows-lane](./req-025-windows-lane/ticket.md) — Windows native lane | `proposed` | bmad-advisory, parent epic-002 | deferred, not designed out
-- [req-026-wl55-cm0p-bringup](./req-026-wl55-cm0p-bringup/ticket.md) — WL55JC CM0+ dual-core bring-up | `in-progress` | bmad-advisory, parent epic-002 | CM0+ RUNS (counter 0x2000C01C advances; bug-026 fix complete); residual = bug-030/031, bug-027 open
+- [req-026-wl55-cm0p-bringup](./req-026-wl55-cm0p-bringup/ticket.md) — WL55JC CM0+ dual-core bring-up | `done` | bmad-advisory, parent epic-002 | CM0+ boots+runs (counter 0x2000C01C advances); `make debug-m0plus` attach path; bug-027 stays open
 - [req-027-cubeclt-verdict](./req-027-cubeclt-verdict/ticket.md) — STM32CubeCLT verdict | `done` | bmad-advisory, parent epic-002 | VERDICT: exclude from images, optional host tool (SLA0048 permitted-with-conditions)
 
 ## Bugs
@@ -86,8 +86,8 @@
 - [bug-025-rust-build-target](./bug-025-rust-build-target/ticket.md) — mu build for Rust omits --target: compiles for the host and fails to link | `done` | S1, render .cargo/config.toml + README fix; 355 tests
 - [bug-026-linker-init-array](./bug-026-linker-init-array/ticket.md) — Generated linker script drops .init_array, so the sibling-release constructor is discarded (WL55 CM0+ never runs) | `done` | S1, init_array/fini_array + PROVIDE_HIDDEN symbols; release ctor back in the ELF; 357 tests
 - [bug-029-cm0p-released-not-running](./bug-029-cm0p-released-not-running/ticket.md) — CM0+ is released (C2BOOT=0x8000) but still does not run — sibling counter stays 0 | `rejected` | measurement error: probed 0x2000C000 (completed.1); real counter 0x2000C01C advances — bug-026 fix is complete
-- [bug-030-m0plus-attach-path](./bug-030-m0plus-attach-path/ticket.md) — WL55JC flash path never creates stm32wlx.cpu1; no generated way to attach the M0+ after make flash | `in-progress` | S2, spike-006 follow-up; `make debug-m0plus` + README section emitted for cpu2_boot+dual_core packs, attach-only, 3/8 attach OK on hardware (5/8 blocked by bug-027), 360 tests
-- [bug-031-cpu2boot-masks-bug027](./bug-031-cpu2boot-masks-bug027/ticket.md) — probe/cpu2-boot.cfg writes C2BOOT on examine-end, masking bug-027 and invalidating sibling-release measurements | `in-progress` | S3, spike-006 follow-up; probe/cpu2-boot.cfg removed from the render path (and from launch.json); C2BOOT now tracks the running CM0+ exactly (6/10 runs), 360 tests
+- [bug-030-m0plus-attach-path](./bug-030-m0plus-attach-path/ticket.md) — WL55JC flash path never creates stm32wlx.cpu1; no generated way to attach the M0+ after make flash | `done` | S2, generated `make debug-m0plus` (attach-only, no reset); pc in M0+ main loop verified on HW
+- [bug-031-cpu2boot-masks-bug027](./bug-031-cpu2boot-masks-bug027/ticket.md) — probe/cpu2-boot.cfg writes C2BOOT on examine-end, masking bug-027 and invalidating sibling-release measurements | `done` | S3, cfg removed from the render path; C2BOOT now tracks the running CM0+ exactly (6/10)
 - [bug-027-intermittent-reset-boot](./bug-027-intermittent-reset-boot/ticket.md) — M4 app starts only ~2/6 times after an OpenOCD reset (sits in ROM at 0x1fff2cc0) | `triage` | S2 — real, device-level: 53% boot rate (18/34), reproduces on probe-rs; needs a PHYSICAL reset test
 - [bug-028-cpu2boot-cfg-premise](./bug-028-cpu2boot-cfg-premise/ticket.md) — cpu2-boot.cfg asserts a false premise (CPU2 clears C2BOOT) and clobbers PWR_CR4 | `done` | S3, masked `mmw` + correct C2BOOT premise; 357 tests, no hw re-flash needed
 
@@ -124,6 +124,7 @@
 - [ops-035-triage-findings](./ops-035-triage-findings/ticket.md) — Triage the two dispatched investigations; file the resulting bugs/verdict | `done` | filed bug-026/027/028 + req-027 verdict
 - [ops-036-close-bug026-file-bug029](./ops-036-close-bug026-file-bug029/ticket.md) — Close bug-026 (verified + merged); file the residual as bug-029 | `done` | bug-026 verified on a fresh project; residual filed
 - [ops-037-bug029-reject-file-new-bugs](./ops-037-bug029-reject-file-new-bugs/ticket.md) — Reject bug-029 (measurement error); record the spike-006 correction; file bug-030/031 | `done` | CM0+ runs at 0x2000C01C; bug-026 fix complete
+- [ops-038-close-bug030-031-026](./ops-038-close-bug030-031-026/ticket.md) — Close bug-030/bug-031/req-026 (fixes merged + verified); recount epic-002 | `done` | 360 tests; `make debug-m0plus` verified on HW
 
 ## Spikes
 
