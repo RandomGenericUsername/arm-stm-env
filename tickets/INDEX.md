@@ -43,7 +43,7 @@
   - [req-024-dep-integration](./req-024-dep-integration/ticket.md) — C/C++ dependency integration (Conan 2 / CPM) | `proposed`
   - [req-025-windows-lane](./req-025-windows-lane/ticket.md) — Windows native lane | `proposed`
   - [req-026-wl55-cm0p-bringup](./req-026-wl55-cm0p-bringup/ticket.md) — WL55JC CM0+ dual-core bring-up | `proposed`
-  - [req-027-cubeclt-verdict](./req-027-cubeclt-verdict/ticket.md) — STM32CubeCLT verdict | `proposed`
+  - [req-027-cubeclt-verdict](./req-027-cubeclt-verdict/ticket.md) — STM32CubeCLT verdict | `in-progress`
 
 ## Requirements
 
@@ -55,7 +55,7 @@
 - [req-024-dep-integration](./req-024-dep-integration/ticket.md) — C/C++ dependency integration (Conan 2 / CPM) | `proposed` | bmad-advisory, parent epic-002 | post-V1 (spike-002); Conan ecosystem measured empty
 - [req-025-windows-lane](./req-025-windows-lane/ticket.md) — Windows native lane | `proposed` | bmad-advisory, parent epic-002 | deferred, not designed out
 - [req-026-wl55-cm0p-bringup](./req-026-wl55-cm0p-bringup/ticket.md) — WL55JC CM0+ dual-core bring-up | `proposed` | bmad-advisory, parent epic-002 | from spike-006; investigation dispatched
-- [req-027-cubeclt-verdict](./req-027-cubeclt-verdict/ticket.md) — STM32CubeCLT verdict | `proposed` | bmad-advisory, parent epic-002 | from spike-003/HANDOFF; investigation dispatched
+- [req-027-cubeclt-verdict](./req-027-cubeclt-verdict/ticket.md) — STM32CubeCLT verdict | `in-progress` | bmad-advisory, parent epic-002 | VERDICT: exclude from images, optional host tool (SLA0048 permitted-with-conditions)
 
 ## Bugs
 
@@ -84,6 +84,9 @@
 - [bug-023-sibling-attach](./bug-023-sibling-attach/ticket.md) — WL55JC: released sibling can't be launched, primary's reset hides it, flash order boots it into an unflashed image | `done` | S2, M4+CM0+ run; compound sequence fragile
 - [bug-024-no-reset-for-released-siblings](./bug-024-no-reset-for-released-siblings/ticket.md) — cortex-debug launch fails on a released-sibling pack: 'monitor reset halt' errors (Protocol error with Rcmd) | `done` | S1, attach-only for cpu2_boot packs
 - [bug-025-rust-build-target](./bug-025-rust-build-target/ticket.md) — mu build for Rust omits --target: compiles for the host and fails to link | `done` | S1, render .cargo/config.toml + README fix; 355 tests
+- [bug-026-linker-init-array](./bug-026-linker-init-array/ticket.md) — Generated linker script drops .init_array, so the sibling-release constructor is discarded (WL55 CM0+ never runs) | `triage` | S1, spike-006 finding; fix dispatched
+- [bug-027-intermittent-reset-boot](./bug-027-intermittent-reset-boot/ticket.md) — M4 app starts only ~2/6 times after an OpenOCD reset (sits in ROM at 0x1fff2cc0) | `triage` | S2, spike-006 finding; needs NRST test
+- [bug-028-cpu2boot-cfg-premise](./bug-028-cpu2boot-cfg-premise/ticket.md) — cpu2-boot.cfg asserts a false premise (CPU2 clears C2BOOT) and clobbers PWR_CR4 | `triage` | S3, spike-006 finding; fix dispatched
 
 ## Ops tasks
 
@@ -115,6 +118,7 @@
 - [ops-032-rust-spec-wording](./ops-032-rust-spec-wording/ticket.md) — Amend the spec success signal for the Rust build-parity decision | `proposed` | spec:65-67 + device-matrix:3
 - [ops-033-warnings-policy](./ops-033-warnings-policy/ticket.md) — Formalize the compiler-warnings policy | `proposed` | HANDOFF open thread
 - [ops-034-registry-visibility](./ops-034-registry-visibility/ticket.md) — Decide GHCR image package visibility (public vs auth-required) | `proposed` | from ops-030
+- [ops-035-triage-findings](./ops-035-triage-findings/ticket.md) — Triage the two dispatched investigations; file the resulting bugs/verdict | `done` | filed bug-026/027/028 + req-027 verdict
 
 ## Spikes
 
