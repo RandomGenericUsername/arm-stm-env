@@ -1,6 +1,6 @@
 # C/C++ image: vanilla ARM GNU Toolchain + ST OpenOCD fork, Debian bookworm-slim.
 # Pinned: base digest, ARM GNU 15.3.rel2 (new gitlab host, sha256-verified),
-# OpenOCD fork SHA c8d973b built from source. No CubeCLT (gated, see README).
+# OpenOCD fork SHA c8d973b built from source. No CubeCLT (excluded by decision, see README).
 # Toolchain tarballs below are x86_64-only, so the image platform is pinned too.
 FROM --platform=linux/amd64 debian:bookworm-slim@sha256:7c7b2c966bc9ee8cedfeef67e0e279108992c77681fa595db4a9d65c06ccc587
 

@@ -6,7 +6,7 @@
 
 ## Epics
 
-- [epic-001-universal-framework](./epic-001-universal-framework/epic.md) — Universal MCU dev framework | `done` | 31/31 children done | done-when: V1 matrix (3 packs x 3 langs, OpenOCD) completes create-build-flash-run from clean machines per pack proof rituals | exec: bmad brief+spec+spine
+- [epic-001-universal-framework](./epic-001-universal-framework/epic.md) — Universal MCU dev framework | `proposed` | 1/4 children done| 31/31 children done | done-when: V1 matrix (3 packs x 3 langs, OpenOCD) completes create-build-flash-run from clean machines per pack proof rituals | exec: bmad brief+spec+spine
   - [bug-001-xor-probe-selectors](./bug-001-xor-probe-selectors/ticket.md) — XOR rejects probe selectors combined with --mcu-config | `done`
   - [bug-002-rust-panic-abort](./bug-002-rust-panic-abort/ticket.md) — Rendered Rust projects fail to compile (unwinding panics) | `done`
   - [req-001-product-brief](./req-001-product-brief/ticket.md) — Product brief for universal MCU dev framework | `done`
@@ -39,11 +39,11 @@
   - [task-005-probe-default-proof-precheck](./task-005-probe-default-proof-precheck/ticket.md) — Pack-default probe, proof wiring, image pre-check | `done`
   - [task-006-backend-settings](./task-006-backend-settings/ticket.md) — Per-backend pack settings (probe chip strings etc.) | `done`
 
-- [epic-002-post-v1](./epic-002-post-v1/epic.md) — Post-V1 roadmap | `proposed` | 0/4 children done | done-when: every post-V1 track shipped or declined | exec: BMAD advisory
+- [epic-002-post-v1](./epic-002-post-v1/epic.md) — Post-V1 roadmap | `proposed` | 1/4 children done | done-when: every post-V1 track shipped or declined | exec: BMAD advisory
   - [req-024-dep-integration](./req-024-dep-integration/ticket.md) — C/C++ dependency integration (Conan 2 / CPM) | `proposed`
   - [req-025-windows-lane](./req-025-windows-lane/ticket.md) — Windows native lane | `proposed`
   - [req-026-wl55-cm0p-bringup](./req-026-wl55-cm0p-bringup/ticket.md) — WL55JC CM0+ dual-core bring-up | `proposed`
-  - [req-027-cubeclt-verdict](./req-027-cubeclt-verdict/ticket.md) — STM32CubeCLT verdict | `in-progress`
+  - [req-027-cubeclt-verdict](./req-027-cubeclt-verdict/ticket.md) — STM32CubeCLT verdict | `done`
 
 ## Requirements
 
@@ -55,7 +55,7 @@
 - [req-024-dep-integration](./req-024-dep-integration/ticket.md) — C/C++ dependency integration (Conan 2 / CPM) | `proposed` | bmad-advisory, parent epic-002 | post-V1 (spike-002); Conan ecosystem measured empty
 - [req-025-windows-lane](./req-025-windows-lane/ticket.md) — Windows native lane | `proposed` | bmad-advisory, parent epic-002 | deferred, not designed out
 - [req-026-wl55-cm0p-bringup](./req-026-wl55-cm0p-bringup/ticket.md) — WL55JC CM0+ dual-core bring-up | `proposed` | bmad-advisory, parent epic-002 | from spike-006; investigation dispatched
-- [req-027-cubeclt-verdict](./req-027-cubeclt-verdict/ticket.md) — STM32CubeCLT verdict | `in-progress` | bmad-advisory, parent epic-002 | VERDICT: exclude from images, optional host tool (SLA0048 permitted-with-conditions)
+- [req-027-cubeclt-verdict](./req-027-cubeclt-verdict/ticket.md) — STM32CubeCLT verdict | `done` | bmad-advisory, parent epic-002 | VERDICT: exclude from images, optional host tool (SLA0048 permitted-with-conditions)
 
 ## Bugs
 

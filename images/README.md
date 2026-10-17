@@ -44,13 +44,39 @@ Note: `FromPlatformFlagConstDisallowed` lint warning on `FROM
 rg -i "latest|:stable" images/*.Dockerfile   # must print nothing (exit 1)
 ```
 
-## CubeCLT gate (still CLOSED — vanilla wins)
+## CubeCLT — EXCLUDED by decision (vanilla wins); optional host tool
 
-`https://www.st.com/en/development-tools/stm32cubeclt.html` unreachable from
-this net (curl `--max-time 20` → `000`, 2026-10-09; same verdict as spike-003
-on 2026-10-08). Until version + stable URL + license/redistribution proof are
-recorded, images ship **vanilla ARM GNU from the public gitlab host**
-(no login, branch-pinned, no redistribution encumbrance observed).
+**Decided 2026-10-16 in `tickets/req-027-cubeclt-verdict/ticket.md`. Images ship
+vanilla ARM GNU from the public gitlab host (no login, branch-pinned).** The
+exclusion is a **practical** decision, *not* a legal prohibition.
+
+1. **Redistribution is permitted, but conditional (SLA0048).** ST's licence
+   allows binary redistribution provided you: reproduce the copyright,
+   conditions of use and disclaimer **in capital type** in the distribution
+   docs (clause 2); use it **solely** with ST processing units (clause 4); do
+   **not** subject CubeCLT to Open Source Terms (clause 5); and note that a
+   non-conforming redistribution is **void** (clause 11).
+   Evidence: <https://www.st.com/resource/en/license/SLA0048_STM32CubeCLT.pdf>
+   (st.com is unreachable from this net — read through a reader proxy, one
+   hop; curl → HTTP `000` / error 92).
+2. **It breaks the no-login reproducible build.** The installer requires
+   *manual* licence acceptance and the download is MyST/email-gated with 24h
+   links — incompatible with the pinned public fetch the images rely on.
+3. **It adds no needed capability.** Its GCC (14.3) is *older* than the pinned
+   vanilla 15.3.rel2 (`images/cpp.Dockerfile:7`); CubeCLT does **not** ship
+   OpenOCD (the ST OpenOCD fork is still required); SVDs already come from
+   modm-io (Apache-2.0, pinned). The only real gap — ST-LINK firmware update —
+   is already a documented CubeProgrammer-GUI step
+   (`docs/flash-stm32-linux.md:89`).
+
+**If you ever bake CubeCLT into a public image**, you owe clause 2 (capital-type
+reproduction in the image docs) and must honour clauses 4, 5 and 11.
+Verify: `rg -n "CubeCLT|ARM_GCC_VERSION|OPENOCD_SHA" images/cpp.Dockerfile` →
+no CubeCLT dependency; vanilla 15.3.rel2 + OpenOCD fork `c8d973b`.
+
+**Optional host-side auxiliary:** CubeCLT may be installed on a *host* as a
+diagnostics / ST-LINK-firmware tool. That is an end-user local install, not a
+redistribution of our images, so it does not disturb the image terms.
 
 ## OPENs carried from spike-003
 
@@ -58,8 +84,14 @@ recorded, images ship **vanilla ARM GNU from the public gitlab host**
       reachable via generic-packages API, hash recorded above.
 - [ ] ARM sidebar T&Cs on new host — still OPEN (EULA.txt exists in branch;
       redistribution terms not reviewed).
-- [ ] CubeCLT version + SLA redistribution terms + stable download URL —
-      still OPEN (st.com unreachable twice).
+- [x] CubeCLT version + SLA redistribution terms + download URL — RESOLVED
+      2026-10-16 (req-027): CubeCLT **1.22.0**; SLA0048 permits redistribution
+      *with conditions* (clauses 2/4/5/11 — capital-type notice, ST silicon
+      only, not Open Source Terms, non-conforming = void);
+      <https://www.st.com/resource/en/license/SLA0048_STM32CubeCLT.pdf>.
+      Download is MyST/email-gated (24h links) — no stable public URL by
+      design. Verdict: excluded from images (practical, not legal), optional
+      as a host-side tool.
 
 ## Troubleshooting
 
