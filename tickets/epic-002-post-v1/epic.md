@@ -31,7 +31,7 @@ One home so nothing is a floating "known open thread".
 
 - [ ] `req-024` — C/C++ dependency integration (Conan 2 / CPM) (proposed)
 - [ ] `req-025` — Windows native lane (proposed)
-- [ ] `req-026` — WL55JC CM0+ dual-core bring-up (proposed)
+- [x] `req-026` — WL55JC CM0+ dual-core bring-up (done)
 - [x] `req-027` — STM32CubeCLT verdict (done 2026-10-16 — exclude from images, optional host tool)
 
 ## Rollup
