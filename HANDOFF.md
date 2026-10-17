@@ -33,16 +33,22 @@ spine under `_bmad-output/initiative-universal-mcu-env/`.
 
 ## State at handoff (main @ see log, all pushed, tree clean)
 
-- Epic-001: **23/23 children done** — BUT the epic's done-when (live
-  flash/run proof per matrix cell) is unverified: no probe has ever
-  touched silicon. Everything below is proven only to compilation.
+- Epic-001: **31/31 children done** (`ops-029`). The done-when caveat recorded
+  here ("no probe has ever touched silicon") is **superseded**: live
+  flash/run is proven for the V1 packs — `ops-027`, `ops-028`,
+  `docs/flash-run-evidence.md`.
 - 191→228 tests green. Images built+smoked (cpp:15.3.rel2, rust:1.99.0).
 - `mu create/build` proven live to ELF (F411RE C; Rust F411RE+H755 to ARM
   ELF32). 9/9 cells compile; 5/5 C ELFs from real vendor trees.
-- Open threads: HW flash/run (tonight's mission); registry push (needs
-  `write:packages` re-auth); CubeCLT verdict (st.com unreachable);
-  `linker_for` fallback already removed; H755 dual-core boot semantics
-  (HW decides); warnings policy; IDE attach; Windows lane.
+- Open threads: registry visibility (GHCR package public vs auth-required,
+  `ops-034`, after `ops-030`); warnings policy (`ops-033`); Windows lane.
+  **Resolved since this handoff:** HW flash/run (done — `ops-027`, `ops-028`,
+  `docs/flash-run-evidence.md`); CubeCLT verdict (done — `req-027`: exclude
+  from images, optional host tool; SLA0048 permits redistribution with
+  conditions, not a prohibition); IDE attach (done — `req-016`,
+  `docs/vscode-debug.md`); registry push (done — `ops-030`, images on GHCR).
+  Still open: H755 dual-core boot semantics (HW decides), linker_for
+  fallback already removed.
 - Known machine quirk (dev box): Docker Desktop shares `/tmp` but NOT
   `~/Desktop` — mounts fail with `mkdir /host_mnt/...: operation not
   permitted`. Run docker-backed verification from `/tmp` clones there.

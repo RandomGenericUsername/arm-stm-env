@@ -2,15 +2,15 @@
 id: req-027
 title: "STM32CubeCLT verdict"
 kind: requirement
-status: in-progress
+status: done
 size: S
 lane: bmad-advisory
 parent: epic-002
 links:
   openspec: none
   bmad: []
-worktree: .worktrees/ops-035/
-branch: ticket/ops-035-triage-findings
+worktree: .worktrees/req-027/
+branch: ticket/req-027-cubeclt-doc-closeout
 ---
 
 # STM32CubeCLT verdict
@@ -43,4 +43,36 @@ no CubeCLT dependency; vanilla 15.3.rel2 + OpenOCD fork `c8d973b`.
 ## Done-when
 
 Verdict recorded with evidence, `images/README.md` gate updated, `HANDOFF.md`
-open thread closed, `spike-003` UNVERIFIED note resolved. (Docs update dispatched.)
+open thread closed, `spike-003` UNVERIFIED note resolved. — **Met 2026-10-16.**
+
+## Doc-closeout evidence (2026-10-16)
+
+Branch `ticket/req-027-cubeclt-doc-closeout`, worktree `.worktrees/req-027/`
+(from main `852e508`). Files propagated, all in commit
+`docs(req-027): propagate the CubeCLT verdict into the docs`:
+
+- `images/README.md` — section retitled "CubeCLT — EXCLUDED by decision (vanilla
+  wins); optional host tool"; the old "until license/redistribution proof are
+  recorded" framing is gone (it was wrong: redistribution is
+  permitted-with-conditions). CLAUSES 2/4/5/11 + the SLA0048 URL are now cited
+  inline, the one-hop reader-proxy caveat is noted, and the OPEN item
+  "CubeCLT version + SLA redistribution terms + stable download URL" is ticked
+  with version 1.22.0 and the MyST/email-gated (no stable public URL) finding.
+- `HANDOFF.md` — the "CubeCLT verdict (st.com unreachable)" open thread is
+  resolved → `req-027`. Stale-and-resolved items in the same list corrected:
+  HW flash/run → `ops-027`/`ops-028`, IDE attach → `req-016`, registry push →
+  `ops-030`; warnings policy kept but now points at `ops-033`; registry
+  visibility kept as the live thread → `ops-034`. The epic-001 bullet's
+  "no probe has ever touched silicon" claim is marked superseded.
+- `tickets/spike-003-toolchain-recon/ticket.md` — finding 4 rewritten from
+  "UNVERIFIED … all OPEN" to the resolved facts (1.22.0, SLA0048
+  permitted-with-conditions, login/EULA-gated download); the Open-list entry
+  struck through as CLOSED; the Recommendation corrected to say the exclusion
+  is practical, not legal.
+- `tickets/req-007-container-images/ticket.md` — acceptance item
+  "CubeCLT-vs-GCC decision recorded" ticked with a `Verify:` command.
+- `tickets/INDEX.md` — both req-027 entries (epic-002 nested line + Requirements)
+  flipped to `done`.
+
+Evidence: the edits above. Verify: `git -C .worktrees/req-027 show --stat HEAD`
+and `rg -n "SLA0048" images/README.md tickets/spike-003-toolchain-recon/ticket.md`.
