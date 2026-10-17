@@ -55,3 +55,27 @@ reset-vector problem. Note `bug-026` makes the M4's release ctor fire only when 
 app runs, so this is the likely reason the earlier WL55 observations (bug-021/023/024,
 spike-006) were non-reproducible. Also test whether halting inside the ROM window
 (e.g. landing at the flash vector) is what makes the one working case work.
+## Investigation update (2026-10-16)
+
+Characterised: **pooled boot rate ≈ 53% (18/34)** — not the 2/6 first estimated.
+It is a **real device-level boot-selection problem**, not an OpenOCD/STLINK artefact:
+
+- Measured **at the reset vector, before anything runs**: `pc = 0x1fff2cc0` (system
+  memory) vs `pc = 0x0800025c` (= `Reset_Handler`) — the boot-mode decision itself is
+  non-deterministic. Flash contents are intact at that moment.
+- **Not the reset method / driver**: forcing an nSRST pulse
+  (`reset_config srst_only srst_open_drain`) gives the same rate (4/6 vs 4/6), and
+  **probe-rs 0.32.0 reproduces it** (a completely different stack): pc flips between
+  `0x080001e8` (booted, `PWR_CR4=0x8000`) and `0x1fff2ba2` (ROM).
+- Failure forensics: `RCC_CSR = 0` (no reset-cause flags); `OPTR (0x58004020) = 0x3ffff0aa`
+  (`nBOOT0=1`, `BOOT_LOCK=0`, `C2BOOT_LOCK=0`) — so `nBOOT0=1` yet it boots from
+  system memory, which is inconsistent and needs RM0453's boot-mode chapter.
+- Failure state persists until the next reset; the core spins forever at `0x1fff2b9e`
+  (semihosting trap + RCC-touching ROM helper in the region).
+- **`probe/cpu2-boot.cfg` masks this bug** (it sets C2BOOT on every attach, so a stuck
+  board looks healthy) — see `bug-031`.
+
+**Blocked on:** identifying which ROM subsystem this is requires a reset the debugger
+cannot synthesise. A ≈2-minute physical-reset procedure (NRST button ×10, power-cycle
+×10, option-byte read, with a BOOTED/STUCK decision rule) is recorded in the
+investigation report; run it at the bench to discriminate.

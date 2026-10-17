@@ -54,7 +54,7 @@
 - [req-023-ad15-refinement](./req-023-ad15-refinement/ticket.md) — Reconcile AD-15 with the R5 verify implementation | `done` | bmad-advisory | spine wording fix, lint clean
 - [req-024-dep-integration](./req-024-dep-integration/ticket.md) — C/C++ dependency integration (Conan 2 / CPM) | `proposed` | bmad-advisory, parent epic-002 | post-V1 (spike-002); Conan ecosystem measured empty
 - [req-025-windows-lane](./req-025-windows-lane/ticket.md) — Windows native lane | `proposed` | bmad-advisory, parent epic-002 | deferred, not designed out
-- [req-026-wl55-cm0p-bringup](./req-026-wl55-cm0p-bringup/ticket.md) — WL55JC CM0+ dual-core bring-up | `in-progress` | bmad-advisory, parent epic-002 | bug-026 fixed (ctor now linked); residual = bug-029
+- [req-026-wl55-cm0p-bringup](./req-026-wl55-cm0p-bringup/ticket.md) — WL55JC CM0+ dual-core bring-up | `in-progress` | bmad-advisory, parent epic-002 | CM0+ RUNS (counter 0x2000C01C advances; bug-026 fix complete); residual = bug-030/031, bug-027 open
 - [req-027-cubeclt-verdict](./req-027-cubeclt-verdict/ticket.md) — STM32CubeCLT verdict | `done` | bmad-advisory, parent epic-002 | VERDICT: exclude from images, optional host tool (SLA0048 permitted-with-conditions)
 
 ## Bugs
@@ -85,8 +85,10 @@
 - [bug-024-no-reset-for-released-siblings](./bug-024-no-reset-for-released-siblings/ticket.md) — cortex-debug launch fails on a released-sibling pack: 'monitor reset halt' errors (Protocol error with Rcmd) | `done` | S1, attach-only for cpu2_boot packs
 - [bug-025-rust-build-target](./bug-025-rust-build-target/ticket.md) — mu build for Rust omits --target: compiles for the host and fails to link | `done` | S1, render .cargo/config.toml + README fix; 355 tests
 - [bug-026-linker-init-array](./bug-026-linker-init-array/ticket.md) — Generated linker script drops .init_array, so the sibling-release constructor is discarded (WL55 CM0+ never runs) | `done` | S1, init_array/fini_array + PROVIDE_HIDDEN symbols; release ctor back in the ELF; 357 tests
-- [bug-029-cm0p-released-not-running](./bug-029-cm0p-released-not-running/ticket.md) — CM0+ is released (C2BOOT=0x8000) but still does not run — sibling counter stays 0 | `triage` | S1, residual of the bug-026 fix; investigation dispatched
-- [bug-027-intermittent-reset-boot](./bug-027-intermittent-reset-boot/ticket.md) — M4 app starts only ~2/6 times after an OpenOCD reset (sits in ROM at 0x1fff2cc0) | `triage` | S2, spike-006 finding; needs NRST test
+- [bug-029-cm0p-released-not-running](./bug-029-cm0p-released-not-running/ticket.md) — CM0+ is released (C2BOOT=0x8000) but still does not run — sibling counter stays 0 | `rejected` | measurement error: probed 0x2000C000 (completed.1); real counter 0x2000C01C advances — bug-026 fix is complete
+- [bug-030-m0plus-attach-path](./bug-030-m0plus-attach-path/ticket.md) — WL55JC flash path never creates stm32wlx.cpu1; no generated way to attach the M0+ after make flash | `triage` | S2, spike-006 follow-up; fix dispatched
+- [bug-031-cpu2boot-masks-bug027](./bug-031-cpu2boot-masks-bug027/ticket.md) — probe/cpu2-boot.cfg writes C2BOOT on examine-end, masking bug-027 and invalidating sibling-release measurements | `triage` | S3, spike-006 follow-up; fix dispatched
+- [bug-027-intermittent-reset-boot](./bug-027-intermittent-reset-boot/ticket.md) — M4 app starts only ~2/6 times after an OpenOCD reset (sits in ROM at 0x1fff2cc0) | `triage` | S2 — real, device-level: 53% boot rate (18/34), reproduces on probe-rs; needs a PHYSICAL reset test
 - [bug-028-cpu2boot-cfg-premise](./bug-028-cpu2boot-cfg-premise/ticket.md) — cpu2-boot.cfg asserts a false premise (CPU2 clears C2BOOT) and clobbers PWR_CR4 | `done` | S3, masked `mmw` + correct C2BOOT premise; 357 tests, no hw re-flash needed
 
 ## Ops tasks
@@ -120,6 +122,8 @@
 - [ops-033-warnings-policy](./ops-033-warnings-policy/ticket.md) — Formalize the compiler-warnings policy | `proposed` | HANDOFF open thread
 - [ops-034-registry-visibility](./ops-034-registry-visibility/ticket.md) — Decide GHCR image package visibility (public vs auth-required) | `proposed` | from ops-030
 - [ops-035-triage-findings](./ops-035-triage-findings/ticket.md) — Triage the two dispatched investigations; file the resulting bugs/verdict | `done` | filed bug-026/027/028 + req-027 verdict
+- [ops-036-close-bug026-file-bug029](./ops-036-close-bug026-file-bug029/ticket.md) — Close bug-026 (verified + merged); file the residual as bug-029 | `done` | bug-026 verified on a fresh project; residual filed
+- [ops-037-bug029-reject-file-new-bugs](./ops-037-bug029-reject-file-new-bugs/ticket.md) — Reject bug-029 (measurement error); record the spike-006 correction; file bug-030/031 | `done` | CM0+ runs at 0x2000C01C; bug-026 fix complete
 
 ## Spikes
 
