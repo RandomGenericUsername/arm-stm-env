@@ -2,7 +2,7 @@
 id: req-022
 title: "ESP32 family support (first non-STM32 device)"
 kind: requirement
-status: proposed
+status: done
 size: L
 lane: bmad-advisory
 links:
