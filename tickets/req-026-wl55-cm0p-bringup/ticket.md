@@ -2,7 +2,7 @@
 id: req-026
 title: "WL55JC CM0+ dual-core bring-up"
 kind: requirement
-status: proposed
+status: in-progress
 size: M
 lane: bmad-advisory
 parent: epic-002

@@ -2,7 +2,7 @@
 id: bug-026
 title: "Generated linker script drops .init_array, so the sibling-release constructor is discarded (WL55 CM0+ never runs)"
 kind: bug
-status: in-progress
+status: done
 lane: direct
 severity: S1
 links:
