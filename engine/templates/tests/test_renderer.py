@@ -368,3 +368,44 @@ def test_fetch_svds_uses_pinned_url(tmp_path) -> None:
     assert paths == [tmp_path / "probe" / "STM32F411.svd"]
     assert "modm-io/cmsis-svd-stm32" in seen["url"] and renderer.SVD_SHA in seen["url"]
     assert (tmp_path / "probe" / "STM32F411.svd").read_bytes() == b"<device/>"
+
+
+def test_cpu2_boot_cfg_uses_masked_write_and_no_false_premise(tmp_path) -> None:
+    """bug-028: the re-assert must be a masked write and must not claim the
+    false "CPU2 clears C2BOOT when it idles" premise (measured: C2BOOT is
+    retained, so the old full-register `mww` was also a PWR_CR4 clobber)."""
+    device = load_file(PACKS_DIR / "stm32wl55jc.yaml")
+    render(device, "c", tmp_path)
+    cfg = (tmp_path / "probe" / "cpu2-boot.cfg").read_text()
+
+    hook = [ln for ln in cfg.splitlines() if ln.startswith("stm32wlx.cpu0 configure")]
+    assert hook == [
+        "stm32wlx.cpu0 configure -event examine-end "
+        "{ mmw 0x5800040C 0x00008000 0x00008000 }"
+    ]
+    assert " mww " not in cfg, "full-register write would clobber PWR_CR4"
+    assert "clears C2BOOT when it idles" not in cfg
+    assert "RETAINED" in cfg
+
+
+def test_cpu2_boot_cfg_masked_write_follows_pack_mask(tmp_path) -> None:
+    """The masked write is derived from the pack fact, not hardcoded: only the
+    masked value bits are forced, and every other register bit is untouched."""
+    from dataclasses import replace
+
+    from engine.templates.renderer import _cpu2_boot_cfg
+
+    device = load_file(PACKS_DIR / "stm32wl55jc.yaml")
+    addr, value, mask = device.facets.cpu2_boot[-1]
+    assert mask == value == 0x00008000
+    cfg = _cpu2_boot_cfg(device)
+    assert f"mmw 0x{addr:08X} 0x{value & mask:08X} 0x{value & mask:08X}" in cfg
+
+    # A multi-bit boot write stays masked to exactly those bits.
+    wide = replace(
+        device,
+        facets=replace(
+            device.facets, cpu2_boot=((addr, 0x00018000, 0x00018000),)
+        ),
+    )
+    assert "mmw 0x5800040C 0x00018000 0x00018000" in _cpu2_boot_cfg(wide)

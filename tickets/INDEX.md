@@ -86,7 +86,7 @@
 - [bug-025-rust-build-target](./bug-025-rust-build-target/ticket.md) — mu build for Rust omits --target: compiles for the host and fails to link | `done` | S1, render .cargo/config.toml + README fix; 355 tests
 - [bug-026-linker-init-array](./bug-026-linker-init-array/ticket.md) — Generated linker script drops .init_array, so the sibling-release constructor is discarded (WL55 CM0+ never runs) | `triage` | S1, spike-006 finding; fix dispatched
 - [bug-027-intermittent-reset-boot](./bug-027-intermittent-reset-boot/ticket.md) — M4 app starts only ~2/6 times after an OpenOCD reset (sits in ROM at 0x1fff2cc0) | `triage` | S2, spike-006 finding; needs NRST test
-- [bug-028-cpu2boot-cfg-premise](./bug-028-cpu2boot-cfg-premise/ticket.md) — cpu2-boot.cfg asserts a false premise (CPU2 clears C2BOOT) and clobbers PWR_CR4 | `triage` | S3, spike-006 finding; fix dispatched
+- [bug-028-cpu2boot-cfg-premise](./bug-028-cpu2boot-cfg-premise/ticket.md) — cpu2-boot.cfg asserts a false premise (CPU2 clears C2BOOT) and clobbers PWR_CR4 | `in-progress` | S3, masked `mmw` + measured-premise comment; 357 tests pass
 
 ## Ops tasks
 

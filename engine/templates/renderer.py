@@ -845,12 +845,18 @@ def _dual_core_cfg(device: Device) -> str:
 
 
 def _cpu2_boot_cfg(device: Device) -> str:
-    """``probe/cpu2-boot.cfg``: keep the released sibling debuggable (bug-023).
+    """``probe/cpu2-boot.cfg``: keep the released sibling debuggable (bug-028).
 
-    CPU2 clears ``C2BOOT`` when it idles, after which cpu1's examination fails
-    (``Failed to read memory at 0xe000ed00``). Re-assert the boot write every
-    time the primary core is examined. Sourced *after* the target (it needs the
-    target name); the last ``cpu2_boot`` write is the boot bit.
+    The premise from bug-023 §4 ("CPU2 clears ``C2BOOT`` when it idles") is
+    **false**: measured on WL55JC, ``PWR_CR4`` stays ``0x00008000`` while the
+    CM0+ runs (RM0453 has no hardware auto-clear; the errata workaround clears
+    it in software). The re-assert is therefore *defensive* — it only guarantees
+    the boot bit is set when cpu1 is examined, however the session got here.
+
+    It is emitted as a **masked** OpenOCD write (``mmw addr set clear``), so it
+    touches only the boot bit; the previous ``mww`` was a full-register write
+    that would clobber every other ``PWR_CR4`` bit. Sourced *after* the target
+    (it needs the target name); the last ``cpu2_boot`` write is the boot bit.
     """
     oc = device.openocd
     primary = device.cores[0].name
@@ -859,12 +865,22 @@ def _cpu2_boot_cfg(device: Device) -> str:
         raise ValueError(
             f"pack {device.id!r} declares cpu2_boot but no openocd.targets for {primary!r}"
         )
-    addr, value, _mask = device.facets.cpu2_boot[-1]
+    addr, value, mask = device.facets.cpu2_boot[-1]
+    # Only the boot bit itself is touched: OpenOCD `mmw addr set clear` computes
+    # (old & ~clear) | set, so identical set/clear masks force those bits and
+    # leave every other bit of the register alone.
+    set_mask = value if mask is None else (value & mask)
     return (
-        f"# {device.id} probe/cpu2-boot.cfg — keep the sibling debuggable (bug-023).\n"
-        "# CPU2 clears C2BOOT when it idles, after which cpu1's examine fails;\n"
-        "# re-assert the boot bit each time the primary core is examined.\n"
-        f"{target_name} configure -event examine-end {{ mww 0x{addr:08X} 0x{value:08X} }}\n"
+        f"# {device.id} probe/cpu2-boot.cfg — keep the sibling debuggable (bug-023/028).\n"
+        "# C2BOOT is RETAINED, not hardware-cleared: measured on WL55JC, PWR_CR4\n"
+        "# stayed 0x00008000 while the CM0+ ran (RM0453 has no auto-clear; the\n"
+        "# errata workaround clears it in software). The bug-023 'CPU2 clears\n"
+        "# C2BOOT when it idles' premise was false; this re-assert is defensive,\n"
+        "# so the sibling is examinable however the session got here.\n"
+        "# Masked write (mmw addr set clear) — bit 15 only. The previous full-register\n"
+        "# `mww` clobbered every other PWR_CR4 bit.\n"
+        f"{target_name} configure -event examine-end "
+        f"{{ mmw 0x{addr:08X} 0x{set_mask:08X} 0x{set_mask:08X} }}\n"
     )
 
 
