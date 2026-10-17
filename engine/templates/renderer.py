@@ -71,6 +71,51 @@ def _define_flags(macros: str | None) -> str:
     return " ".join(f"-D{m}" for m in macros.split())
 
 
+def _target_slug(core_name: str) -> str:
+    """Shell/make-safe slug of a core name: lowercase alphanumerics, other
+    characters dropped (``M0+`` -> ``m0plus``, ``CM4`` -> ``cm4``)."""
+    lowered = core_name.lower().replace("+", "plus")
+    return "".join(ch for ch in lowered if ch.isalnum())
+
+
+def _sibling_attach(device: Device) -> tuple[str, str, str] | None:
+    """Sibling-core attach facts for a released-sibling pack (bug-030).
+
+    ``make flash`` flashes a ``cpu2_boot`` pack **single-core** (the sibling is
+    asleep at reset and its AP writes fail the final reset — bug-021/024), and
+    the flash argv deliberately omits ``probe/dual-core.cfg``. So after
+    ``make flash`` the second OpenOCD core does not exist. This returns
+    ``(slug, core_name, openocd_target)`` of the **first sibling** when the pack
+    declares both ``facets.cpu2_boot`` and a target-direct ``dual_core`` OpenOCD
+    session (the only case where ``probe/dual-core.cfg`` is emitted, hence the
+    only one whose argv can name the second core). ``None`` otherwise.
+
+    The argv sources ``probe/dual-core.cfg`` **before** the target config (the
+    target reads ``DUAL_CORE`` while creating the second core) and **never**
+    resets: a system reset cannot halt the released sibling (bug-024).
+    """
+    oc = device.openocd
+    if oc is None or not oc.dual_core or oc.board or not device.facets.cpu2_boot:
+        return None
+    if len(device.cores) < 2:
+        return None
+    sibling = device.cores[1]
+    target = next((name for core, name in oc.targets if core == sibling.name), None)
+    if target is None:
+        return None
+    return _target_slug(sibling.name), sibling.name, target
+
+
+def _sibling_attach_args(device: Device) -> str:
+    """OpenOCD argv for the sibling-attach session (dual-core before target)."""
+    oc = device.openocd
+    assert oc is not None
+    interface, target = oc.config_files()
+    return (
+        f"-f {interface} -f probe/probe-serial.cfg -f probe/dual-core.cfg -f {target}"
+    )
+
+
 def _oc_cfg_path(device: Device) -> str:
     """Board-vs-target config path, resolved by the model (bug-003)."""
     oc = device.openocd
@@ -424,6 +469,7 @@ _MAKEFILE_CORE = Template(
 )
 
 _MAKEFILE_FOOT = Template(
+    "${debug_section}"
     "ALL_BUILD = $build_targets\n"
     "ALL_FLASH = $flash_targets\n"
     "ALL_CLEAN = $clean_targets\n"
@@ -436,8 +482,56 @@ _MAKEFILE_FOOT = Template(
     "\n"
     "clean: $$(ALL_CLEAN)\n"
     "\n"
-    ".PHONY: all build flash clean $build_targets $flash_targets $clean_targets\n"
+    ".PHONY: all build flash clean $phony\n"
 )
+
+
+def _sibling_debug_section(device: Device) -> str:
+    """``make debug-<sibling>``: attach the released sibling (bug-030).
+
+    A ``cpu2_boot`` pack is flashed single-core, so after ``make flash`` the
+    second OpenOCD core does not exist. This target sources
+    ``probe/dual-core.cfg`` **before** the target config and then **attaches**
+    — examine + halt + reg, never ``reset``: a system reset cannot halt the
+    released sibling (``AP write error, reset will not halt``, bug-024), and the
+    primary's own release constructor has already released it (no boot bit is
+    written here — bug-031).
+
+    The argv is the measured working sequence. ``targets <t>`` selects the
+    sibling as the current target so the generic commands (``halt``, ``reg``,
+    ``resume``) act on it — they always act on the *first* target otherwise —
+    and ``poll`` puts the target in a known state first, without which ``halt``
+    reports "target was in unknown state". The run **resumes** and exits, so
+    checking the sibling does not leave it stopped; drop the trailing ``resume``
+    and ``exit`` (and run ``arm-none-eabi-gdb`` on
+    ``build/<core>/<pack>-<core>.elf``) for an interactive session.
+    """
+    facts = _sibling_attach(device)
+    if facts is None:
+        return ""
+    slug, sibling, target = facts
+    args = _sibling_attach_args(device)
+    elf = f"build/{sibling}/{device.id}-{sibling}.elf"
+    return (
+        "# --- attach the released sibling (bug-023/024/030) ---\n"
+        "# `make flash` flashes single-core (the sibling is asleep at reset), so\n"
+        f"# {target} does not exist afterwards. probe/dual-core.cfg must be\n"
+        "# sourced BEFORE the target config (it reads DUAL_CORE while creating the\n"
+        "# second core). ATTACH ONLY -- no reset: a system reset cannot halt the\n"
+        "# released sibling (bug-024). Nothing here writes the boot bit: the\n"
+        "# primary's mu_release_sibling constructor already released the sibling\n"
+        "# (bug-031). `targets` selects the sibling (the generic halt/reg/resume\n"
+        "# otherwise act on the first target) and `poll` puts it in a known state\n"
+        "# before halting. It resumes again on the way out, so this check leaves\n"
+        f"# the board running; drop `resume`/`exit` to gdb {elf} instead.\n"
+        f"SIBLING_OPENOCD = {args}\n"
+        "\n"
+        f"debug-{slug}:\n"
+        f'\t$(OPENOCD) $(SIBLING_OPENOCD) -c "init" -c "{target} arp_examine" '
+        f'-c "targets {target}" -c "poll" -c "halt" -c "reg pc" '
+        '-c "resume" -c "exit"\n'
+        "\n"
+    )
 
 _MAIN_C = Template(
     "/* $project / $core ($arch) — generated bring-up. */\n"
@@ -777,10 +871,62 @@ def _readme(device: Device, lang: str, template_family: str = "") -> str:
             )
     head.append("")
 
+    # bug-030: a released-sibling pack has no way to reach the sibling after
+    # `make flash` (flashing is single-core, so the second OpenOCD core does not
+    # exist). Document the generated attach target here.
+    sibling = _sibling_attach(device) if lang in ("c", "cpp") else None
+    if sibling is not None:
+        slug, sibling_core, target = sibling
+        attach_row = f"| Attach {sibling_core} | `make debug-{slug}` |"
+        targets_extra = [attach_row]
+        sibling_section = f"""
+## Attaching the sibling core (`{sibling_core}`)
+
+`make flash` programs this pack **single-core**: the `{sibling_core}` is asleep at
+reset, so its AP writes would fail the flash reset. Two consequences:
+
+- OpenOCD only creates `{target}` when `DUAL_CORE` is set, and
+  `probe/dual-core.cfg` must be sourced **before** `{_oc_cfg_path(device)}` (the
+  target reads `DUAL_CORE` while creating the second core). The `make flash`
+  targets deliberately omit it, so after flashing `{target}` does not exist.
+- The `{primary}` **releases** the sibling from its own `mu_release_sibling`
+  constructor, so nothing here writes the boot bit: the sibling is attachable
+  only *after* the `{primary}` has booted.
+
+`make debug-{slug}` does exactly that — it sources `probe/dual-core.cfg` first and
+then **attaches without any reset** (a system reset cannot halt the released
+sibling, so the session is attach-only):
+
+```sh
+make debug-{slug}
+```
+
+The same session by hand, if you want a gdb server on it:
+
+```sh
+openocd {_sibling_attach_args(device)} -c "init" \\
+  -c "{target} arp_examine" -c "targets {target}" -c "poll"
+arm-none-eabi-gdb build/{sibling_core}/{device.id}-{sibling_core}.elf
+```
+
+`targets {target}` selects the sibling for the commands that follow — OpenOCD's
+generic `halt`, `reg` and friends always act on the first target, which is the
+`{primary}` — and `poll` puts it in a known state before halting.
+
+Do **not** add `reset run` to either form: on a released sibling it fails with
+`AP write error, reset will not halt` and OpenOCD then reports the probe as
+lost (STLINK status `0x11`). In VS Code use `Debug {sibling_core} (OpenOCD)`,
+which is attach-only for this pack.
+"""
+    else:
+        targets_extra = []
+        sibling_section = ""
+
     if lang in ("c", "cpp"):
         targets = "\n".join(
             [f"| Build | `make build` |", f"| Clean | `make clean` |", f"| Flash | `make flash` |"]
             + [f"| Flash {c.name} | `make flash-{c.name}` |" for c in device.cores]
+            + targets_extra
         )
         body = f"""## Build and flash
 
@@ -812,7 +958,7 @@ Keys (VS Code defaults): `F5` continue · `F9` breakpoint · `F10` step over ·
 End a session with **Disconnect** (not Stop) to leave the firmware running.
 
 The **Peripherals** view uses the pinned SVD in `probe/`.
-
+{sibling_section}
 ## Expected behaviour
 
 - The on-board LED blinks at **~2 Hz** (the delay is calibrated for a visible rate).
@@ -869,46 +1015,6 @@ def _dual_core_cfg(device: Device) -> str:
         "# Sourced BEFORE the target config (it reads DUAL_CORE while creating\n"
         "# the second core); target-direct packs have no board file to set it.\n"
         "set DUAL_CORE 1\n"
-    )
-
-
-def _cpu2_boot_cfg(device: Device) -> str:
-    """``probe/cpu2-boot.cfg``: keep the released sibling debuggable (bug-028).
-
-    The premise from bug-023 §4 ("CPU2 clears ``C2BOOT`` when it idles") is
-    **false**: measured on WL55JC, ``PWR_CR4`` stays ``0x00008000`` while the
-    CM0+ runs (RM0453 has no hardware auto-clear; the errata workaround clears
-    it in software). The re-assert is therefore *defensive* — it only guarantees
-    the boot bit is set when cpu1 is examined, however the session got here.
-
-    It is emitted as a **masked** OpenOCD write (``mmw addr set clear``), so it
-    touches only the boot bit; the previous ``mww`` was a full-register write
-    that would clobber every other ``PWR_CR4`` bit. Sourced *after* the target
-    (it needs the target name); the last ``cpu2_boot`` write is the boot bit.
-    """
-    oc = device.openocd
-    primary = device.cores[0].name
-    target_name = next((name for core, name in oc.targets if core == primary), None)
-    if target_name is None:
-        raise ValueError(
-            f"pack {device.id!r} declares cpu2_boot but no openocd.targets for {primary!r}"
-        )
-    addr, value, mask = device.facets.cpu2_boot[-1]
-    # Only the boot bit itself is touched: OpenOCD `mmw addr set clear` computes
-    # (old & ~clear) | set, so identical set/clear masks force those bits and
-    # leave every other bit of the register alone.
-    set_mask = value if mask is None else (value & mask)
-    return (
-        f"# {device.id} probe/cpu2-boot.cfg — keep the sibling debuggable (bug-023/028).\n"
-        "# C2BOOT is RETAINED, not hardware-cleared: measured on WL55JC, PWR_CR4\n"
-        "# stayed 0x00008000 while the CM0+ ran (RM0453 has no auto-clear; the\n"
-        "# errata workaround clears it in software). The bug-023 'CPU2 clears\n"
-        "# C2BOOT when it idles' premise was false; this re-assert is defensive,\n"
-        "# so the sibling is examinable however the session got here.\n"
-        "# Masked write (mmw addr set clear) — bit 15 only. The previous full-register\n"
-        "# `mww` clobbered every other PWR_CR4 bit.\n"
-        f"{target_name} configure -event examine-end "
-        f"{{ mmw 0x{addr:08X} 0x{set_mask:08X} 0x{set_mask:08X} }}\n"
     )
 
 
@@ -1187,7 +1293,13 @@ def _vscode_files(device: Device) -> dict[str, str]:
                 "probe/probe-serial.cfg",
                 *(["probe/dual-core.cfg"] if oc.dual_core and not oc.board else []),
                 target,
-                *(["probe/cpu2-boot.cfg"] if device.facets.cpu2_boot else []),
+                # bug-031: no `probe/cpu2-boot.cfg` any more. It set the
+                # sibling boot bit on examine-end, so the sibling looked
+                # released in every session — masking bug-027 and invalidating
+                # sibling-release measurements. The primary's release
+                # constructor alone does it, and C2BOOT is a boot-request bit,
+                # not a live gate. Attach-only (below) is what makes the
+                # sibling reachable.
                 "probe/resume-on-detach.cfg",
             ],
             "openocdPath": openocd,
@@ -1456,8 +1568,12 @@ def render(
         write("probe/probe-serial.cfg", _probe_serial(pack_model))
         if oc.dual_core and not oc.board:
             write("probe/dual-core.cfg", _dual_core_cfg(pack_model))
-    if pack_model.facets.cpu2_boot:
-        write("probe/cpu2-boot.cfg", _cpu2_boot_cfg(pack_model))
+    # bug-031: probe/cpu2-boot.cfg is deliberately NOT emitted. It wrote the
+    # sibling boot bit (C2BOOT) on the primary's examine-end, so every session
+    # reported the sibling released even when the primary never booted — that
+    # masked bug-027 and corrupted every sibling-release measurement. The
+    # primary's mu_release_sibling constructor alone releases the sibling
+    # (measured), and C2BOOT is a boot-request bit, not a live gate.
     # The VS Code flow is cortex-debug + OpenOCD for the Cortex stacks; the
     # ESP-IDF stack gets its own build/flash/monitor tasks (no debug).
     if vscode and lang in ("c", "cpp"):
@@ -1505,10 +1621,17 @@ def render(
             if pack_model.facets.cpu2_boot
             else list(pack_model.cores)
         )
+        sibling = _sibling_attach(pack_model)
+        build_targets = " ".join(f"build-{c.name}" for c in pack_model.cores)
+        flash_targets = " ".join(f"flash-{c.name}" for c in flash_order)
+        clean_targets = " ".join(f"clean-{c.name}" for c in pack_model.cores)
+        debug_targets = f"debug-{sibling[0]}" if sibling else ""
         write("Makefile", _MAKEFILE_HEAD.substitute(head_ctx) + "\n".join(sections) + _MAKEFILE_FOOT.substitute(
-            build_targets=" ".join(f"build-{c.name}" for c in pack_model.cores),
-            flash_targets=" ".join(f"flash-{c.name}" for c in flash_order),
-            clean_targets=" ".join(f"clean-{c.name}" for c in pack_model.cores),
+            build_targets=build_targets,
+            flash_targets=flash_targets,
+            clean_targets=clean_targets,
+            phony=f"{build_targets} {flash_targets} {clean_targets} {debug_targets}".strip(),
+            debug_section=_sibling_debug_section(pack_model),
         ))
         write("Startup/NOTE.md", _STARTUP_NOTE.substitute(project=pack_model.id, rows="\n".join(rows) + "\n"))
         # Vendor tree only when the pack declares vendored vendor files (a

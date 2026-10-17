@@ -370,42 +370,104 @@ def test_fetch_svds_uses_pinned_url(tmp_path) -> None:
     assert (tmp_path / "probe" / "STM32F411.svd").read_bytes() == b"<device/>"
 
 
-def test_cpu2_boot_cfg_uses_masked_write_and_no_false_premise(tmp_path) -> None:
-    """bug-028: the re-assert must be a masked write and must not claim the
-    false "CPU2 clears C2BOOT when it idles" premise (measured: C2BOOT is
-    retained, so the old full-register `mww` was also a PWR_CR4 clobber)."""
+def test_cpu2_boot_cfg_is_not_emitted(tmp_path) -> None:
+    """bug-031: the generated project must not carry probe/cpu2-boot.cfg.
+
+    It hooked the primary's examine-end and set the sibling boot bit, so
+    PWR_CR4 read 0x00008000 in *every* session — even when the M4 never booted.
+    That masked bug-027 and made the sibling look released when it was not.
+    The primary's mu_release_sibling constructor alone releases the sibling,
+    so nothing in the project needs to write the bit.
+    """
+    device = load_file(PACKS_DIR / "stm32wl55jc.yaml")
+    written = render(device, "c", tmp_path, vscode=True)
+    assert not (tmp_path / "probe" / "cpu2-boot.cfg").exists()
+    assert "probe/cpu2-boot.cfg" not in {p.name for p in written}
+    # And nothing may still reference it (it would abort a launch if missing).
+    launch = (tmp_path / ".vscode" / "launch.json").read_text()
+    assert "cpu2-boot.cfg" not in launch
+
+
+def test_cpu2_boot_cfg_write_absent_from_every_generated_tool_file(tmp_path) -> None:
+    """No generated *tool* file may write the sibling boot register. The
+    firmware itself must: the primary's mu_release_sibling constructor is the
+    only thing that releases the sibling (bug-031), so src/ is excluded here
+    but asserted to still contain the release."""
+    device = load_file(PACKS_DIR / "stm32wl55jc.yaml")
+    render(device, "c", tmp_path, vscode=True)
+    hits = [
+        p.relative_to(tmp_path).as_posix()
+        for p in tmp_path.rglob("*")
+        if p.is_file()
+        and p.suffix != ".c"
+        and "0x5800040C" in p.read_text()
+    ]
+    assert hits == []
+    assert "0x5800040C" in (tmp_path / "src" / "main-M4.c").read_text()
+
+
+def test_sibling_debug_target_attaches_without_reset(tmp_path) -> None:
+    """bug-030: a released-sibling pack must ship a generated way to attach the
+    sibling after `make flash` — dual-core sourced BEFORE the target, and no
+    reset anywhere (a system reset cannot halt a released sibling, bug-024)."""
     device = load_file(PACKS_DIR / "stm32wl55jc.yaml")
     render(device, "c", tmp_path)
-    cfg = (tmp_path / "probe" / "cpu2-boot.cfg").read_text()
+    makefile = (tmp_path / "Makefile").read_text()
 
-    hook = [ln for ln in cfg.splitlines() if ln.startswith("stm32wlx.cpu0 configure")]
-    assert hook == [
-        "stm32wlx.cpu0 configure -event examine-end "
-        "{ mmw 0x5800040C 0x00008000 0x00008000 }"
-    ]
-    assert " mww " not in cfg, "full-register write would clobber PWR_CR4"
-    assert "clears C2BOOT when it idles" not in cfg
-    assert "RETAINED" in cfg
+    assert "debug-m0plus:" in makefile
+    assert "probe/dual-core.cfg -f target/stm32wlx.cfg" in makefile
+    assert (
+        '-c "init" -c "stm32wlx.cpu1 arp_examine" -c "targets stm32wlx.cpu1" '
+        '-c "poll" -c "halt" -c "reg pc" -c "resume" -c "exit"' in makefile
+    ), "dual-core before the target, then attach the sibling without reset"
+    # The attach recipe must not reset or re-run the target.
+    recipe = makefile.split("debug-m0plus:", 1)[1]
+    assert "reset" not in recipe
+    # It must leave the board as it found it (bug-030): halt, report, resume.
+    assert "-c \"resume\" -c \"exit\"" in recipe
+    phony = next(ln for ln in makefile.splitlines() if ln.startswith(".PHONY"))
+    assert "debug-m0plus" in phony
 
 
-def test_cpu2_boot_cfg_masked_write_follows_pack_mask(tmp_path) -> None:
-    """The masked write is derived from the pack fact, not hardcoded: only the
-    masked value bits are forced, and every other register bit is untouched."""
+def test_sibling_debug_target_only_for_released_sibling_dual_core_packs(tmp_path) -> None:
+    """Gated on the facts: a pack without cpu2_boot (H755) gets no target, and
+    a cpu2_boot pack without a target-direct dual_core openocd block gets none
+    either (probe/dual-core.cfg would not exist)."""
+    for pack_id in ("stm32f411re", "stm32h755"):
+        device = load_file(PACKS_DIR / f"{pack_id}.yaml")
+        out = tmp_path / pack_id
+        render(device, "c", out)
+        assert "debug-" not in (out / "Makefile").read_text()
+        assert "Attaching the sibling core" not in (out / "README.md").read_text()
+
     from dataclasses import replace
 
-    from engine.templates.renderer import _cpu2_boot_cfg
+    from engine.templates.renderer import _sibling_attach
 
+    wl = load_file(PACKS_DIR / "stm32wl55jc.yaml")
+    assert _sibling_attach(wl) == ("m0plus", "M0+", "stm32wlx.cpu1")
+    no_cpu2 = replace(wl, facets=replace(wl.facets, cpu2_boot=()))
+    assert _sibling_attach(no_cpu2) is None
+    no_targets = replace(wl, openocd=replace(wl.openocd, targets=()))
+    assert _sibling_attach(no_targets) is None
+    board = replace(wl, openocd=replace(wl.openocd, board="board/stm32wl55jc_nucleo.cfg"))
+    assert _sibling_attach(board) is None
+    single = replace(wl, cores=(wl.cores[0],))
+    assert _sibling_attach(single) is None
+
+
+def test_readme_documents_the_sibling_attach_path(tmp_path) -> None:
+    """bug-030: the README is the project's own guide; the attach recipe must
+    be in it, with the dual-core-before-target order and the no-reset rule."""
     device = load_file(PACKS_DIR / "stm32wl55jc.yaml")
-    addr, value, mask = device.facets.cpu2_boot[-1]
-    assert mask == value == 0x00008000
-    cfg = _cpu2_boot_cfg(device)
-    assert f"mmw 0x{addr:08X} 0x{value & mask:08X} 0x{value & mask:08X}" in cfg
+    render(device, "c", tmp_path)
+    readme = (tmp_path / "README.md").read_text()
 
-    # A multi-bit boot write stays masked to exactly those bits.
-    wide = replace(
-        device,
-        facets=replace(
-            device.facets, cpu2_boot=((addr, 0x00018000, 0x00018000),)
-        ),
-    )
-    assert "mmw 0x5800040C 0x00018000 0x00018000" in _cpu2_boot_cfg(wide)
+    assert "## Attaching the sibling core (`M0+`)" in readme
+    assert "make debug-m0plus" in readme
+    assert (
+        "-f probe/dual-core.cfg -f target/stm32wlx.cfg" in readme
+    ), "dual-core must be sourced BEFORE the target config"
+    assert '-c "stm32wlx.cpu1 arp_examine" -c "targets stm32wlx.cpu1" -c "poll"' in readme
+    assert "Do **not** add `reset run`" in readme
+    assert "Attach M0+ | `make debug-m0plus`" in readme
