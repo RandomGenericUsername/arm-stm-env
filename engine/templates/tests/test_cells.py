@@ -76,8 +76,8 @@ def expected_files(pack_id: str, lang: str) -> list[str]:
     oc = doc["blocks"].get("openocd", {})
     if oc.get("dual_core") and "board" not in oc:
         files.append("probe/dual-core.cfg")
-    if doc["blocks"].get("example", {}).get("cpu2_boot"):
-        files.append("probe/cpu2-boot.cfg")  # bug-023
+    # bug-031: probe/cpu2-boot.cfg is no longer emitted (it wrote the sibling
+    # boot bit on examine-end, masking bug-027).
     return sorted(files)
 
 

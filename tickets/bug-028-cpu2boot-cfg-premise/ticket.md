@@ -89,3 +89,8 @@ stm32wlx.cpu0 configure -event examine-end { mmw 0x5800040C 0x00008000 0x0000800
 - Hardware re-verification: **not run** (the NUCLEO-WL55JC is not exclusively
   held by this task; this is a config-text change, and no claim here depends on
   a fresh flash).
+
+> **Superseded by `bug-031`:** `probe/cpu2-boot.cfg` is no longer emitted at all
+> (its `examine-end` write masked bug-027), so the masked `mmw` fixed here no
+> longer appears in any generated project. Kept as the record of why the write
+> must never be a full-register `mww` if it is ever reintroduced.
