@@ -84,7 +84,7 @@
 - [bug-023-sibling-attach](./bug-023-sibling-attach/ticket.md) — WL55JC: released sibling can't be launched, primary's reset hides it, flash order boots it into an unflashed image | `done` | S2, M4+CM0+ run; compound sequence fragile
 - [bug-024-no-reset-for-released-siblings](./bug-024-no-reset-for-released-siblings/ticket.md) — cortex-debug launch fails on a released-sibling pack: 'monitor reset halt' errors (Protocol error with Rcmd) | `done` | S1, attach-only for cpu2_boot packs
 - [bug-025-rust-build-target](./bug-025-rust-build-target/ticket.md) — mu build for Rust omits --target: compiles for the host and fails to link | `done` | S1, render .cargo/config.toml + README fix; 355 tests
-- [bug-026-linker-init-array](./bug-026-linker-init-array/ticket.md) — Generated linker script drops .init_array, so the sibling-release constructor is discarded (WL55 CM0+ never runs) | `triage` | S1, spike-006 finding; fix dispatched
+- [bug-026-linker-init-array](./bug-026-linker-init-array/ticket.md) — Generated linker script drops .init_array, so the sibling-release constructor is discarded (WL55 CM0+ never runs) | `in-progress` | S1, spike-006 finding; init_array fix in (C2BOOT=0x8000 proven 3/6 resets), CM0+ counter still frozen → see bug-027/028
 - [bug-027-intermittent-reset-boot](./bug-027-intermittent-reset-boot/ticket.md) — M4 app starts only ~2/6 times after an OpenOCD reset (sits in ROM at 0x1fff2cc0) | `triage` | S2, spike-006 finding; needs NRST test
 - [bug-028-cpu2boot-cfg-premise](./bug-028-cpu2boot-cfg-premise/ticket.md) — cpu2-boot.cfg asserts a false premise (CPU2 clears C2BOOT) and clobbers PWR_CR4 | `triage` | S3, spike-006 finding; fix dispatched
 
