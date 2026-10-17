@@ -2,7 +2,7 @@
 id: bug-028
 title: "cpu2-boot.cfg asserts a false premise (CPU2 clears C2BOOT) and clobbers PWR_CR4 with a full-register write"
 kind: bug
-status: in-progress
+status: done
 lane: direct
 severity: S3
 links:
