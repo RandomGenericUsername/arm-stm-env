@@ -173,3 +173,11 @@ docker run --rm --platform linux/amd64 --device-cgroup-rule 'c 189:* rmw' \
 #     -c 'init' -c 'targets stm32wlx.cpu0' -c 'reset run' -c 'sleep 2000' \
 #     -c 'mdw 0x5800040C 1' -c 'mdw 0x2000C000 1' ...
 ```
+## Post-merge verification note (2026-10-16)
+
+The hardware check in this ticket sampled `0x2000C000`, which is **not** the CM0+
+counter (it is GCC's `completed.1`, always zero). Re-verified at the correct address
+**`0x2000C01C`** on the bench: `PWR_CR4 (0x5800040C) = 0x00008000` written by the M4's
+own constructor (no debugger write; `cpu2-boot.cfg` not sourced) and the counter
+advances `0x06 → 0x07`. **The fix is complete end-to-end**; the earlier "counter
+frozen" symptom was a measurement artifact. See `bug-029` (rejected).

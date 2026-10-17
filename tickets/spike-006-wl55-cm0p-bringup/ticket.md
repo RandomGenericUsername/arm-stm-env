@@ -48,3 +48,24 @@ The M4 side works (`bug-021`). The CM0+ does not:
 
 Implementation output is a failure for a spike; file a `bug` once the cause is
 known.
+
+## Correction (2026-10-16) — this spike's premise was wrong
+
+Two of this spike's conclusions are **disproved by measurement**:
+
+1. **"C2BOOT doesn't persist"** — it does persist, and the CM0+ does not double-fault.
+   The CM0+ boots and runs from `0x08020000` as soon as the M4's release constructor
+   writes C2BOOT (`PWR_CR4 = 0x00008000`, counter at **`0x2000C01C`** advancing).
+   *This spike also sampled `0x2000C000`, which is GCC's `completed.1` (always 0) —
+   the real `counter` is at `0x2000C01C`; that false signal is what made the sibling
+   look dead.*
+2. **"The release write is missing"** — it was missing, but for a different reason than
+   suspected: the generated **linker script had no `.init_array`**, so *every*
+   constructor in *every* generated C/C++ project was dropped by `--gc-sections`.
+   Fixed in `bug-026` (verified end-to-end).
+3. **C2BOOT is a boot-request bit, not a live gate** — clearing it does not stop a
+   running CM0+.
+
+Still open: `bug-027` (the M4 boots from system memory ~47% of the time — real,
+device-level) and `bug-030`/`bug-031`. The CM0+ bring-up requirement itself
+(`req-026`) is satisfied.

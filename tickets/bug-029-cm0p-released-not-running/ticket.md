@@ -2,7 +2,7 @@
 id: bug-029
 title: "CM0+ is released (C2BOOT=0x8000) but still does not run — sibling counter stays 0"
 kind: bug
-status: triage
+status: rejected
 lane: direct
 severity: S1
 links:
@@ -59,3 +59,24 @@ The CM0+ boots from `0x08020000` and its counter increments after `make flash`.
   CM0+ actually halted/running rather than absent?
 
 Refs: `bug-026`, `bug-027`, `spike-006`, `req-026`.
+## Rejected (2026-10-16) — measurement error, not a product bug
+
+The **probe address in this ticket is wrong**. `0x2000C000` is the first word of the
+M0+ `.bss` — GCC's `completed.1` guard, always zero. The real `counter` is at
+**`0x2000C01C`**:
+
+```
+$ arm-none-eabi-nm -S -n build/M0+/stm32wl55jc-M0+.elf
+2000c000 b completed.1
+2000c01c 00000004 B counter
+```
+
+Re-verified on the bench (post-`bug-026`, `cpu2-boot.cfg` NOT sourced): the CM0+
+**boots and runs from the M4's own constructor** — `PWR_CR4 (0x5800040C) = 0x00008000`
+and the counter advances `0x06 → 0x07` (3/3 attempts; the others hit `bug-027`).
+Also measured: **C2BOOT is a boot-request bit, not a live gate** — clearing it does not
+stop a running CM0+ (counter keeps advancing). So `bug-026`'s fix is complete
+end-to-end and the sibling-release path works.
+
+New work split out: `bug-030` (no generated attach path for the M0+),
+`bug-031` (`cpu2-boot.cfg` masks `bug-027`). `bug-027` remains open.
