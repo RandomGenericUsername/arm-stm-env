@@ -39,13 +39,23 @@
   - [task-005-probe-default-proof-precheck](./task-005-probe-default-proof-precheck/ticket.md) — Pack-default probe, proof wiring, image pre-check | `done`
   - [task-006-backend-settings](./task-006-backend-settings/ticket.md) — Per-backend pack settings (probe chip strings etc.) | `done`
 
+- [epic-002-post-v1](./epic-002-post-v1/epic.md) — Post-V1 roadmap | `proposed` | 0/4 children done | done-when: every post-V1 track shipped or declined | exec: BMAD advisory
+  - [req-024-dep-integration](./req-024-dep-integration/ticket.md) — C/C++ dependency integration (Conan 2 / CPM) | `proposed`
+  - [req-025-windows-lane](./req-025-windows-lane/ticket.md) — Windows native lane | `proposed`
+  - [req-026-wl55-cm0p-bringup](./req-026-wl55-cm0p-bringup/ticket.md) — WL55JC CM0+ dual-core bring-up | `proposed`
+  - [req-027-cubeclt-verdict](./req-027-cubeclt-verdict/ticket.md) — STM32CubeCLT verdict | `proposed`
+
 ## Requirements
 
 (covered under epic-001 above; standalone entries appear here only for items without a parent epic)
 
 - [req-021-arch-separation](./req-021-arch-separation/ticket.md) — Architecture separation: pack-declared build stack + split probe ports | `done` | bmad-advisory, spine AD-8 amended + AD-11…AD-17; pre-ESP32 refactor gate; follow-ups ticketed
-- [req-022-esp32-family](./req-022-esp32-family/ticket.md) — ESP32 family support (first non-STM32 device) | `done` | bmad-advisory | 4/4 children done | post-V1 generality proof; containerized UART passthrough open
+- [req-022-esp32-family](./req-022-esp32-family/ticket.md) — ESP32 family support (first non-STM32 device) | `done` | bmad-advisory | 4/4 children done | post-V1 generality proof; live proof ops-024
 - [req-023-ad15-refinement](./req-023-ad15-refinement/ticket.md) — Reconcile AD-15 with the R5 verify implementation | `done` | bmad-advisory | spine wording fix, lint clean
+- [req-024-dep-integration](./req-024-dep-integration/ticket.md) — C/C++ dependency integration (Conan 2 / CPM) | `proposed` | bmad-advisory, parent epic-002 | post-V1 (spike-002); Conan ecosystem measured empty
+- [req-025-windows-lane](./req-025-windows-lane/ticket.md) — Windows native lane | `proposed` | bmad-advisory, parent epic-002 | deferred, not designed out
+- [req-026-wl55-cm0p-bringup](./req-026-wl55-cm0p-bringup/ticket.md) — WL55JC CM0+ dual-core bring-up | `proposed` | bmad-advisory, parent epic-002 | from spike-006; investigation dispatched
+- [req-027-cubeclt-verdict](./req-027-cubeclt-verdict/ticket.md) — STM32CubeCLT verdict | `proposed` | bmad-advisory, parent epic-002 | from spike-003/HANDOFF; investigation dispatched
 
 ## Bugs
 
@@ -101,12 +111,16 @@
 - [ops-028-flash-run-evidence](./ops-028-flash-run-evidence/ticket.md) — Record a flash-run evidence artifact for the V1 packs | `done` | docs/flash-run-evidence.md (3 packs)
 - [ops-029-epic-closeout](./ops-029-epic-closeout/ticket.md) — epic-001 closeout: reconcile children, rollup checklist, flip to done | `done` | 31/31 children, epic-001 done
 - [ops-030-image-distribution](./ops-030-image-distribution/ticket.md) — Confirm image distribution for a clean machine (registry push state) | `done` | images pushed to ghcr (auth-required); login or `make images`
+- [ops-031-req022-closeout](./ops-031-req022-closeout/ticket.md) — Close req-022 (ESP32 family) and mark spike-007 consumed | `done` | drift close-out
+- [ops-032-rust-spec-wording](./ops-032-rust-spec-wording/ticket.md) — Amend the spec success signal for the Rust build-parity decision | `proposed` | spec:65-67 + device-matrix:3
+- [ops-033-warnings-policy](./ops-033-warnings-policy/ticket.md) — Formalize the compiler-warnings policy | `proposed` | HANDOFF open thread
+- [ops-034-registry-visibility](./ops-034-registry-visibility/ticket.md) — Decide GHCR image package visibility (public vs auth-required) | `proposed` | from ops-030
 
 ## Spikes
 
 - [spike-005-h755-single-step](./spike-005-h755-single-step/ticket.md) — H755 single-step doesn't advance (stlink-dap) | `consumed` | boxed 3h — cause found (interrupts during step); fixed in bug-011
 - [spike-006-wl55-cm0p-bringup](./spike-006-wl55-cm0p-bringup/ticket.md) — WL55JC CM0+ bring-up: C2BOOT doesn't persist and the CM0+ double-faults | `reported` | boxed 4h — M4 works; CM0+ needs security/RAM investigation
-- [spike-007-esp32-cam](./spike-007-esp32-cam/ticket.md) — First non-STM32 board: what does an ESP32-CAM pack require? | `reported` | boxed 4h — verdict: extend (blocks/backends/image), new-kind template family + verify cell; IDF mandatory, JTAG out. 2026-10-16: synced to main (`1eb9407`, 276 tests); IDF pinned `v6.1` (amd64+arm64, digest); owner-bench UART proven live (esptool → ESP32-D0WD rev1.0, 4MB flash, MAC 30:83:98:57:5f:c4) — Q1 closed
+- [spike-007-esp32-cam](./spike-007-esp32-cam/ticket.md) — First non-STM32 board: what does an ESP32-CAM pack require? | `consumed` | boxed 4h — verdict: extend (blocks/backends/image), new-kind template family + verify cell; IDF mandatory, JTAG out. 2026-10-16: synced to main (`1eb9407`, 276 tests); IDF pinned `v6.1` (amd64+arm64, digest); owner-bench UART proven live (esptool → ESP32-D0WD rev1.0, 4MB flash, MAC 30:83:98:57:5f:c4) — Q1 closed
 - [spike-008-rust-flash-run](./spike-008-rust-flash-run/ticket.md) — Rust live flash/run: is it a V1 gate, and does probe-rs flash F411RE/H755? | `reported` | boxed 3h — probe-rs flashes+verifies+runs both boards; **decision: Rust = build-parity for V1** (no LED/wfi proof); bug-025 fixed (mu build --target)
 
 ## Tasks

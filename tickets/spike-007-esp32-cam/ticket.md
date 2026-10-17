@@ -2,7 +2,7 @@
 id: spike-007
 title: "First non-STM32 board: what does an ESP32-CAM pack require of the framework?"
 kind: spike
-status: reported
+status: consumed
 lane: direct
 timebox: 4h
 questions:
