@@ -128,6 +128,22 @@ def test_cells(pack_id: str, lang: str, tmp_path: Path) -> None:
             assert "ENTRY(Reset_Handler)" in linker and "MEMORY" in linker
             for sym in ("_estack", "_sdata", "_edata", "_sbss", "_ebss", "_sidata"):
                 assert sym in linker, f"startup-required symbol {sym} missing"
+            # bug-026: __libc_init_array needs .init_array + its bounds symbols,
+            # and KEEP() keeps the constructors out of --gc-sections' reach.
+            for sym in (
+                "__preinit_array_start",
+                "__preinit_array_end",
+                "__init_array_start",
+                "__init_array_end",
+                "__fini_array_start",
+                "__fini_array_end",
+            ):
+                assert sym in linker, f"constructor-array symbol {sym} missing"
+            assert "KEEP(*(.init_array*))" in linker, ".init_array must be KEEP()"
+            # Ordering: after .isr_vector, before .text, so .data's LMA
+            # (AT(LOADADDR(.text) + SIZEOF(.text))) does not overlap them.
+            assert linker.index(".isr_vector") < linker.index(".init_array")
+            assert linker.index(".init_array") < linker.index(".text :")
         fpu = doc["blocks"]["fpu"]
         assert ("-mfloat-abi=soft" if fpu["mode"] == "soft" else fpu["variant"]) in text
         assert "vendor/CMSIS/CMSIS/Core/Include" in text and "-Iconfig" in text
